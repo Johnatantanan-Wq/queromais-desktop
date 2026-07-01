@@ -468,4 +468,5 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (!global.mainWindow) createWindow()
+  else global.mainWindow.show()  // reabre janela oculta ao clicar no ícone do dock
 })
