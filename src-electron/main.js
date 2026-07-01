@@ -189,7 +189,9 @@ const HEADER       = 44
 function posicionarViews() {
   const win = global.mainWindow
   if (!win || !global.cardapioView || !global.whatsappView) return
-  const [w, h] = win.getSize()
+  // getContentBounds é mais confiável no Windows (DPI scaling, frameless window)
+  const b = win.getContentBounds()
+  const w = b.width, h = b.height
   const SB = global.sidebarW
   const CW = w - SB
   const CH = h - HEADER

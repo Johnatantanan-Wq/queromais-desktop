@@ -177,7 +177,14 @@ function trocarView(v) {
 
 document.getElementById('ni-cardapio').addEventListener('click', () => trocarView('cardapio'))
 document.getElementById('ni-split').addEventListener('click', () => trocarView('split'))
-document.getElementById('ni-whatsapp').addEventListener('click', () => trocarView('whatsapp'))
+document.getElementById('ni-whatsapp').addEventListener('click', () => {
+  trocarView('whatsapp')
+  // Orienta o usuário se o QR ainda não foi escaneado
+  const lbl = document.getElementById('wa-lbl')
+  if (lbl && lbl.textContent.includes('desconectado')) {
+    toast('WhatsApp', '📱 Escaneie o QR Code que aparece na tela', 5000)
+  }
+})
 
 document.getElementById('ni-bot').addEventListener('click', function() {
   botAtivo = !botAtivo
@@ -206,11 +213,28 @@ ipcRenderer.on('wa-status-update', (e, d) => {
   if (d.status === 'authenticated' || d.status === 'ready') {
     dot.className = 'dot on'; lbl.textContent = d.phone || 'WhatsApp conectado'
     document.getElementById('qr-overlay').classList.remove('show')
+    toast('WhatsApp', '✅ Conectado! ' + (d.phone || ''), 4000)
   } else if (d.status === 'disconnected') {
     dot.className = 'dot'; lbl.textContent = 'WhatsApp desconectado'
   } else { dot.className = 'dot mid'; lbl.textContent = 'Conectando...' }
 })
-ipcRenderer.on('wa-qr-update', (e, { qr }) => { document.getElementById('qr-img').src = qr; document.getElementById('qr-overlay').classList.add('show') })
+
+ipcRenderer.on('wa-qr-update', (e, { qr }) => {
+  document.getElementById('qr-img').src = qr
+  document.getElementById('qr-overlay').classList.add('show')
+  toast('WhatsApp', '📱 Escaneie o QR Code para conectar', 6000)
+})
+
+// Sincroniza estado da UI quando o main troca de view (ex: ao receber QR)
+ipcRenderer.on('view-changed', (e, { view }) => {
+  viewAtual = view
+  document.getElementById('tb-title').textContent = LABELS[view] || ''
+  document.querySelectorAll('.ni').forEach(b => b.classList.remove('active'))
+  const btn = document.getElementById('ni-' + view)
+  if (btn) btn.classList.add('active')
+  document.body.classList.toggle('in-split', view === 'split')
+  if (view === 'split') positionHandle()
+})
 ipcRenderer.on('wa-msg-notif', (e, { from, name, preview }) => toast(name || from, preview, 5000))
 
 ipcRenderer.on('update-status', (e, { status, version }) => {

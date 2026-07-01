@@ -43,9 +43,15 @@ const whatsappController = {
       outboxController.setConnected(status === 'authenticated' || status === 'ready')
     })
 
-    // QR code recebido
+    // QR code recebido — muda para split para o usuário ver o QR no WhatsApp Web
     ipcMain.on('wa-qr', (event, { qr }) => {
       mainWindow?.webContents.send('wa-qr-update', { qr })
+      // Mostra split se estiver na view cardápio (usuário não veria o QR de outra forma)
+      if (global.activeView === 'cardapio') {
+        global.activeView = 'split'
+        global.posicionarViews?.()
+        mainWindow?.webContents.send('view-changed', { view: 'split' })
+      }
     })
 
     // Mensagem recebida do cliente
