@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quero Mais Desktop</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --brand: #F97316;
+      --bg:    #0f1117;
+      --sb:    #161b27;
+      --line:  #2a3347;
+      --ink:   #e2e8f0;
+      --muted: #64748b;
+      --red:   #EF4444;
+      --warn:  #F59E0B;
+    }
+    html, body { height: 100%; overflow: hidden; background: #f1f5f9; color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; user-select: none; }
+
+    /* ── Sidebar fixa 56px ── */
+    #sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 56px;
+      background: var(--sb); border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; align-items: center;
+      z-index: 200; padding: 8px 0;
+    }
+    .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--brand); display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 15px; color: #fff; margin-bottom: 16px; flex-shrink: 0;
+    }
+    .ni {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: none; background: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); margin-bottom: 4px;
+      transition: background .12s, color .12s;
+    }
+    .ni:hover  { background: rgba(34,197,94,.12); color: var(--brand); }
+    .ni.active { background: rgba(34,197,94,.2);  color: var(--brand); }
+    .ni svg { width: 20px; height: 20px; }
+    .sep { width: 32px; height: 1px; background: var(--line); margin: 6px 0; }
+    .spacer { flex: 1; }
+
+    /* ── Titlebar ── */
+    #titlebar {
+      position: fixed; top: 0; left: 56px; right: 0; height: 44px;
+      background: var(--sb); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; padding: 0 14px; gap: 10px;
+      -webkit-app-region: drag; z-index: 100;
+    }
+    .tb-title { font-size: 13px; font-weight: 600; flex: 1; }
+    .tb-wa { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    #tc { display: flex; gap: 5px; -webkit-app-region: no-drag; }
+    #tc button {
+      width: 28px; height: 28px; border-radius: 6px; border: none;
+      background: none; cursor: pointer; color: var(--muted); font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .12s, color .12s;
+    }
+    #tc button:hover    { background: var(--line); color: var(--ink); }
+    #tc #tc-close:hover { background: var(--red);  color: #fff; }
+
+    /* ── Drag handle ── */
+    #split-handle {
+      display: none; position: fixed; top: 44px; bottom: 0; width: 6px;
+      cursor: col-resize; z-index: 150; background: transparent; transition: background .15s;
+    }
+    #split-handle:hover, #split-handle.dragging { background: var(--brand); }
+    body.in-split #split-handle { display: block; }
+
+    /* ── QR ── */
+    #qr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.75); z-index: 300;
+      align-items: center; justify-content: center;
+    }
+    #qr-overlay.show { display: flex; }
+    #qr-box { background: #1e2535; border: 1px solid var(--line); border-radius: 16px; padding: 32px; text-align: center; }
+    #qr-box h2 { font-size: 15px; margin-bottom: 6px; }
+    #qr-box p  { font-size: 11px; color: var(--muted); margin-bottom: 18px; }
+    #qr-img    { width: 220px; height: 220px; border-radius: 8px; background: #fff; display: block; }
+
+    /* ── Toasts ── */
+    #toasts { position: fixed; bottom: 16px; right: 16px; z-index: 400; display: flex; flex-direction: column; gap: 6px; }
+    .toast {
+      background: #1e2535; border: 1px solid var(--line); border-left: 3px solid var(--brand);
+      border-radius: 8px; padding: 10px 14px; font-size: 12px; max-width: 260px; animation: fadeIn .18s ease;
+    }
+    .toast b { color: var(--brand); display: block; }
+    .toast span { color: var(--muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; transition: background .3s; }
+    .dot.on  { background: var(--brand); }
+    .dot.mid { background: var(--warn); animation: blink 1s infinite; }
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes fadeIn { from{transform:translateX(12px);opacity:0} to{transform:none;opacity:1} }
+  </style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="logo">Q</div>
+
+  <button class="ni active" id="ni-cardapio" title="Cardápio Admin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+    </svg>
+  </button>
+
+  <button class="ni" id="ni-split" title="Tela dividida (70% sistema / 30% WhatsApp)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/>
+    </svg>
+  </button>
+
+  <button class="ni" id="ni-whatsapp" title="WhatsApp">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+    </svg>
+  </button>
+
+  <div class="sep"></div>
+  <div class="spacer"></div>
+
+  <button class="ni" id="ni-bot" title="Bot ativo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+    </svg>
+  </button>
+</nav>
+
+<div id="titlebar">
+  <span class="tb-title" id="tb-title">Cardápio Admin</span>
+  <div class="tb-wa">
+    <span class="dot" id="dot-tb"></span>
+    <span id="wa-lbl">WhatsApp desconectado</span>
+  </div>
+  <div style="flex:1"></div>
+  <div id="tc">
+    <button onclick="ipcRenderer.send('window-minimize')">─</button>
+    <button onclick="ipcRenderer.send('window-maximize')">□</button>
+    <button id="tc-close" onclick="ipcRenderer.send('window-close')">✕</button>
+  </div>
+</div>
+
+<div id="split-handle"></div>
+
+<div id="qr-overlay">
+  <div id="qr-box">
+    <h2>📱 Conectar WhatsApp</h2>
+    <p>WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+    <img id="qr-img" src="" alt="QR" />
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const { ipcRenderer } = require('electron')
+let viewAtual = 'cardapio', botAtivo = true
+let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0
+
+const LABELS = { cardapio: 'Cardápio Admin', split: 'Tela Dividida', whatsapp: 'WhatsApp' }
+
+function trocarView(v) {
+  viewAtual = v
+  ipcRenderer.send('change-view', { view: v })
+  document.getElementById('tb-title').textContent = LABELS[v] || ''
+  document.querySelectorAll('.ni').forEach(b => b.classList.remove('active'))
+  const btn = document.getElementById('ni-' + v)
+  if (btn) btn.classList.add('active')
+  document.body.classList.toggle('in-split', v === 'split')
+  if (v === 'split') positionHandle()
+}
+
+document.getElementById('ni-cardapio').addEventListener('click', () => trocarView('cardapio'))
+document.getElementById('ni-split').addEventListener('click', () => trocarView('split'))
+document.getElementById('ni-whatsapp').addEventListener('click', () => trocarView('whatsapp'))
+
+document.getElementById('ni-bot').addEventListener('click', function() {
+  botAtivo = !botAtivo
+  ipcRenderer.send('bot-toggle', { ativo: botAtivo })
+  this.style.color = botAtivo ? '' : 'var(--red)'
+  this.title = botAtivo ? 'Bot ativo' : 'Bot PAUSADO'
+  toast('Bot', botAtivo ? '✅ Reativado' : '⏸ Pausado', 3000)
+})
+
+// drag handle
+const handle = document.getElementById('split-handle')
+function positionHandle() {
+  handle.style.left = (56 + Math.floor((window.innerWidth - 56) * splitRatio) - 3) + 'px'
+}
+handle.addEventListener('mousedown', e => { dragging = true; dragStartX = e.clientX; dragStartRatio = splitRatio; handle.classList.add('dragging'); e.preventDefault() })
+window.addEventListener('mousemove', e => {
+  if (!dragging) return
+  splitRatio = Math.min(0.85, Math.max(0.15, dragStartRatio + (e.clientX - dragStartX) / (window.innerWidth - 56)))
+  positionHandle(); ipcRenderer.send('split-resize', { ratio: splitRatio })
+})
+window.addEventListener('mouseup', () => { if (dragging) { dragging = false; handle.classList.remove('dragging') } })
+window.addEventListener('resize', () => { if (viewAtual === 'split') positionHandle() })
+
+ipcRenderer.on('wa-status-update', (e, d) => {
+  const dot = document.getElementById('dot-tb'), lbl = document.getElementById('wa-lbl')
+  if (d.status === 'authenticated' || d.status === 'ready') {
+    dot.className = 'dot on'; lbl.textContent = d.phone || 'WhatsApp conectado'
+    document.getElementById('qr-overlay').classList.remove('show')
+  } else if (d.status === 'disconnected') {
+    dot.className = 'dot'; lbl.textContent = 'WhatsApp desconectado'
+  } else { dot.className = 'dot mid'; lbl.textContent = 'Conectando...' }
+})
+ipcRenderer.on('wa-qr-update', (e, { qr }) => { document.getElementById('qr-img').src = qr; document.getElementById('qr-overlay').classList.add('show') })
+ipcRenderer.on('wa-msg-notif', (e, { from, name, preview }) => toast(name || from, preview, 5000))
+
+ipcRenderer.on('update-status', (e, { status, version }) => {
+  if (status === 'disponivel') toast('Atualização', `Versão ${version} disponível — baixando...`, 6000)
+  if (status === 'pronto')     toast('Atualização', '✅ Pronto! Será instalado ao fechar o app.', 8000)
+})
+
+function toast(t, m, ms = 4000) {
+  const el = document.createElement('div')
+  el.className = 'toast'
+  el.innerHTML = `<b>${t}</b><span>${m}</span>`
+  document.getElementById('toasts').appendChild(el)
+  setTimeout(() => el.remove(), ms)
+}
+</script>
+</body>
+</html>
