@@ -184,7 +184,7 @@ app.on('second-instance', () => {
 global.sidebarW   = 56
 global.splitRatio  = 0.7   // 70% cardápio / 30% WA
 const HANDLE_W     = 6     // px do drag handle (gap entre as views)
-const HEADER       = 44
+const HEADER       = 44    // altura da titlebar (mesma no Mac e Windows overlay)
 
 function posicionarViews() {
   const win = global.mainWindow
@@ -215,6 +215,8 @@ global.posicionarViews = posicionarViews
 // ─── Criação da janela ───────────────────────────────────────────────────────
 
 async function createWindow() {
+  const isWin = process.platform === 'win32'
+
   global.mainWindow = new BrowserWindow({
     frame: false,
     show: false,
@@ -222,7 +224,16 @@ async function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#161b27',
+    // No Windows: overlay nativo resolve o hit-test dos botões de janela
+    ...(isWin ? {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#161b27',
+        symbolColor: '#e2e8f0',
+        height: 44,
+      },
+    } : {}),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,

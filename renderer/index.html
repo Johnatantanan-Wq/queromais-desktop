@@ -58,9 +58,14 @@
       background: none; cursor: pointer; color: var(--muted); font-size: 13px;
       display: flex; align-items: center; justify-content: center;
       transition: background .12s, color .12s;
+      -webkit-app-region: no-drag; pointer-events: auto;
     }
     #tc button:hover    { background: var(--line); color: var(--ink); }
     #tc #tc-close:hover { background: var(--red);  color: #fff; }
+    /* No Windows o overlay nativo cuida dos botões — esconder os HTML */
+    body.is-windows #tc { display: none; }
+    /* Sidebar nunca é arrastável (não deve bloquear cliques) */
+    #sidebar { -webkit-app-region: no-drag; }
 
     /* ── Drag handle ── */
     #split-handle {
@@ -159,6 +164,11 @@
 
 <script>
 const { ipcRenderer } = require('electron')
+const { platform } = require('process')
+
+// No Windows: overlay nativo faz os botões de janela — classe controla CSS
+if (platform === 'win32') document.body.classList.add('is-windows')
+
 let viewAtual = 'cardapio', botAtivo = true
 let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0
 
