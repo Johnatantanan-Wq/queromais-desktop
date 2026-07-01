@@ -62,9 +62,10 @@
     }
     #tc button:hover    { background: var(--line); color: var(--ink); }
     #tc #tc-close:hover { background: var(--red);  color: #fff; }
-    /* No Windows o overlay nativo cuida dos botões — esconder os HTML */
-    body.is-windows #tc { display: none; }
-    /* Sidebar nunca é arrastável (não deve bloquear cliques) */
+    /* No Windows: frame nativo do OS cuida de tudo — esconder titlebar HTML */
+    body.is-windows #titlebar { display: none; }
+    body.is-windows #sidebar  { top: 0; }
+    /* Sidebar nunca é arrastável */
     #sidebar { -webkit-app-region: no-drag; }
 
     /* ── Drag handle ── */

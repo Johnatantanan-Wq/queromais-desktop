@@ -182,9 +182,11 @@ app.on('second-instance', () => {
 // ─── Posicionamento das BrowserViews ─────────────────────────────────────────
 
 global.sidebarW   = 56
-global.splitRatio  = 0.7   // 70% cardápio / 30% WA
-const HANDLE_W     = 6     // px do drag handle (gap entre as views)
-const HEADER       = 44    // altura da titlebar (mesma no Mac e Windows overlay)
+global.splitRatio  = 0.7
+const HANDLE_W     = 6
+// No Windows frame nativo, a titlebar do OS está fora do content area → HEADER=0
+// No Mac (frameless), a titlebar HTML ocupa 44px dentro do content area → HEADER=44
+const HEADER = process.platform === 'win32' ? 0 : 44
 
 function posicionarViews() {
   const win = global.mainWindow
@@ -218,23 +220,15 @@ async function createWindow() {
   const isWin = process.platform === 'win32'
 
   global.mainWindow = new BrowserWindow({
-    // Mac: frame: false com titlebar HTML custom
-    // Windows: frame mantido (true por padrão) + titleBarStyle hidden + overlay nativo
+    // Mac: sem frame (titlebar HTML customizada)
+    // Windows: frame nativo do OS — sem customização, sem conflito de DPI/hit-test
     ...(isWin ? {} : { frame: false }),
     show: false,
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#161b27',
-    ...(isWin ? {
-      titleBarStyle: 'hidden',
-      titleBarOverlay: {
-        color: '#161b27',
-        symbolColor: '#e2e8f0',
-        height: 44,
-      },
-    } : {}),
+    backgroundColor: '#f1f5f9',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -425,6 +419,11 @@ ipcMain.on('change-view', (event, { view }) => {
   global.activeView = view
   posicionarViews()
   global.mainWindow?.webContents.send('view-changed', { view })
+  // Atualiza título na titlebar nativa do Windows
+  if (process.platform === 'win32') {
+    const labels = { cardapio: 'Quero Mais — Cardápio', split: 'Quero Mais — Tela Dividida', whatsapp: 'Quero Mais — WhatsApp' }
+    global.mainWindow?.setTitle(labels[view] || 'Quero Mais Desktop')
+  }
 })
 
 ipcMain.on('bot-toggle', (event, { ativo }) => {
