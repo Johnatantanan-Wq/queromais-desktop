@@ -218,14 +218,15 @@ async function createWindow() {
   const isWin = process.platform === 'win32'
 
   global.mainWindow = new BrowserWindow({
-    frame: false,
+    // Mac: frame: false com titlebar HTML custom
+    // Windows: frame mantido (true por padrão) + titleBarStyle hidden + overlay nativo
+    ...(isWin ? {} : { frame: false }),
     show: false,
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#161b27',
-    // No Windows: overlay nativo resolve o hit-test dos botões de janela
     ...(isWin ? {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
