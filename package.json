@@ -50,7 +50,8 @@
     },
     "dmg": {
       "title": "Quero Mais Desktop",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "artifactName": "QueroMais-Desktop-${arch}.${ext}"
     },
     "win": {
       "target": [
@@ -62,6 +63,9 @@
         }
       ],
       "icon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "QueroMais-Desktop-win.${ext}"
     },
     "files": [
       "src-electron/**/*",
