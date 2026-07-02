@@ -227,29 +227,35 @@ const HEADER = process.platform === 'win32' ? 0 : 44
 function posicionarViews() {
   const win = global.mainWindow
   if (!win || !global.cardapioView || !global.whatsappView) return
-  // getContentBounds é mais confiável no Windows (DPI scaling, frameless window)
   const b = win.getContentBounds()
   const w = b.width, h = b.height
   const SB = global.sidebarW
   const CW = w - SB
   const CH = h - HEADER
 
-  // Views "escondidas" vão para fora da área visível — setBounds({0,0,0,0}) em alguns
-  // Electron pode deixar a view cobrindo a janela toda e bloqueando eventos do mouse
-  const FORA = { x: -9999, y: -9999, width: 1, height: 1 }
+  // Usa removeBrowserView para views inativas — setBounds com coords negativas ou zero
+  // pode ser ignorado pelo Electron e a view continua cobrindo o conteúdo
+  const allViews = win.getBrowserViews()
+  const temCard = allViews.includes(global.cardapioView)
+  const temWa   = allViews.includes(global.whatsappView)
 
   if (global.activeView === 'split') {
+    if (!temCard) win.addBrowserView(global.cardapioView)
+    if (!temWa)  win.addBrowserView(global.whatsappView)
     const CARD_W = Math.max(200, Math.floor(CW * global.splitRatio) - HANDLE_W)
     const WA_X   = SB + CARD_W + HANDLE_W
     const WA_W   = Math.max(200, w - WA_X)
     global.cardapioView.setBounds({ x: SB,   y: HEADER, width: CARD_W, height: CH })
     global.whatsappView.setBounds({ x: WA_X, y: HEADER, width: WA_W,   height: CH })
   } else if (global.activeView === 'whatsapp') {
-    global.cardapioView.setBounds(FORA)
+    if (temCard) win.removeBrowserView(global.cardapioView)
+    if (!temWa)  win.addBrowserView(global.whatsappView)
     global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
   } else {
+    // cardapio (default)
+    if (!temCard) win.addBrowserView(global.cardapioView)
+    if (temWa)   win.removeBrowserView(global.whatsappView)
     global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
-    global.whatsappView.setBounds(FORA)
   }
 }
 global.posicionarViews = posicionarViews
@@ -306,7 +312,8 @@ async function createWindow() {
       allowRunningInsecureContent: true,
     },
   })
-  global.mainWindow.addBrowserView(global.whatsappView)
+  // NÃO adiciona ao window ainda — posicionarViews() adiciona quando necessário
+  // (evita que o view cubra a sidebar antes de ter bounds definidos)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
   global.whatsappView.webContents.loadURL(WA_URL)
 
