@@ -304,11 +304,11 @@ async function createWindow() {
   })
   global.mainWindow.addBrowserView(global.cardapioView)
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
-  global.cardapioView.webContents.on('did-finish-load', () => {
-    global.cardapioView.webContents.insertCSS(
-      '::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important}'
-    ).catch(() => {})
-  })
+  const CSS_NO_SCROLL = '::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important;-ms-overflow-style:none!important}'
+  const injetarSemScrollbar = (wc) => wc.insertCSS(CSS_NO_SCROLL).catch(() => {})
+  // did-finish-load: carga inicial; did-navigate-in-page: rotas SPA (Next.js)
+  global.cardapioView.webContents.on('did-finish-load',    () => injetarSemScrollbar(global.cardapioView.webContents))
+  global.cardapioView.webContents.on('did-navigate-in-page', () => injetarSemScrollbar(global.cardapioView.webContents))
 
   // ── BrowserView: WhatsApp Web ─────────────────────────────────────────────
   global.whatsappView = new BrowserView({
@@ -365,6 +365,7 @@ async function createWindow() {
   // Injeta api.js no dom-ready (antes do did-finish-load, como o Anota AI faz)
   global.whatsappView.webContents.on('dom-ready', () => {
     injetarApiJs(global.whatsappView.webContents)
+    injetarSemScrollbar(global.whatsappView.webContents)
   })
 
   // Injeta painel compacto depois do WhatsApp carregar
