@@ -59,6 +59,7 @@ global.activeView = 'cardapio'
 async function injetarPainelCompacto(wc) {
   try {
     // CSS via insertCSS — vence inline styles do React (que não usam !important)
+    await wc.insertCSS('::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important}')
     await wc.insertCSS(`
       /* Container esquerdo (pai de #side) marcado pelo JS com qm-side-parent */
       body.qm-compact .qm-side-parent {
@@ -301,6 +302,11 @@ async function createWindow() {
   })
   global.mainWindow.addBrowserView(global.cardapioView)
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
+  global.cardapioView.webContents.on('did-finish-load', () => {
+    global.cardapioView.webContents.insertCSS(
+      '::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important}'
+    ).catch(() => {})
+  })
 
   // ── BrowserView: WhatsApp Web ─────────────────────────────────────────────
   global.whatsappView = new BrowserView({
