@@ -249,8 +249,11 @@ document.getElementById('loja-status-btn').addEventListener('click', () => {
 
 ipcRenderer.on('wa-qr-update', (e, { qr }) => {
   document.getElementById('qr-img').src = qr
-  document.getElementById('qr-overlay').classList.add('show')
-  toast('WhatsApp', '📱 Escaneie o QR Code para conectar', 6000)
+  if (viewAtual === 'whatsapp' || viewAtual === 'split') {
+    // só mostra overlay quando o WhatsApp já está visível (overlay fica acima da BrowserView)
+    document.getElementById('qr-overlay').classList.add('show')
+  }
+  toast('WhatsApp', '📱 Clique em WhatsApp para escanear o QR e conectar', 8000)
 })
 
 document.getElementById('qr-close').addEventListener('click', () => {

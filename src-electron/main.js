@@ -240,23 +240,25 @@ function posicionarViews() {
   const temCard = allViews.includes(global.cardapioView)
   const temWa   = allViews.includes(global.whatsappView)
 
+  // Bounds são definidos ANTES do addBrowserView — evita flash em {0,0,fullW,fullH}
+  // que no Windows cobre a sidebar temporariamente e congela os botões
   if (global.activeView === 'split') {
-    if (!temCard) win.addBrowserView(global.cardapioView)
-    if (!temWa)  win.addBrowserView(global.whatsappView)
     const CARD_W = Math.max(200, Math.floor(CW * global.splitRatio) - HANDLE_W)
     const WA_X   = SB + CARD_W + HANDLE_W
     const WA_W   = Math.max(200, w - WA_X)
     global.cardapioView.setBounds({ x: SB,   y: HEADER, width: CARD_W, height: CH })
     global.whatsappView.setBounds({ x: WA_X, y: HEADER, width: WA_W,   height: CH })
+    if (!temCard) win.addBrowserView(global.cardapioView)
+    if (!temWa)  win.addBrowserView(global.whatsappView)
   } else if (global.activeView === 'whatsapp') {
+    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
     if (temCard) win.removeBrowserView(global.cardapioView)
     if (!temWa)  win.addBrowserView(global.whatsappView)
-    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
   } else {
     // cardapio (default)
+    global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
     if (!temCard) win.addBrowserView(global.cardapioView)
     if (temWa)   win.removeBrowserView(global.whatsappView)
-    global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
   }
 }
 global.posicionarViews = posicionarViews
