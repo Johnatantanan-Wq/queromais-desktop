@@ -411,6 +411,27 @@ async function createWindow() {
     resizeTimer = setTimeout(posicionarViews, 50)
   })
 
+  // ── Watchdog: evita que BrowserViews cubram a sidebar ────────────────────────
+  // Roda a cada 2s e corrige bounds automaticamente — defesa contra regressões
+  // em futuras atualizações que possam re-introduzir o bug de congelamento
+  setInterval(() => {
+    const win = global.mainWindow
+    if (!win) return
+    const SB = global.sidebarW
+    for (const view of win.getBrowserViews()) {
+      try {
+        const b = view.getBounds()
+        // ignora views ainda sem tamanho (acabaram de ser adicionadas)
+        if (b.width < 10 || b.height < 10) continue
+        if (b.x < SB) {
+          const corrigido = { x: SB, y: b.y, width: Math.max(200, b.width - (SB - b.x)), height: b.height }
+          view.setBounds(corrigido)
+          log.warn('[WATCHDOG] BrowserView cobria sidebar — bounds corrigidos:', corrigido)
+        }
+      } catch (_) {}
+    }
+  }, 2000)
+
   global.mainWindow.on('closed', () => {
     global.mainWindow = null
     global.cardapioView = null
