@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net } = require('electron')
+const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net, screen } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const { createClient } = require('@supabase/supabase-js')
 const path = require('path')
@@ -274,7 +274,7 @@ async function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -469,6 +469,29 @@ ipcMain.on('sidebar-toggle', (event, { open }) => {
   const CW   = w - global.sidebarW
   const hx   = global.sidebarW + Math.floor(CW * global.splitRatio) - 3
   global.mainWindow?.webContents.send('handle-pos', { x: hx })
+})
+
+let _dragPoll = null
+ipcMain.on('drag-start', () => {
+  if (_dragPoll) clearInterval(_dragPoll)
+  _dragPoll = setInterval(() => {
+    const win = global.mainWindow
+    if (!win) return
+    const cursor = screen.getCursorScreenPoint()
+    const b = win.getContentBounds()
+    const SB = global.sidebarW
+    const CW = b.width - SB
+    if (CW <= 0) return
+    const ratio = Math.min(0.85, Math.max(0.15, (cursor.x - b.x - SB) / CW))
+    if (Math.abs(ratio - global.splitRatio) > 0.001) {
+      global.splitRatio = ratio
+      posicionarViews()
+      win.webContents.send('split-ratio-update', { ratio })
+    }
+  }, 16)
+})
+ipcMain.on('drag-end', () => {
+  if (_dragPoll) { clearInterval(_dragPoll); _dragPoll = null }
 })
 
 ipcMain.on('split-resize', (event, { ratio }) => {
