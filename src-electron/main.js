@@ -234,6 +234,10 @@ function posicionarViews() {
   const CW = w - SB
   const CH = h - HEADER
 
+  // Views "escondidas" vão para fora da área visível — setBounds({0,0,0,0}) em alguns
+  // Electron pode deixar a view cobrindo a janela toda e bloqueando eventos do mouse
+  const FORA = { x: -9999, y: -9999, width: 1, height: 1 }
+
   if (global.activeView === 'split') {
     const CARD_W = Math.max(200, Math.floor(CW * global.splitRatio) - HANDLE_W)
     const WA_X   = SB + CARD_W + HANDLE_W
@@ -241,11 +245,11 @@ function posicionarViews() {
     global.cardapioView.setBounds({ x: SB,   y: HEADER, width: CARD_W, height: CH })
     global.whatsappView.setBounds({ x: WA_X, y: HEADER, width: WA_W,   height: CH })
   } else if (global.activeView === 'whatsapp') {
-    global.cardapioView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    global.cardapioView.setBounds(FORA)
     global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
   } else {
     global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
-    global.whatsappView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    global.whatsappView.setBounds(FORA)
   }
 }
 global.posicionarViews = posicionarViews
@@ -448,6 +452,7 @@ ipcMain.on('window-maximize', () => {
     : global.mainWindow?.maximize()
 })
 ipcMain.on('window-close', () => global.mainWindow?.hide())
+ipcMain.on('open-devtools', () => global.mainWindow?.webContents.openDevTools())
 
 ipcMain.on('sidebar-toggle', (event, { open }) => {
   global.sidebarW = open ? 200 : 56

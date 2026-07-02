@@ -258,6 +258,11 @@ ipcRenderer.on('update-status', (e, { status, version }) => {
   if (status === 'pronto')     toast('Atualização', '✅ Pronto! Será instalado ao fechar o app.', 8000)
 })
 
+// F12 abre DevTools para diagnóstico
+window.addEventListener('keydown', e => {
+  if (e.key === 'F12') ipcRenderer.send('open-devtools')
+})
+
 function toast(t, m, ms = 4000) {
   const el = document.createElement('div')
   el.className = 'toast'
