@@ -138,6 +138,7 @@ const botController = {
   },
 
   async responder(msg) {
+    if (!global.bot_enabled) return   // bot pausado pelo botão da sidebar
     const { whatsappController } = require('./whatsapp.controller')
     const from = msg.from
     const texto = (msg.message || '').trim().toLowerCase()

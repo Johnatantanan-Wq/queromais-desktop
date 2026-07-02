@@ -51,6 +51,22 @@ const { cacheController } = require('./controllers/cache.controller')
 const CARDAPIO_URL = getConfig().cardapioUrl
 const WA_URL = 'https://web.whatsapp.com'
 const WA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+const CSS_NO_SCROLL = `
+  ::-webkit-scrollbar,
+  ::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-corner {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+  html, body, * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+`
 
 global.bot_enabled = true
 global.activeView = 'cardapio'
@@ -59,7 +75,7 @@ global.activeView = 'cardapio'
 async function injetarPainelCompacto(wc) {
   try {
     // CSS via insertCSS — vence inline styles do React (que não usam !important)
-    await wc.insertCSS('::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important}')
+    await wc.insertCSS(CSS_NO_SCROLL)
     await wc.insertCSS(`
       /* Container esquerdo (pai de #side) marcado pelo JS com qm-side-parent */
       body.qm-compact .qm-side-parent {
@@ -203,6 +219,12 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 
 // ─── Single instance lock ─────────────────────────────────────────────────────
 
+// Instância de desenvolvimento isolada: userData próprio → não colide com o
+// app instalado (lock é por userData) nem suja a sessão real do WhatsApp
+if (process.argv.includes('--dev-instance')) {
+  app.setPath('userData', path.join(app.getPath('temp'), 'queromais-desktop-dev'))
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
@@ -219,11 +241,10 @@ app.on('second-instance', () => {
 // ─── Posicionamento das BrowserViews ─────────────────────────────────────────
 
 global.sidebarW   = 56
-global.splitRatio  = 0.7
-const HANDLE_W     = 6
-// No Windows frame nativo, a titlebar do OS está fora do content area → HEADER=0
-// No Mac (frameless), a titlebar HTML ocupa 44px dentro do content area → HEADER=44
-const HEADER = process.platform === 'win32' ? 0 : 44
+global.splitRatio = 0.7
+const HANDLE_W    = 6
+// Ambas as plataformas usam frame: false com titlebar HTML de 44px
+const HEADER = 44
 
 function posicionarViews() {
   const win = global.mainWindow
@@ -234,44 +255,36 @@ function posicionarViews() {
   const CW = w - SB
   const CH = h - HEADER
 
-  // Usa removeBrowserView para views inativas — setBounds com coords negativas ou zero
-  // pode ser ignorado pelo Electron e a view continua cobrindo o conteúdo
-  const allViews = win.getBrowserViews()
-  const temCard = allViews.includes(global.cardapioView)
-  const temWa   = allViews.includes(global.whatsappView)
-
-  // Bounds são definidos ANTES do addBrowserView — evita flash em {0,0,fullW,fullH}
-  // que no Windows cobre a sidebar temporariamente e congela os botões
+  // Padrão Anota AI: ambas as views ficam na janela e a troca usa setTopBrowserView.
+  // O bounds nunca invade sidebar/titlebar, evitando congelamento dos controles HTML.
   if (global.activeView === 'split') {
+    // Lado a lado: bounds não se sobrepõem, as duas ficam visíveis.
+    // Nunca add/remove — só setBounds, mantendo o padrão que não congela.
     const CARD_W = Math.max(200, Math.floor(CW * global.splitRatio) - HANDLE_W)
     const WA_X   = SB + CARD_W + HANDLE_W
     const WA_W   = Math.max(200, w - WA_X)
     global.cardapioView.setBounds({ x: SB,   y: HEADER, width: CARD_W, height: CH })
     global.whatsappView.setBounds({ x: WA_X, y: HEADER, width: WA_W,   height: CH })
-    if (!temCard) win.addBrowserView(global.cardapioView)
-    if (!temWa)  win.addBrowserView(global.whatsappView)
   } else if (global.activeView === 'whatsapp') {
-    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
-    if (temCard) win.removeBrowserView(global.cardapioView)
-    if (!temWa)  win.addBrowserView(global.whatsappView)
-  } else {
-    // cardapio (default)
     global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
-    if (!temCard) win.addBrowserView(global.cardapioView)
-    if (temWa)   win.removeBrowserView(global.whatsappView)
+    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    win.setTopBrowserView(global.whatsappView)
+  } else {
+    global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    win.setTopBrowserView(global.cardapioView)
   }
+
 }
 global.posicionarViews = posicionarViews
 
 // ─── Criação da janela ───────────────────────────────────────────────────────
 
 async function createWindow() {
-  const isWin = process.platform === 'win32'
-
   global.mainWindow = new BrowserWindow({
-    // Mac: sem frame (titlebar HTML customizada)
-    // Windows: frame nativo do OS — sem customização, sem conflito de DPI/hit-test
-    ...(isWin ? {} : { frame: false }),
+    title: 'Quero Mais Desktop',
+    frame: false,
+    autoHideMenuBar: true,
     show: false,
     width: 1400,
     height: 900,
@@ -290,6 +303,12 @@ async function createWindow() {
     protocol: 'file:',
     slashes: true,
   }))
+  global.mainWindow.webContents.send('app-version', { version: app.getVersion() })
+  global.mainWindow.setMenu(null)
+  global.mainWindow.setMenuBarVisibility(false)
+  if (typeof global.mainWindow.removeMenu === 'function') {
+    global.mainWindow.removeMenu()
+  }
 
   // ── BrowserView: cardápio admin (sessão persistente = cache em disco) ────
   // Sessão persistente: cache de imagens/assets sobrevive entre sessões
@@ -302,13 +321,12 @@ async function createWindow() {
       session: cardapioSes,
     },
   })
-  global.mainWindow.addBrowserView(global.cardapioView)
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
-  const CSS_NO_SCROLL = '::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}*{scrollbar-width:none!important;-ms-overflow-style:none!important}'
   const injetarSemScrollbar = (wc) => wc.insertCSS(CSS_NO_SCROLL).catch(() => {})
   // did-finish-load: carga inicial; did-navigate-in-page: rotas SPA (Next.js)
   global.cardapioView.webContents.on('did-finish-load',    () => injetarSemScrollbar(global.cardapioView.webContents))
   global.cardapioView.webContents.on('did-navigate-in-page', () => injetarSemScrollbar(global.cardapioView.webContents))
+  global.cardapioView.webContents.on('did-frame-finish-load', () => injetarSemScrollbar(global.cardapioView.webContents))
 
   // ── BrowserView: WhatsApp Web ─────────────────────────────────────────────
   global.whatsappView = new BrowserView({
@@ -320,8 +338,14 @@ async function createWindow() {
       allowRunningInsecureContent: true,
     },
   })
-  // NÃO adiciona ao window ainda — posicionarViews() adiciona quando necessário
-  // (evita que o view cubra a sidebar antes de ter bounds definidos)
+  // Ambas as views adicionadas com bounds corretos desde o início (padrão Anota AI)
+  // Troca de tela via setTopBrowserView — nunca add/remove em runtime
+  const { width: _cw, height: _ch } = global.mainWindow.getContentBounds()
+  const _CW = _cw - global.sidebarW, _CH = _ch - HEADER
+  global.cardapioView.setBounds({ x: global.sidebarW, y: HEADER, width: _CW, height: _CH })
+  global.whatsappView.setBounds({ x: global.sidebarW, y: HEADER, width: _CW, height: _CH })
+  global.mainWindow.addBrowserView(global.cardapioView)
+  global.mainWindow.addBrowserView(global.whatsappView)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
   global.whatsappView.webContents.loadURL(WA_URL)
 
@@ -365,6 +389,9 @@ async function createWindow() {
   // Injeta api.js no dom-ready (antes do did-finish-load, como o Anota AI faz)
   global.whatsappView.webContents.on('dom-ready', () => {
     injetarApiJs(global.whatsappView.webContents)
+    injetarSemScrollbar(global.whatsappView.webContents)
+  })
+  global.whatsappView.webContents.on('did-frame-finish-load', () => {
     injetarSemScrollbar(global.whatsappView.webContents)
   })
 
@@ -412,7 +439,7 @@ async function createWindow() {
     resizeTimer = setTimeout(posicionarViews, 50)
   })
 
-  // ── Watchdog: evita que BrowserViews cubram a sidebar ────────────────────────
+  // ── Watchdog: evita que BrowserViews cubram sidebar/titlebar ────────────────
   // Roda a cada 2s e corrige bounds automaticamente — defesa contra regressões
   // em futuras atualizações que possam re-introduzir o bug de congelamento
   setInterval(() => {
@@ -422,12 +449,16 @@ async function createWindow() {
     for (const view of win.getBrowserViews()) {
       try {
         const b = view.getBounds()
-        // ignora views ainda sem tamanho (acabaram de ser adicionadas)
         if (b.width < 10 || b.height < 10) continue
-        if (b.x < SB) {
-          const corrigido = { x: SB, y: b.y, width: Math.max(200, b.width - (SB - b.x)), height: b.height }
+        if (b.x < SB || b.y < HEADER) {
+          const corrigido = {
+            x: Math.max(SB, b.x),
+            y: Math.max(HEADER, b.y),
+            width: Math.max(200, b.width - Math.max(0, SB - b.x)),
+            height: Math.max(200, b.height - Math.max(0, HEADER - b.y)),
+          }
           view.setBounds(corrigido)
-          log.warn('[WATCHDOG] BrowserView cobria sidebar — bounds corrigidos:', corrigido)
+          log.warn('[WATCHDOG] BrowserView cobria chrome — corrigido:', corrigido)
         }
       } catch (_) {}
     }
@@ -488,19 +519,23 @@ ipcMain.on('window-maximize', () => {
     ? global.mainWindow.restore()
     : global.mainWindow?.maximize()
 })
-ipcMain.on('window-close', () => global.mainWindow?.hide())
-ipcMain.on('open-devtools', () => global.mainWindow?.webContents.openDevTools())
-
-ipcMain.on('sidebar-toggle', (event, { open }) => {
-  global.sidebarW = open ? 200 : 56
-  posicionarViews()
-  // Informa renderer o handle X atualizado para reposicionar o drag handle
-  const [w] = global.mainWindow?.getSize() || [1400]
-  const CW   = w - global.sidebarW
-  const hx   = global.sidebarW + Math.floor(CW * global.splitRatio) - 3
-  global.mainWindow?.webContents.send('handle-pos', { x: hx })
+ipcMain.on('window-close', () => {
+  if (process.platform === 'win32') app.quit()
+  else global.mainWindow?.hide()
 })
 
+ipcMain.on('change-view', (event, { view }) => {
+  const nextView = ['whatsapp', 'split'].includes(view) ? view : 'cardapio'
+  log.info('[NAV] change-view recebido:', view, '=>', nextView)
+  global.activeView = nextView
+  posicionarViews()
+  const b = global.mainWindow?.getContentBounds()
+  log.info('[NAV] bounds após posicionar: SB='+global.sidebarW+' win='+JSON.stringify(b))
+  global.mainWindow?.webContents.send('view-changed', { view: nextView })
+})
+
+// Drag do divisor da tela dividida: mousemove não chega ao HTML quando o cursor
+// está sobre uma BrowserView nativa → o main faz polling do cursor durante o drag
 let _dragPoll = null
 ipcMain.on('drag-start', () => {
   if (_dragPoll) clearInterval(_dragPoll)
@@ -527,20 +562,6 @@ ipcMain.on('drag-end', () => {
 ipcMain.on('split-resize', (event, { ratio }) => {
   global.splitRatio = Math.min(0.85, Math.max(0.15, ratio))
   posicionarViews()
-})
-
-ipcMain.on('change-view', (event, { view }) => {
-  log.info('[NAV] change-view recebido:', view)
-  global.activeView = view
-  posicionarViews()
-  const b = global.mainWindow?.getContentBounds()
-  log.info('[NAV] bounds após posicionar: SB='+global.sidebarW+' win='+JSON.stringify(b))
-  global.mainWindow?.webContents.send('view-changed', { view })
-  // Atualiza título na titlebar nativa do Windows
-  if (process.platform === 'win32') {
-    const labels = { cardapio: 'Quero Mais — Cardápio', split: 'Quero Mais — Tela Dividida', whatsapp: 'Quero Mais — WhatsApp' }
-    global.mainWindow?.setTitle(labels[view] || 'Quero Mais Desktop')
-  }
 })
 
 ipcMain.on('bot-toggle', (event, { ativo }) => {
@@ -583,7 +604,7 @@ autoUpdater.on('error', (e) => {
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 
 app.on('ready', () => {
-  Menu.setApplicationMenu(null)   // remove menu nativo (File/Edit/View/Window/Help)
+  Menu.setApplicationMenu(Menu.buildFromTemplate([]))   // remove File/Edit/View/Window/Help
   app.setAppUserModelId('Quero Mais Desktop')
   createWindow()
   // Verifica atualizações 10s após iniciar (só em produção)
