@@ -236,16 +236,6 @@ window.addEventListener('mouseup', () => {
 })
 window.addEventListener('resize', () => { if (viewAtual === 'split') positionHandle() })
 
-ipcRenderer.on('loja-status', (e, { aberta, nome }) => {
-  const dot = document.getElementById('dot-loja')
-  const lbl = document.getElementById('loja-lbl')
-  dot.className = aberta ? 'dot on' : 'dot'
-  lbl.textContent = aberta ? 'Loja aberta' : 'Loja fechada'
-})
-
-document.getElementById('loja-status-btn').addEventListener('click', () => {
-  ipcRenderer.send('toggle-loja-status')
-})
 
 ipcRenderer.on('wa-qr-update', (e, { qr }) => {
   document.getElementById('qr-img').src = qr
