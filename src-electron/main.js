@@ -553,6 +553,7 @@ autoUpdater.on('error', (e) => {
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 
 app.on('ready', () => {
+  Menu.setApplicationMenu(null)   // remove menu nativo (File/Edit/View/Window/Help)
   app.setAppUserModelId('Quero Mais Desktop')
   createWindow()
   // Verifica atualizações 10s após iniciar (só em produção)
