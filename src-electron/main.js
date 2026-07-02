@@ -470,8 +470,11 @@ ipcMain.on('split-resize', (event, { ratio }) => {
 })
 
 ipcMain.on('change-view', (event, { view }) => {
+  log.info('[NAV] change-view recebido:', view)
   global.activeView = view
   posicionarViews()
+  const b = global.mainWindow?.getContentBounds()
+  log.info('[NAV] bounds após posicionar: SB='+global.sidebarW+' win='+JSON.stringify(b))
   global.mainWindow?.webContents.send('view-changed', { view })
   // Atualiza título na titlebar nativa do Windows
   if (process.platform === 'win32') {

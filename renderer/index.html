@@ -181,6 +181,7 @@ let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0
 const LABELS = { cardapio: 'Cardápio Admin', split: 'Tela Dividida', whatsapp: 'WhatsApp' }
 
 function trocarView(v) {
+  toast('🔘 ' + (LABELS[v] || v), 'Clique recebido → trocando view', 2000)
   viewAtual = v
   ipcRenderer.send('change-view', { view: v })
   document.getElementById('tb-title').textContent = LABELS[v] || ''
