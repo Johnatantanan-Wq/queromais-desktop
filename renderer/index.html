@@ -51,7 +51,12 @@
       -webkit-app-region: drag; z-index: 100;
     }
     .tb-title { font-size: 13px; font-weight: 600; flex: 1; }
-    .tb-wa { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+    .tb-loja {
+      display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted);
+      cursor: pointer; -webkit-app-region: no-drag; padding: 4px 8px; border-radius: 6px;
+      transition: background .12s;
+    }
+    .tb-loja:hover { background: var(--line); }
     #tc { display: flex; gap: 5px; -webkit-app-region: no-drag; }
     #tc button {
       width: 28px; height: 28px; border-radius: 6px; border: none;
@@ -97,7 +102,7 @@
     .toast b { color: var(--brand); display: block; }
     .toast span { color: var(--muted); }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: inline-block; transition: background .3s; }
-    .dot.on  { background: var(--brand); }
+    .dot.on  { background: #25D366; }
     .dot.mid { background: var(--warn); animation: blink 1s infinite; }
     @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.3} }
     @keyframes fadeIn { from{transform:translateX(12px);opacity:0} to{transform:none;opacity:1} }
@@ -139,9 +144,9 @@
 
 <div id="titlebar">
   <span class="tb-title" id="tb-title">Cardápio Admin</span>
-  <div class="tb-wa">
-    <span class="dot" id="dot-tb"></span>
-    <span id="wa-lbl">WhatsApp desconectado</span>
+  <div class="tb-loja" id="loja-status-btn" title="Clique para abrir/fechar a loja">
+    <span class="dot" id="dot-loja"></span>
+    <span id="loja-lbl">Verificando...</span>
   </div>
   <div style="flex:1"></div>
   <div id="tc">
@@ -219,15 +224,15 @@ window.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', () => { if (dragging) { dragging = false; handle.classList.remove('dragging') } })
 window.addEventListener('resize', () => { if (viewAtual === 'split') positionHandle() })
 
-ipcRenderer.on('wa-status-update', (e, d) => {
-  const dot = document.getElementById('dot-tb'), lbl = document.getElementById('wa-lbl')
-  if (d.status === 'authenticated' || d.status === 'ready') {
-    dot.className = 'dot on'; lbl.textContent = d.phone || 'WhatsApp conectado'
-    document.getElementById('qr-overlay').classList.remove('show')
-    toast('WhatsApp', '✅ Conectado! ' + (d.phone || ''), 4000)
-  } else if (d.status === 'disconnected') {
-    dot.className = 'dot'; lbl.textContent = 'WhatsApp desconectado'
-  } else { dot.className = 'dot mid'; lbl.textContent = 'Conectando...' }
+ipcRenderer.on('loja-status', (e, { aberta, nome }) => {
+  const dot = document.getElementById('dot-loja')
+  const lbl = document.getElementById('loja-lbl')
+  dot.className = aberta ? 'dot on' : 'dot'
+  lbl.textContent = aberta ? 'Loja aberta' : 'Loja fechada'
+})
+
+document.getElementById('loja-status-btn').addEventListener('click', () => {
+  ipcRenderer.send('toggle-loja-status')
 })
 
 ipcRenderer.on('wa-qr-update', (e, { qr }) => {

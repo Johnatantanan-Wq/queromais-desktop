@@ -1,11 +1,47 @@
 const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net } = require('electron')
 const { autoUpdater } = require('electron-updater')
+const { createClient } = require('@supabase/supabase-js')
 const path = require('path')
 const url = require('url')
 const log = require('electron-log')
 
 const { initConfig, getConfig } = require('./config')
 initConfig()
+
+// ── Status da loja (aberta/fechada) ──────────────────────────────────────────
+let _sbLoja = null
+function getSupabaseLoja() {
+  if (!_sbLoja) {
+    const { supabaseUrl, supabaseKey } = getConfig()
+    if (!supabaseUrl || !supabaseKey) return null
+    _sbLoja = createClient(supabaseUrl, supabaseKey)
+  }
+  return _sbLoja
+}
+
+async function buscarStatusLoja() {
+  const { lojaId } = getConfig()
+  if (!lojaId) return null
+  const sb = getSupabaseLoja()
+  if (!sb) return null
+  const { data } = await sb.from('lojas').select('aberta, nome').eq('id', lojaId).single()
+  return data
+}
+
+async function toggleStatusLoja() {
+  const { lojaId } = getConfig()
+  if (!lojaId) return null
+  const sb = getSupabaseLoja()
+  if (!sb) return null
+  const { data } = await sb.rpc('toggle_loja_aberta', { loja_id_arg: lojaId })
+  if (data == null) return null
+  const status = await buscarStatusLoja()
+  return status
+}
+
+function enviarStatusLoja(aberta, nome) {
+  global.mainWindow?.webContents.send('loja-status', { aberta, nome: nome || 'Loja' })
+}
 
 const { whatsappController } = require('./controllers/whatsapp.controller')
 const { botController } = require('./controllers/bot.controller')
@@ -388,6 +424,19 @@ async function createWindow() {
 
   global.mainWindow.maximize()
   global.mainWindow.show()
+
+  // Busca status da loja assim que a janela abre e depois a cada 30s
+  async function sincronizarStatusLoja() {
+    try {
+      const data = await buscarStatusLoja()
+      if (data) enviarStatusLoja(data.aberta, data.nome)
+    } catch (e) { log.warn('[LOJA] Erro ao buscar status:', e.message) }
+  }
+  // Aguarda renderer carregar antes do primeiro envio
+  global.mainWindow.webContents.once('did-finish-load', () => {
+    sincronizarStatusLoja()
+    setInterval(sincronizarStatusLoja, 30_000)
+  })
 }
 
 // ─── IPC: janela / navegação ──────────────────────────────────────────────────
@@ -429,6 +478,16 @@ ipcMain.on('change-view', (event, { view }) => {
 ipcMain.on('bot-toggle', (event, { ativo }) => {
   global.bot_enabled = ativo
   log.info(`[MAIN] Bot ${ativo ? 'ativado' : 'pausado'}`)
+})
+
+ipcMain.on('toggle-loja-status', async () => {
+  try {
+    const data = await toggleStatusLoja()
+    if (data) {
+      enviarStatusLoja(data.aberta, data.nome)
+      log.info(`[LOJA] Status alterado → ${data.aberta ? 'aberta' : 'fechada'}`)
+    }
+  } catch (e) { log.error('[LOJA] Erro ao alternar status:', e.message) }
 })
 
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
