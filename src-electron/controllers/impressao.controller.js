@@ -51,13 +51,14 @@ function imprimirUrl(url, impressoraNome) {
     const absUrl = resolverUrl(url)
     if (!absUrl) return resolve(false)
 
+    const printSession = session.fromPartition('persist:cardapio')
     const win = new BrowserWindow({
       show: false,
       x: -10000, y: -10000, // fora da tela — mas PRECISA ficar "shown" (ver showInactive abaixo)
       width: 400,
       height: 700,
       webPreferences: {
-        session: session.fromPartition('persist:cardapio'),
+        session: printSession,
         contextIsolation: true,
         nodeIntegration: false,
       },
@@ -67,6 +68,22 @@ function imprimirUrl(url, impressoraNome) {
     // manual funcionava porque cai no win.show() do fallback, abaixo). showInactive()
     // pinta a janela sem roubar foco nem aparecer (fica fora da tela).
     try { win.showInactive() } catch (_) {}
+
+    // DEBUG TEMPORÁRIO — investigando comanda saindo em branco: confirma se a
+    // janela de print enxerga a sessão logada (cookie sb-*-auth-token) ou não.
+    try {
+      const dominio = new URL(getConfig().cardapioUrl).hostname
+      printSession.cookies.get({ domain: dominio }).then((cookies) => {
+        const authCookies = cookies.filter(c => c.name.startsWith('sb-') && c.name.includes('auth-token'))
+        log.info('[IMPRESSAO][DEBUG] storagePath=', printSession.getStoragePath && printSession.getStoragePath())
+        log.info('[IMPRESSAO][DEBUG] cookies domínio', dominio, '=', cookies.length, '| auth cookies =', authCookies.length)
+      }).catch((e) => log.warn('[IMPRESSAO][DEBUG] falha lendo cookies:', e.message))
+    } catch (e) {
+      log.warn('[IMPRESSAO][DEBUG] falha no setup do debug de cookies:', e.message)
+    }
+    win.webContents.on('did-navigate', (_e, u) => log.info('[IMPRESSAO][DEBUG] did-navigate:', u))
+    win.webContents.on('did-redirect-navigation', (_e, u) => log.info('[IMPRESSAO][DEBUG] REDIRECT:', u))
+    win.webContents.on('did-finish-load', () => log.info('[IMPRESSAO][DEBUG] finish-load, url atual:', win.webContents.getURL()))
 
     let resolvido = false
     const finalizar = (ok) => {
