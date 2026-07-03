@@ -606,9 +606,29 @@ autoUpdater.on('error', (e) => {
 
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 
+// macOS não tem "instalador" (é arrastar o .app pra Applications), então não dá
+// pra criar o atalho na área de trabalho nesse passo como no NSIS do Windows —
+// o próprio app cria na primeira vez que abre. Idempotente (não recria se já existe).
+function garantirAtalhoDesktopMac() {
+  if (process.platform !== 'darwin' || !app.isPackaged) return
+  try {
+    const fs = require('fs')
+    const os = require('os')
+    const exePath = app.getPath('exe') // .../Quero Mais Desktop.app/Contents/MacOS/Quero Mais Desktop
+    const appBundle = path.resolve(exePath, '..', '..', '..') // .../Quero Mais Desktop.app
+    const destino = path.join(os.homedir(), 'Desktop', path.basename(appBundle))
+    if (fs.existsSync(destino) || !fs.existsSync(appBundle)) return
+    fs.symlinkSync(appBundle, destino)
+    log.info('[DESKTOP] Atalho criado em', destino)
+  } catch (e) {
+    log.warn('[DESKTOP] Falha ao criar atalho na área de trabalho:', e.message)
+  }
+}
+
 app.on('ready', () => {
   Menu.setApplicationMenu(Menu.buildFromTemplate([]))   // remove File/Edit/View/Window/Help
   app.setAppUserModelId('Quero Mais Desktop')
+  garantirAtalhoDesktopMac()
   createWindow()
   // Verifica atualizações 10s após iniciar (só em produção)
   if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 10_000)

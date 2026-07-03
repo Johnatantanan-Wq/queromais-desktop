@@ -23,10 +23,14 @@ function resolverUrl(relOuAbs) {
 const MICRONS_POR_PX = 25400 / 96 // 96 CSS px/polegada
 const FOLGA_ALTURA_MICRONS = 8000 // ~8mm de folga (evita cortar a última linha por arredondamento)
 const ALTURA_PADRAO_MICRONS = 400000 // fallback (~400mm) se a medição falhar
+// 72mm, não os 80mm do papel: a cabeça de impressão térmica só imprime ~72mm
+// dos 80mm da bobina — com 80mm o fim das linhas (ex.: centavos do preço)
+// saía cortado à direita. Bate com o `@page { size: 72mm auto }` do CSS.
+const LARGURA_IMPRESSAO_MICRONS = 72000
 
 // Mede a altura real da comanda renderizada (.ticket). Sem isso, o print
 // silencioso usa o tamanho de página PADRÃO da impressora (não o
-// `@page { size: 80mm auto }` do CSS) — numa bobina, o padrão do driver costuma
+// `@page { size: 72mm auto }` do CSS) — numa bobina, o padrão do driver costuma
 // ser mais curto que um pedido com vários itens, cortando o resto da comanda.
 async function medirPageSize(win) {
   try {
@@ -34,12 +38,12 @@ async function medirPageSize(win) {
       "(function(){ var el = document.querySelector('.ticket'); return el ? el.scrollHeight : document.body.scrollHeight })()"
     )
     if (typeof alturaPx === 'number' && alturaPx > 0) {
-      return { width: 80000, height: Math.round(alturaPx * MICRONS_POR_PX) + FOLGA_ALTURA_MICRONS }
+      return { width: LARGURA_IMPRESSAO_MICRONS, height: Math.round(alturaPx * MICRONS_POR_PX) + FOLGA_ALTURA_MICRONS }
     }
   } catch (e) {
     log.warn('[IMPRESSAO] Falha ao medir altura da comanda, usando fallback:', e.message)
   }
-  return { width: 80000, height: ALTURA_PADRAO_MICRONS }
+  return { width: LARGURA_IMPRESSAO_MICRONS, height: ALTURA_PADRAO_MICRONS }
 }
 
 function imprimirUrl(url, impressoraNome) {

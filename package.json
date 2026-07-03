@@ -1,6 +1,6 @@
 {
   "name": "queromais-desktop",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Quero Mais Delivery — App Desktop com WhatsApp",
   "main": "src-electron/main.js",
   "author": "Quero Mais",
@@ -56,7 +56,7 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -64,8 +64,13 @@
       ],
       "icon": "assets/icon.ico"
     },
-    "portable": {
-      "artifactName": "QueroMais-Desktop-win.${ext}"
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "artifactName": "QueroMais-Desktop-Setup.${ext}"
     },
     "files": [
       "src-electron/**/*",
