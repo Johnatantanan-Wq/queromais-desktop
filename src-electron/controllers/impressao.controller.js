@@ -49,6 +49,7 @@ function imprimirUrl(url, impressoraNome) {
 
     const win = new BrowserWindow({
       show: false,
+      x: -10000, y: -10000, // fora da tela — mas PRECISA ficar "shown" (ver showInactive abaixo)
       width: 400,
       height: 700,
       webPreferences: {
@@ -57,6 +58,11 @@ function imprimirUrl(url, impressoraNome) {
         nodeIntegration: false,
       },
     })
+    // Janela nunca mostrada (show:false) nunca é pintada pelo Chromium no Windows —
+    // o print silencioso saía em branco mesmo com o conteúdo certo no DOM (o diálogo
+    // manual funcionava porque cai no win.show() do fallback, abaixo). showInactive()
+    // pinta a janela sem roubar foco nem aparecer (fica fora da tela).
+    try { win.showInactive() } catch (_) {}
 
     let resolvido = false
     const finalizar = (ok) => {
@@ -96,7 +102,8 @@ function imprimirUrl(url, impressoraNome) {
               log.warn('[IMPRESSAO] Timeout aguardando diálogo de impressão:', absUrl)
               finalizar(false)
             }, 120000)
-            try { win.show() } catch (_) {}
+            // volta a janela pra tela — o usuário precisa ver e interagir com o diálogo
+            try { win.setPosition(100, 100); win.show() } catch (_) {}
             win.webContents.print({ silent: false, printBackground: true, pageSize }, (success2, errorType2) => {
               clearTimeout(timeoutFallback)
               if (!success2) log.error('[IMPRESSAO] Falha também no diálogo de impressão:', errorType2, absUrl)
