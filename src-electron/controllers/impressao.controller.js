@@ -86,20 +86,31 @@ function imprimirUrl(url, impressoraNome) {
     win.webContents.on('did-finish-load', () => log.info('[IMPRESSAO][DEBUG] finish-load, url atual:', win.webContents.getURL()))
 
     let resolvido = false
+    let timeoutAtivo = null
+    const armarTimeout = (ms, rotulo) => {
+      clearTimeout(timeoutAtivo)
+      timeoutAtivo = setTimeout(() => {
+        log.warn(`[IMPRESSAO] Timeout ${rotulo}:`, absUrl)
+        finalizar(false)
+      }, ms)
+    }
     const finalizar = (ok) => {
       if (resolvido) return
       resolvido = true
-      clearTimeout(timeout)
+      clearTimeout(timeoutAtivo)
       try { if (!win.isDestroyed()) win.close() } catch (_) {}
       resolve(ok)
     }
 
-    const timeout = setTimeout(() => {
-      log.warn('[IMPRESSAO] Timeout carregando comanda:', absUrl)
-      finalizar(false)
-    }, 15000)
+    // Prazo pro CARREGAMENTO da página. Numa VM/máquina lenta a comanda pode levar
+    // 12s+ só pra carregar — e este timeout NÃO pode continuar valendo depois do
+    // did-finish-load, senão ele fecha a janela NO MEIO da impressão e o job sai
+    // truncado (papel em branco). Causa raiz do bug "imprime 5mm em branco" no Windows.
+    armarTimeout(30000, 'carregando comanda')
 
     win.webContents.once('did-finish-load', () => {
+      // página carregou: troca pro prazo da fase de impressão (medir + spoolar)
+      armarTimeout(60000, 'imprimindo comanda')
       // pequena espera pra garantir que o layout/CSS da comanda assentou antes de imprimir
       setTimeout(async () => {
         if (resolvido) return
@@ -117,16 +128,11 @@ function imprimirUrl(url, impressoraNome) {
             // — cai pro diálogo do SO em vez de sumir com o pedido sem imprimir e sem ninguém saber.
             log.error('[IMPRESSAO] Falha na impressão silenciosa, caindo pro diálogo:', errorType, absUrl)
             if (resolvido) return
-            clearTimeout(timeout)
             // dá mais tempo (o usuário precisa ver e confirmar o diálogo manualmente)
-            const timeoutFallback = setTimeout(() => {
-              log.warn('[IMPRESSAO] Timeout aguardando diálogo de impressão:', absUrl)
-              finalizar(false)
-            }, 120000)
+            armarTimeout(120000, 'aguardando diálogo de impressão')
             // volta a janela pra tela — o usuário precisa ver e interagir com o diálogo
             try { win.setPosition(100, 100); win.show() } catch (_) {}
             win.webContents.print({ silent: false, printBackground: true, pageSize }, (success2, errorType2) => {
-              clearTimeout(timeoutFallback)
               if (!success2) log.error('[IMPRESSAO] Falha também no diálogo de impressão:', errorType2, absUrl)
               else log.info('[IMPRESSAO] Comanda impressa via diálogo (fallback):', absUrl)
               finalizar(success2)
