@@ -20,6 +20,28 @@ function resolverUrl(relOuAbs) {
   }
 }
 
+const MICRONS_POR_PX = 25400 / 96 // 96 CSS px/polegada
+const FOLGA_ALTURA_MICRONS = 8000 // ~8mm de folga (evita cortar a última linha por arredondamento)
+const ALTURA_PADRAO_MICRONS = 400000 // fallback (~400mm) se a medição falhar
+
+// Mede a altura real da comanda renderizada (.ticket). Sem isso, o print
+// silencioso usa o tamanho de página PADRÃO da impressora (não o
+// `@page { size: 80mm auto }` do CSS) — numa bobina, o padrão do driver costuma
+// ser mais curto que um pedido com vários itens, cortando o resto da comanda.
+async function medirPageSize(win) {
+  try {
+    const alturaPx = await win.webContents.executeJavaScript(
+      "(function(){ var el = document.querySelector('.ticket'); return el ? el.scrollHeight : document.body.scrollHeight })()"
+    )
+    if (typeof alturaPx === 'number' && alturaPx > 0) {
+      return { width: 80000, height: Math.round(alturaPx * MICRONS_POR_PX) + FOLGA_ALTURA_MICRONS }
+    }
+  } catch (e) {
+    log.warn('[IMPRESSAO] Falha ao medir altura da comanda, usando fallback:', e.message)
+  }
+  return { width: 80000, height: ALTURA_PADRAO_MICRONS }
+}
+
 function imprimirUrl(url, impressoraNome) {
   return new Promise((resolve) => {
     const absUrl = resolverUrl(url)
@@ -52,10 +74,12 @@ function imprimirUrl(url, impressoraNome) {
 
     win.webContents.once('did-finish-load', () => {
       // pequena espera pra garantir que o layout/CSS da comanda assentou antes de imprimir
-      setTimeout(() => {
+      setTimeout(async () => {
+        if (resolvido) return
+        const pageSize = await medirPageSize(win)
         if (resolvido) return
         win.webContents.print(
-          { silent: true, printBackground: true, deviceName: impressoraNome || undefined },
+          { silent: true, printBackground: true, deviceName: impressoraNome || undefined, pageSize },
           (success, errorType) => {
             if (success) {
               log.info('[IMPRESSAO] Comanda impressa:', absUrl, impressoraNome ? `(${impressoraNome})` : '(padrão)')
@@ -73,7 +97,7 @@ function imprimirUrl(url, impressoraNome) {
               finalizar(false)
             }, 120000)
             try { win.show() } catch (_) {}
-            win.webContents.print({ silent: false, printBackground: true }, (success2, errorType2) => {
+            win.webContents.print({ silent: false, printBackground: true, pageSize }, (success2, errorType2) => {
               clearTimeout(timeoutFallback)
               if (!success2) log.error('[IMPRESSAO] Falha também no diálogo de impressão:', errorType2, absUrl)
               else log.info('[IMPRESSAO] Comanda impressa via diálogo (fallback):', absUrl)
