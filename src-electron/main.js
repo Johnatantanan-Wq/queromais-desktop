@@ -47,6 +47,7 @@ const { whatsappController } = require('./controllers/whatsapp.controller')
 const { botController } = require('./controllers/bot.controller')
 const { outboxController } = require('./controllers/outbox.controller')
 const { cacheController } = require('./controllers/cache.controller')
+const { impressaoController } = require('./controllers/impressao.controller')
 
 const CARDAPIO_URL = getConfig().cardapioUrl
 const WA_URL = 'https://web.whatsapp.com'
@@ -319,6 +320,7 @@ async function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       session: cardapioSes,
+      preload: path.join(__dirname, 'preload/cardapio.preload.js'),
     },
   })
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
@@ -475,6 +477,7 @@ async function createWindow() {
   botController.init(global.mainWindow, global.whatsappView)
   outboxController.init(global.whatsappView)
   cacheController.init(cardapioSes, app.getPath('userData'))
+  impressaoController.init()
 
   // ── Tray ──────────────────────────────────────────────────────────────────
   const trayPath = process.platform === 'darwin'
