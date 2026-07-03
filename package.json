@@ -70,7 +70,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "artifactName": "QueroMais-Desktop-Setup.${ext}"
+      "artifactName": "QueroMais-Desktop-win.${ext}"
     },
     "files": [
       "src-electron/**/*",
