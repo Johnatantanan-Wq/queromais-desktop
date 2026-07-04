@@ -10,6 +10,7 @@ const { BrowserWindow, ipcMain, session } = require('electron')
 const { URL } = require('url')
 const log = require('electron-log')
 const { getConfig } = require('../config')
+const { imprimirPdfViaIpp } = require('./ipp')
 
 function resolverUrl(relOuAbs) {
   try {
@@ -116,6 +117,30 @@ function imprimirUrl(url, impressoraNome) {
         if (resolvido) return
         const pageSize = await medirPageSize(win)
         if (resolvido) return
+
+        // Caminho preferido quando a impressora é uma fila IPP/CUPS de rede:
+        // printToPDF (pipeline headless, confiável mesmo em janela oculta) + envio
+        // direto via IPP. O silent print do Electron no Windows gera PDF EM BRANCO
+        // com o Microsoft IPP Class Driver (callback ainda diz sucesso) — causa do
+        // "sai 5mm de papel em branco" que os fixes de timeout/pageSize não curaram.
+        const ippUrl = getConfig().impressoraIppUrl
+        if (ippUrl) {
+          try {
+            const pdf = await win.webContents.printToPDF({
+              printBackground: true,
+              pageSize: { width: pageSize.width / 25400, height: pageSize.height / 25400 }, // polegadas
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+            })
+            await imprimirPdfViaIpp(ippUrl, pdf, `Comanda ${absUrl.split('/').pop()}`)
+            log.info('[IMPRESSAO] Comanda impressa via IPP direto:', absUrl, `(${ippUrl})`)
+            finalizar(true)
+            return
+          } catch (e) {
+            log.error('[IMPRESSAO] Falha no caminho IPP direto, tentando print silencioso:', e.message)
+            if (resolvido) return
+          }
+        }
+
         win.webContents.print(
           { silent: true, printBackground: true, deviceName: impressoraNome || undefined, pageSize },
           (success, errorType) => {

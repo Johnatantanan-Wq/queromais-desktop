@@ -25,6 +25,11 @@ function getConfig() {
     supabaseKey:    _store.get('supabase_anon_key') || process.env.SUPABASE_ANON_KEY || '',
     lojaId:         _store.get('loja_id')           || process.env.LOJA_ID           || '',
     cardapioUrl:    _store.get('cardapio_admin_url')|| process.env.CARDAPIO_ADMIN_URL || 'https://cardapio.prosistas.com.br/admin',
+    // URL HTTP de uma fila IPP/CUPS (ex.: http://192.168.64.1:631/printers/POS80_ESCPOS).
+    // Quando definida, a comanda vira PDF (printToPDF) e vai DIRETO pra fila via IPP,
+    // sem passar pelo spooler/driver do Windows — o silent print do Electron gera
+    // PDF em branco com o Microsoft IPP Class Driver.
+    impressoraIppUrl: _store.get('impressora_ipp_url') || process.env.IMPRESSORA_IPP_URL || '',
   }
 }
 
