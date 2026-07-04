@@ -630,8 +630,13 @@ app.on('ready', () => {
   app.setAppUserModelId('Quero Mais Desktop')
   garantirAtalhoDesktopMac()
   createWindow()
-  // Verifica atualizações 10s após iniciar (só em produção)
-  if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 10_000)
+  // Verifica atualizações 10s após iniciar e a cada 4h (só em produção) —
+  // numa loja o app fica aberto o dia inteiro; sem a checagem periódica ele
+  // só descobriria versão nova quando fosse reaberto.
+  if (app.isPackaged) {
+    setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 10_000)
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 4 * 60 * 60 * 1000)
+  }
 
   // --teste-impressao: imprime um cupom de teste LOCAL (data URL, sem rede) logo
   // após abrir — permite testar o pipeline de impressão por linha de comando,
