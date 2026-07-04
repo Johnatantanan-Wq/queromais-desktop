@@ -17,7 +17,7 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const log = require('electron-log')
-const { getConfig } = require('../config')
+const { getConfig, setConfig } = require('../config')
 const { imprimirPdfViaIpp } = require('./ipp')
 const brand = require('../brand')
 
@@ -114,7 +114,14 @@ async function resolverImpressora(nomePedido) {
   const nomes = impressoras.map(p => p.name)
   const padrao = impressoras.find(p => p.isDefault)?.name || ''
   const configurada = nomePedido || getConfig().impressoraNome || ''
-  if (configurada && nomes.includes(configurada)) return { nome: configurada, aviso: null, disponiveis: nomes, padrao }
+  if (configurada && nomes.includes(configurada)) {
+    // lembra a última impressora válida: chamadas futuras SEM nome (web antigo,
+    // --teste-impressao) continuam saindo na térmica, não na padrão do Windows
+    if (nomePedido && nomePedido !== getConfig().impressoraNome) {
+      try { setConfig({ impressora_nome: nomePedido }) } catch (_) {}
+    }
+    return { nome: configurada, aviso: null, disponiveis: nomes, padrao }
+  }
   if (configurada) {
     const aviso = `Impressora configurada "${configurada}" não existe mais. Disponíveis: ${nomes.join(', ') || '(nenhuma)'}. Usando a padrão${padrao ? ` (${padrao})` : ''}.`
     plog('warn', aviso)

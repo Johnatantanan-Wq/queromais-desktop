@@ -31,6 +31,9 @@ function getConfig() {
     // sem passar pelo spooler/driver do Windows — o silent print do Electron gera
     // PDF em branco com o Microsoft IPP Class Driver.
     impressoraIppUrl: _store.get('impressora_ipp_url') || process.env.IMPRESSORA_IPP_URL || '',
+    // Última impressora usada com sucesso — fallback quando o pedido de
+    // impressão chega SEM nome (senão cai na padrão do Windows, ex.: HP).
+    impressoraNome: _store.get('impressora_nome') || '',
   }
 }
 
