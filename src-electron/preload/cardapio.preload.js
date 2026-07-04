@@ -15,4 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   listarImpressoras: () => ipcRenderer.invoke('listar-impressoras'),
+
+  // printerService (spec 2026-07-03): teste LOCAL (sem rede) + diagnóstico
+  imprimirTeste: (impressoraNome) => ipcRenderer.invoke('printer:test', { impressoraNome }),
+  diagnosticoImpressao: () => ipcRenderer.invoke('printer:diagnostico'),
 })

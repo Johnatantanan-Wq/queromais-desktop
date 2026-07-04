@@ -632,6 +632,17 @@ app.on('ready', () => {
   createWindow()
   // Verifica atualizações 10s após iniciar (só em produção)
   if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 10_000)
+
+  // --teste-impressao: imprime um cupom de teste LOCAL (data URL, sem rede) logo
+  // após abrir — permite testar o pipeline de impressão por linha de comando,
+  // sem clicar em nada. Resultado no userData/logs/print.log.
+  if (process.argv.includes('--teste-impressao')) {
+    setTimeout(async () => {
+      const { impressaoService } = require('./controllers/impressao.service')
+      const r = await impressaoService.imprimirTeste()
+      log.info('[IMPRESSAO] Resultado do --teste-impressao:', JSON.stringify(r))
+    }, 5000)
+  }
 })
 
 app.on('window-all-closed', () => {
