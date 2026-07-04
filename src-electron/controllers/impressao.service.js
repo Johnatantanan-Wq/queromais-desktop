@@ -40,14 +40,24 @@ const LARGURA_IMPRESSAO_MICRONS = 72000
 
 async function medirPageSize(win) {
   try {
-    const alturaPx = await win.webContents.executeJavaScript(
-      "(function(){ var el = document.querySelector('.ticket'); return el ? el.scrollHeight : document.body.scrollHeight })()"
-    )
-    if (typeof alturaPx === 'number' && alturaPx > 0) {
-      return { width: LARGURA_IMPRESSAO_MICRONS, height: Math.round(alturaPx * MICRONS_POR_PX) + FOLGA_ALTURA_MICRONS }
+    // Espera imagens (logo da marca/loja, QR) carregarem antes de medir/imprimir
+    // e mede LARGURA e ALTURA reais do .ticket — a largura vem do web (58/80mm
+    // configurável na tela de impressão), não mais fixa no app.
+    const m = await win.webContents.executeJavaScript(`(async function(){
+      const imgs = Array.from(document.images)
+      await Promise.all(imgs.map(img => img.complete ? null : new Promise(r => { img.onload = img.onerror = r })))
+      const el = document.querySelector('.ticket')
+      if (!el) return { w: 0, h: document.body.scrollHeight }
+      return { w: el.offsetWidth, h: el.scrollHeight }
+    })()`)
+    if (m && typeof m.h === 'number' && m.h > 0) {
+      const width = (typeof m.w === 'number' && m.w > 50)
+        ? Math.round(m.w * MICRONS_POR_PX)
+        : LARGURA_IMPRESSAO_MICRONS
+      return { width, height: Math.round(m.h * MICRONS_POR_PX) + FOLGA_ALTURA_MICRONS }
     }
   } catch (e) {
-    plog('warn', 'Falha ao medir altura da comanda, usando fallback:', e.message)
+    plog('warn', 'Falha ao medir a comanda, usando fallback:', e.message)
   }
   return { width: LARGURA_IMPRESSAO_MICRONS, height: ALTURA_PADRAO_MICRONS }
 }
