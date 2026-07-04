@@ -54,10 +54,12 @@ function linkCardapio(loja) {
   return `${caminho}?src=wpp`
 }
 
-// ── Controle por conversa (anti-flood / anti-interferência) ──────────────────
+// ── Controle por conversa (anti-flood) ────────────────────────────────────────
 const conversas = new Map() // from → { ultimaRespostaEm }
-const COOLDOWN_SAUDACAO_MS = 90 * 1000            // saudação explícita: no máx. 1 resposta/90s
-const COOLDOWN_GERAL_MS = 6 * 60 * 60 * 1000      // outras msgs: no máx. 1 resposta/6h
+// QUALQUER mensagem recebida ganha boas-vindas + link do cardápio (pedido do
+// dono: o cliente não precisa mandar "oi"). O cooldown só evita repetir o
+// link a cada mensagem numa conversa em andamento com o atendente.
+const COOLDOWN_MS = 10 * 60 * 1000
 
 // Limpa conversas antigas a cada hora
 setInterval(() => {
@@ -66,8 +68,6 @@ setInterval(() => {
     if (c.ultimaRespostaEm < limite) conversas.delete(from)
   }
 }, 60 * 60 * 1000)
-
-const GREETINGS = /^(oi+|olá|ola|hello|hi|bom\s*dia|boa\s*tarde|boa\s*noite|card[áa]pio|menu|quero\s*pedir|pedir|pedido|iniciar|come[çc]ar|start|comprar|ajuda|help|\?)\b/i
 
 function mensagemBoasVindas(nome, loja) {
   const url = linkCardapio(loja)
@@ -101,16 +101,9 @@ const botController = {
 
     const conversa = conversas.get(from) || { ultimaRespostaEm: 0 }
     const desdeUltima = Date.now() - conversa.ultimaRespostaEm
-    const ehSaudacao = GREETINGS.test(texto)
+    const deveResponder = desdeUltima > COOLDOWN_MS
 
-    // Saudação explícita: responde (com cooldown curto anti-loop).
-    // Qualquer outra mensagem: no máx. 1 resposta a cada 6h — depois disso o
-    // cliente está conversando com o ATENDENTE, o bot não atropela.
-    const deveResponder = ehSaudacao
-      ? desdeUltima > COOLDOWN_SAUDACAO_MS
-      : desdeUltima > COOLDOWN_GERAL_MS
-
-    log.info(`[BOT] ${from} "${texto.slice(0, 60)}" saudacao=${ehSaudacao} responder=${deveResponder}`)
+    log.info(`[BOT] ${from} "${texto.slice(0, 60)}" responder=${deveResponder}`)
     if (!deveResponder) return
 
     const { whatsappController } = require('./whatsapp.controller')
