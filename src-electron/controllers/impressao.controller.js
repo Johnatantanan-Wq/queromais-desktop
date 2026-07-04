@@ -99,6 +99,9 @@ function imprimirUrl(url, impressoraNome) {
         session: printSession,
         contextIsolation: true,
         nodeIntegration: false,
+        // janela oculta é despriorizada pelo Chromium (timers/rede em marcha lenta)
+        // — o load da comanda pode estolar até estourar o timeout sem nem navegar
+        backgroundThrottling: false,
       },
     })
     // Janela nunca mostrada (show:false) nunca é pintada pelo Chromium no Windows —
@@ -119,8 +122,10 @@ function imprimirUrl(url, impressoraNome) {
     } catch (e) {
       log.warn('[IMPRESSAO][DEBUG] falha no setup do debug de cookies:', e.message)
     }
+    win.webContents.on('did-start-loading', () => log.info('[IMPRESSAO][DEBUG] start-loading'))
     win.webContents.on('did-navigate', (_e, u) => log.info('[IMPRESSAO][DEBUG] did-navigate:', u))
     win.webContents.on('did-redirect-navigation', (_e, u) => log.info('[IMPRESSAO][DEBUG] REDIRECT:', u))
+    win.webContents.on('dom-ready', () => log.info('[IMPRESSAO][DEBUG] dom-ready:', win.webContents.getURL()))
     win.webContents.on('did-finish-load', () => log.info('[IMPRESSAO][DEBUG] finish-load, url atual:', win.webContents.getURL()))
 
     let resolvido = false
@@ -144,7 +149,7 @@ function imprimirUrl(url, impressoraNome) {
     // 12s+ só pra carregar — e este timeout NÃO pode continuar valendo depois do
     // did-finish-load, senão ele fecha a janela NO MEIO da impressão e o job sai
     // truncado (papel em branco). Causa raiz do bug "imprime 5mm em branco" no Windows.
-    armarTimeout(30000, 'carregando comanda')
+    armarTimeout(45000, 'carregando comanda')
 
     win.webContents.once('did-finish-load', () => {
       // página carregou: troca pro prazo da fase de impressão (medir + spoolar)

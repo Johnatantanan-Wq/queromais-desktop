@@ -1,6 +1,6 @@
 {
   "name": "queromais-desktop",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Quero Mais Delivery — App Desktop com WhatsApp",
   "main": "src-electron/main.js",
   "author": "Quero Mais",
