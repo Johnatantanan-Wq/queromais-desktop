@@ -48,7 +48,10 @@ async function buscarLoja() {
 function linkCardapio(loja) {
   const base = (brand.dominio_cardapio || '').replace(/\/$/, '')
   if (!base) return null
-  return loja?.slug ? `${base}/${loja.slug}` : base
+  // Mesmo link do canal WhatsApp do modal "Links" do admin: o ?src=wpp marca a
+  // origem no navegador do cliente e o Insights atribui a venda ao WhatsApp.
+  const caminho = loja?.slug ? `${base}/${loja.slug}` : base
+  return `${caminho}?src=wpp`
 }
 
 // ── Controle por conversa (anti-flood / anti-interferência) ──────────────────
