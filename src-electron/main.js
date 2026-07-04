@@ -15,7 +15,7 @@ if (brand.user_data_name && brand.user_data_name !== app.getName()) {
   app.setPath('userData', path.join(app.getPath('appData'), brand.user_data_name))
 }
 
-const { initConfig, getConfig } = require('./config')
+const { initConfig, getConfig, setConfig } = require('./config')
 initConfig()
 
 // ── Status da loja (aberta/fechada) ──────────────────────────────────────────
@@ -334,6 +334,26 @@ async function createWindow() {
     },
   })
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
+
+  // Autodescoberta da loja: pergunta ao admin LOGADO quem é a loja (id/slug).
+  // Sem isso, outbox (notificações WhatsApp) e bot ficavam mudos em máquina
+  // nova — o loja_id só entrava por variável de ambiente (caso Ludimila).
+  async function descobrirLoja() {
+    try {
+      if (getConfig().lojaId) return
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return
+      const data = await wc.executeJavaScript(
+        "fetch('/api/admin/loja',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
+      if (data && data.id) {
+        setConfig({ loja_id: data.id, loja_slug: data.slug || '', loja_nome: data.nome || '' })
+        log.info(`[CONFIG] loja descoberta pela sessão do admin: ${data.nome || data.id}`)
+      }
+    } catch (e) { log.warn('[CONFIG] descobrirLoja falhou:', e && e.message) }
+  }
+  global.cardapioView.webContents.on('did-finish-load', () => { descobrirLoja() })
+  setInterval(descobrirLoja, 5 * 60 * 1000) // cobre login feito depois do boot
+
   const injetarSemScrollbar = (wc) => wc.insertCSS(CSS_NO_SCROLL).catch(() => {})
   // did-finish-load: carga inicial; did-navigate-in-page: rotas SPA (Next.js)
   global.cardapioView.webContents.on('did-finish-load',    () => injetarSemScrollbar(global.cardapioView.webContents))

@@ -9,6 +9,12 @@ const brand = require('./brand')
 
 const _store = new Store({ name: 'queromais-config' })
 
+// Projeto Supabase do cardápio — valores PÚBLICOS (os mesmos embutidos em
+// toda página do site). Fallback pra máquina nova sem .env: com eles + a
+// loja autodescoberta (main.js), outbox e bot funcionam sem configurar nada.
+const SUPABASE_URL_PADRAO = 'https://ztsotpvtlfdtblyornrd.supabase.co'
+const SUPABASE_ANON_PADRAO = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0c290cHZ0bGZkdGJseW9ybnJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMTYyODksImV4cCI6MjA5NTY5MjI4OX0.zEmzYl3Kxo-bRip1137AAkGB7JRcvOZ-kyTYgzCnHm0'
+
 // Na primeira execução, semeia o store com os valores do .env
 function initConfig() {
   if (!_store.get('supabase_url') && process.env.SUPABASE_URL) {
@@ -22,8 +28,8 @@ function initConfig() {
 
 function getConfig() {
   return {
-    supabaseUrl:    _store.get('supabase_url')      || process.env.SUPABASE_URL      || '',
-    supabaseKey:    _store.get('supabase_anon_key') || process.env.SUPABASE_ANON_KEY || '',
+    supabaseUrl:    _store.get('supabase_url')      || process.env.SUPABASE_URL      || SUPABASE_URL_PADRAO,
+    supabaseKey:    _store.get('supabase_anon_key') || process.env.SUPABASE_ANON_KEY || SUPABASE_ANON_PADRAO,
     lojaId:         _store.get('loja_id')           || process.env.LOJA_ID           || '',
     cardapioUrl:    _store.get('cardapio_admin_url')|| process.env.CARDAPIO_ADMIN_URL || brand.dominio_admin,
     // URL HTTP de uma fila IPP/CUPS (ex.: http://192.168.64.1:631/printers/POS80_ESCPOS).
