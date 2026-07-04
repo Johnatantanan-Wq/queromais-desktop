@@ -8,10 +8,16 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "apply-brand": "node scripts/apply-brand.js",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win",
-    "release": "electron-builder --mac --win --publish always"
+    "build:queromais:mac": "node scripts/apply-brand.js queromais && electron-builder --mac --config electron-builder.brand.json",
+    "build:queromais:win": "node scripts/apply-brand.js queromais && electron-builder --win --config electron-builder.brand.json",
+    "build:pediu:mac": "node scripts/apply-brand.js pediu && electron-builder --mac --config electron-builder.brand.json",
+    "build:pediu:win": "node scripts/apply-brand.js pediu && electron-builder --win --config electron-builder.brand.json",
+    "release": "node scripts/apply-brand.js queromais && electron-builder --mac --win --publish always",
+    "release:pediu": "node scripts/apply-brand.js pediu && electron-builder --mac --win --publish always --config electron-builder.brand.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -5,6 +5,16 @@ const path = require('path')
 const url = require('url')
 const log = require('electron-log')
 
+// ── Marca (multi-marca: Quero Mais / Pediu!) ─────────────────────────────────
+// Precisa vir ANTES do require('./config'): o electron-store resolve o caminho
+// do userData na construção. Cada marca tem userData próprio (config e sessão
+// do WhatsApp separadas). Para queromais é no-op — caminho padrão de hoje.
+const brand = require('./brand')
+if (brand.user_data_name && brand.user_data_name !== app.getName()) {
+  app.setName(brand.user_data_name)
+  app.setPath('userData', path.join(app.getPath('appData'), brand.user_data_name))
+}
+
 const { initConfig, getConfig } = require('./config')
 initConfig()
 
@@ -223,7 +233,7 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
 // Instância de desenvolvimento isolada: userData próprio → não colide com o
 // app instalado (lock é por userData) nem suja a sessão real do WhatsApp
 if (process.argv.includes('--dev-instance')) {
-  app.setPath('userData', path.join(app.getPath('temp'), 'queromais-desktop-dev'))
+  app.setPath('userData', path.join(app.getPath('temp'), `${brand.user_data_name}-dev`))
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -283,7 +293,7 @@ global.posicionarViews = posicionarViews
 
 async function createWindow() {
   global.mainWindow = new BrowserWindow({
-    title: 'Quero Mais Desktop',
+    title: brand.nome_app,
     frame: false,
     autoHideMenuBar: true,
     show: false,
@@ -485,7 +495,7 @@ async function createWindow() {
     : path.join(__dirname, '../assets/icon.ico')
   try {
     global.tray = new Tray(trayPath)
-    global.tray.setToolTip('Quero Mais Desktop')
+    global.tray.setToolTip(brand.nome_app)
     global.tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Abrir', click: () => global.mainWindow?.show() },
       { type: 'separator' },
@@ -627,7 +637,7 @@ function garantirAtalhoDesktopMac() {
 
 app.on('ready', () => {
   Menu.setApplicationMenu(Menu.buildFromTemplate([]))   // remove File/Edit/View/Window/Help
-  app.setAppUserModelId('Quero Mais Desktop')
+  app.setAppUserModelId(brand.nome_app)
   garantirAtalhoDesktopMac()
   createWindow()
   // Verifica atualizações 10s após iniciar e a cada 4h (só em produção) —

@@ -1,0 +1,23 @@
+{
+  "plataforma_slug": "pediu",
+  "nome_app": "Pediu! Desktop",
+  "produto_name": "Pediu! Desktop",
+  "nome_delivery": "Pediu!",
+  "app_id": "com.pediu.desktop",
+  "artifact_name": "Pediu-Desktop",
+  "user_data_name": "pediu-desktop",
+  "publish_repo": "pediu-desktop",
+  "cor_primaria": "#14CE6B",
+  "cor_primaria_rgb": "20,206,107",
+  "dominio_admin": "https://app-pediu.com.br/admin",
+  "dominio_cardapio": "https://app-pediu.com.br",
+  "ipp_user": "pediu",
+  "nome_comanda": "Comanda Pediu",
+  "icons": {
+    "icns": "icons/icon.icns",
+    "ico": "icons/icon.ico",
+    "png256": "icons/icon-256.png",
+    "tray": "icons/tray-icon.png",
+    "tray2x": "icons/tray-icon@2x.png"
+  }
+}

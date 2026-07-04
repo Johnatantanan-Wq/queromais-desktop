@@ -5,6 +5,7 @@
  */
 require('dotenv').config()
 const Store = require('electron-store')
+const brand = require('./brand')
 
 const _store = new Store({ name: 'queromais-config' })
 
@@ -15,7 +16,7 @@ function initConfig() {
     _store.set('supabase_anon_key',  process.env.SUPABASE_ANON_KEY)
     _store.set('loja_id',            process.env.LOJA_ID)
     _store.set('cardapio_admin_url',
-      process.env.CARDAPIO_ADMIN_URL || 'https://cardapio.prosistas.com.br/admin')
+      process.env.CARDAPIO_ADMIN_URL || brand.dominio_admin)
   }
 }
 
@@ -24,7 +25,7 @@ function getConfig() {
     supabaseUrl:    _store.get('supabase_url')      || process.env.SUPABASE_URL      || '',
     supabaseKey:    _store.get('supabase_anon_key') || process.env.SUPABASE_ANON_KEY || '',
     lojaId:         _store.get('loja_id')           || process.env.LOJA_ID           || '',
-    cardapioUrl:    _store.get('cardapio_admin_url')|| process.env.CARDAPIO_ADMIN_URL || 'https://cardapio.prosistas.com.br/admin',
+    cardapioUrl:    _store.get('cardapio_admin_url')|| process.env.CARDAPIO_ADMIN_URL || brand.dominio_admin,
     // URL HTTP de uma fila IPP/CUPS (ex.: http://192.168.64.1:631/printers/POS80_ESCPOS).
     // Quando definida, a comanda vira PDF (printToPDF) e vai DIRETO pra fila via IPP,
     // sem passar pelo spooler/driver do Windows — o silent print do Electron gera

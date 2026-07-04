@@ -5,6 +5,7 @@
 const { createClient } = require('@supabase/supabase-js')
 const log = require('electron-log')
 const { getConfig } = require('../config')
+const brand = require('../brand')
 
 let _supabase = null
 function getSupabase() {
@@ -157,7 +158,7 @@ const botController = {
         sessao.carrinho = []
         sessao.estado = 'ESCOLHA_ITEM'
         const nomeStr = nome ? `, ${nome.split(' ')[0]}` : ''
-        await reply(`Olá${nomeStr}! 😊 Bem-vindo ao *Quero Mais Delivery*!\n\n${formatarCardapio(produtos)}`)
+        await reply(`Olá${nomeStr}! 😊 Bem-vindo ao *${brand.nome_delivery}*!\n\n${formatarCardapio(produtos)}`)
       } else {
         await reply('Olá! 😊 Manda *oi* pra ver nosso cardápio e fazer seu pedido!')
       }

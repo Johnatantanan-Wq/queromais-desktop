@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Pediu ícone">
+<title>Pediu! — app icon</title>
+<defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14CE6B"/><stop offset="1" stop-color="#0AA758"/></linearGradient></defs><rect width="1024" height="1024" rx="232" fill="url(#ig)"/>
+<path d="M69 256V730H255V256ZM56 0V174H268V0Z" transform="translate(407.468,747.520) scale(0.64526,-0.64526)" fill="#04180D"/>
+</svg>

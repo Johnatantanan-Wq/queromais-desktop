@@ -3,10 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <title>Quero Mais Desktop</title>
+  <script>
+    // Multi-marca: título e cor primária vêm do brand.js (padrão = Quero Mais,
+    // valores idênticos aos hardcoded abaixo → comportamento igual ao de hoje).
+    try {
+      const __brand = require('../src-electron/brand')
+      document.title = __brand.nome_app
+      document.documentElement.style.setProperty('--brand', __brand.cor_primaria)
+      document.documentElement.style.setProperty('--brand-rgb', __brand.cor_primaria_rgb)
+    } catch (_) { /* sem nodeIntegration (ex.: abrir no navegador) → mantém padrão */ }
+  </script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
       --brand: #F97316;
+      --brand-rgb: 249,115,22;
       --bg:    #0f1117;
       --sb:    #161b27;
       --line:  #2a3347;
@@ -42,9 +53,9 @@
       transition: background .12s, color .12s, transform .12s;
       -webkit-app-region: no-drag;
     }
-    .ni:hover  { background: rgba(249,115,22,.12); color: var(--brand); }
+    .ni:hover  { background: rgba(var(--brand-rgb),.12); color: var(--brand); }
     .ni:active { transform: scale(.96); }
-    .ni.active { background: rgba(249,115,22,.2); color: var(--brand); }
+    .ni.active { background: rgba(var(--brand-rgb),.2); color: var(--brand); }
     .ni svg { width: 20px; height: 20px; flex-shrink: 0; }
     .sep { width: 32px; height: 1px; background: var(--line); margin: 6px 0; }
     .spacer { flex: 1; }

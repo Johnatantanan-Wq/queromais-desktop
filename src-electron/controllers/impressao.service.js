@@ -19,6 +19,7 @@ const path = require('path')
 const log = require('electron-log')
 const { getConfig } = require('../config')
 const { imprimirPdfViaIpp } = require('./ipp')
+const brand = require('../brand')
 
 // ── log dedicado de impressão ────────────────────────────────────────────────
 const printLog = log.create({ logId: 'print' })
@@ -175,7 +176,7 @@ function htmlComandaTeste(extra) {
   const modo = app.isPackaged ? 'PACKAGED' : 'DEV'
   return `<!doctype html><html><body style="margin:0">
     <div class="ticket" style="width:72mm;padding:2mm;font-family:'Courier New',monospace;font-size:12px;color:#000">
-      <div style="text-align:center;font-weight:800;font-size:14px">QUERO MAIS DESKTOP</div>
+      <div style="text-align:center;font-weight:800;font-size:14px">${brand.nome_app.toUpperCase()}</div>
       <div style="border-top:1px dashed #000;margin:4px 0"></div>
       <div>TESTE DE IMPRESSAO</div>
       <div>Data/hora: ${agora}</div>

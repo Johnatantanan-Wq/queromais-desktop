@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+
+# multi-marca: gerados por scripts/apply-brand.js
+electron-builder.brand.json
+src-electron/brand.generated.json

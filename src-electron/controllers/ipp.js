@@ -4,6 +4,7 @@
  * em 2026-07-03; status 0x0000 successful-ok e job com raster real na impressora).
  */
 const http = require('http')
+const brand = require('../brand')
 
 function attr(valueTag, name, value) {
   const nameB = Buffer.from(name, 'utf8')
@@ -26,8 +27,8 @@ function montarPrintJob(printerUri, pdf, jobName) {
     attr(0x47, 'attributes-charset', 'utf-8'),
     attr(0x48, 'attributes-natural-language', 'en'),
     attr(0x45, 'printer-uri', printerUri),
-    attr(0x42, 'requesting-user-name', 'queromais'),
-    attr(0x42, 'job-name', jobName || 'Comanda QueroMais'),
+    attr(0x42, 'requesting-user-name', brand.ipp_user),
+    attr(0x42, 'job-name', jobName || brand.nome_comanda),
     attr(0x49, 'document-format', 'application/pdf'),
   ])
   return Buffer.concat([header, attrs, Buffer.from([0x03]), pdf])
