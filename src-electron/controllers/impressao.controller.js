@@ -6,11 +6,48 @@
  * A janela oculta usa a MESMA sessão (persist:cardapio) da view do cardápio,
  * senão a página da comanda cai na tela de login (ela exige sessão admin).
  */
-const { BrowserWindow, ipcMain, session } = require('electron')
+const { app, BrowserWindow, ipcMain, session } = require('electron')
 const { URL } = require('url')
+const { spawn } = require('child_process')
+const fs = require('fs')
+const path = require('path')
 const log = require('electron-log')
 const { getConfig } = require('../config')
 const { imprimirPdfViaIpp } = require('./ipp')
+
+// SumatraPDF embutido no instalador Windows (extraResources) — imprime o PDF
+// pelo MESMO caminho GDI do diálogo nativo (que sempre funcionou, em qualquer
+// driver), só que sem diálogo. É o caminho padrão no Windows.
+function acharSumatra() {
+  const candidatos = [
+    path.join(process.resourcesPath || '', 'SumatraPDF.exe'),
+    path.join(__dirname, '..', '..', 'node_modules', 'pdf-to-printer', 'dist', 'SumatraPDF-3.4.6-32.exe'), // dev
+  ]
+  return candidatos.find(p => { try { return fs.existsSync(p) } catch (_) { return false } }) || null
+}
+
+function imprimirPdfViaSumatra(pdfBuffer, impressoraNome) {
+  return new Promise((resolve, reject) => {
+    const sumatra = acharSumatra()
+    if (!sumatra) return reject(new Error('SumatraPDF.exe não encontrado nos resources'))
+    const tmp = path.join(app.getPath('temp'), `comanda-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`)
+    fs.writeFileSync(tmp, pdfBuffer)
+    const args = impressoraNome ? ['-print-to', impressoraNome] : ['-print-to-default']
+    args.push('-print-settings', 'noscale', '-silent', tmp)
+    const proc = spawn(sumatra, args, { windowsHide: true })
+    const timeout = setTimeout(() => { try { proc.kill() } catch (_) {} ; done(new Error('timeout no SumatraPDF')) }, 60000)
+    let finalizado = false
+    const done = (err) => {
+      if (finalizado) return
+      finalizado = true
+      clearTimeout(timeout)
+      try { fs.unlinkSync(tmp) } catch (_) {}
+      err ? reject(err) : resolve()
+    }
+    proc.on('error', done)
+    proc.on('exit', (code) => done(code === 0 ? null : new Error(`SumatraPDF saiu com código ${code}`)))
+  })
+}
 
 function resolverUrl(relOuAbs) {
   try {
@@ -118,25 +155,34 @@ function imprimirUrl(url, impressoraNome) {
         const pageSize = await medirPageSize(win)
         if (resolvido) return
 
-        // Caminho preferido quando a impressora é uma fila IPP/CUPS de rede:
-        // printToPDF (pipeline headless, confiável mesmo em janela oculta) + envio
-        // direto via IPP. O silent print do Electron no Windows gera PDF EM BRANCO
-        // com o Microsoft IPP Class Driver (callback ainda diz sucesso) — causa do
-        // "sai 5mm de papel em branco" que os fixes de timeout/pageSize não curaram.
+        // O silent print do Electron no Windows gera PDF EM BRANCO com drivers IPP
+        // Class (callback ainda diz sucesso) — causa do "sai 5mm de papel em branco"
+        // que os fixes de timeout/pageSize não curaram. Então o PDF é gerado pelo
+        // printToPDF (pipeline headless, confiável em janela oculta) e impresso por
+        // fora do webContents.print:
+        //   1. impressora_ipp_url configurada → IPP direto pra fila (opt-in, redes CUPS)
+        //   2. Windows → SumatraPDF embutido (padrão; qualquer impressora/driver local)
+        //   3. senão → silent print de sempre (Mac funciona bem com ele)
         const ippUrl = getConfig().impressoraIppUrl
-        if (ippUrl) {
+        const usarSumatra = process.platform === 'win32' && acharSumatra()
+        if (ippUrl || usarSumatra) {
           try {
             const pdf = await win.webContents.printToPDF({
               printBackground: true,
               pageSize: { width: pageSize.width / 25400, height: pageSize.height / 25400 }, // polegadas
               margins: { top: 0, bottom: 0, left: 0, right: 0 },
             })
-            await imprimirPdfViaIpp(ippUrl, pdf, `Comanda ${absUrl.split('/').pop()}`)
-            log.info('[IMPRESSAO] Comanda impressa via IPP direto:', absUrl, `(${ippUrl})`)
+            if (ippUrl) {
+              await imprimirPdfViaIpp(ippUrl, pdf, `Comanda ${absUrl.split('/').pop()}`)
+              log.info('[IMPRESSAO] Comanda impressa via IPP direto:', absUrl, `(${ippUrl})`)
+            } else {
+              await imprimirPdfViaSumatra(pdf, impressoraNome)
+              log.info('[IMPRESSAO] Comanda impressa via PDF/Sumatra:', absUrl, impressoraNome ? `(${impressoraNome})` : '(padrão)')
+            }
             finalizar(true)
             return
           } catch (e) {
-            log.error('[IMPRESSAO] Falha no caminho IPP direto, tentando print silencioso:', e.message)
+            log.error('[IMPRESSAO] Falha no caminho PDF, tentando print silencioso:', e.message)
             if (resolvido) return
           }
         }
