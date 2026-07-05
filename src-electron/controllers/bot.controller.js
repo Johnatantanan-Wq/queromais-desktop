@@ -7,8 +7,12 @@
  *    "Cardápio indisponível" quando não achava produtos).
  *  • As notificações ativas (pedido recebido/preparo/entrega…) são o
  *    outbox.controller — este arquivo só cuida das mensagens RECEBIDAS.
- *  • Anti-interferência: fora de saudação explícita, o bot responde no máximo
- *    1x por conversa a cada 6h — quem conversa com o cliente é o atendente.
+ *  • Anti-interferência: o cardápio automático sai NO MÁXIMO 1x por dia por
+ *    contato — depois disso, quem conversa com o cliente é o atendente
+ *    humano. O controle é persistido no Supabase (whatsapp_bot_envios,
+ *    migration 0105 do repo `aula`), não em memória: reiniciar o app não
+ *    reseta o dia (era o bug — cooldown de 10min num Map() que zerava a
+ *    cada restart, reenviando o link a qualquer troca de mensagem).
  */
 const { createClient } = require('@supabase/supabase-js')
 const log = require('electron-log')
@@ -16,11 +20,21 @@ const { getConfig } = require('../config')
 const brand = require('../brand')
 
 let _supabase = null
-function getSupabase() {
+let _sessaoAplicadaToken = null
+async function getSupabase() {
   if (!_supabase) {
     const { supabaseUrl, supabaseKey } = getConfig()
     if (!supabaseUrl || !supabaseKey) { log.warn('[BOT] Supabase não configurado'); return null }
     _supabase = createClient(supabaseUrl, supabaseKey)
+  }
+  // Autentica como o admin REAL (RLS is_admin_da_loja) — sem isto a chave anon
+  // compartilhada não enxerga whatsapp_bot_envios (mesmo motivo do outbox: a
+  // migration 0094 fechou o acesso anon a esta família de tabelas).
+  const { waAccessToken, waRefreshToken } = getConfig()
+  if (waAccessToken && waAccessToken !== _sessaoAplicadaToken) {
+    const { error } = await _supabase.auth.setSession({ access_token: waAccessToken, refresh_token: waRefreshToken })
+    if (error) log.error('[BOT] Falha ao aplicar sessão do admin:', error)
+    else _sessaoAplicadaToken = waAccessToken
   }
   return _supabase
 }
@@ -32,7 +46,7 @@ let cacheLojaAt = 0
 async function buscarLoja() {
   if (cacheLoja && Date.now() - cacheLojaAt < 10 * 60 * 1000) return cacheLoja
   const { lojaId } = getConfig()
-  const supabase = getSupabase()
+  const supabase = await getSupabase()
   if (!lojaId || !supabase) return null
   const { data, error } = await supabase
     .from('lojas')
@@ -54,20 +68,29 @@ function linkCardapio(loja) {
   return `${caminho}?src=wpp`
 }
 
-// ── Controle por conversa (anti-flood) ────────────────────────────────────────
-const conversas = new Map() // from → { ultimaRespostaEm }
-// QUALQUER mensagem recebida ganha boas-vindas + link do cardápio (pedido do
-// dono: o cliente não precisa mandar "oi"). O cooldown só evita repetir o
-// link a cada mensagem numa conversa em andamento com o atendente.
-const COOLDOWN_MS = 10 * 60 * 1000
+// ── Controle por dia (persistido — sobrevive a restart do app) ───────────────
+const TIPO_MSG = 'cardapio_automatico'
 
-// Limpa conversas antigas a cada hora
-setInterval(() => {
-  const limite = Date.now() - 24 * 60 * 60 * 1000
-  for (const [from, c] of conversas) {
-    if (c.ultimaRespostaEm < limite) conversas.delete(from)
-  }
-}, 60 * 60 * 1000)
+// Data local (YYYY-MM-DD) da máquina do lojista — "dia" aqui é dia civil, não
+// uma janela deslizante de 24h.
+function dataDeHoje() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Reivindica o envio de hoje ANTES de mandar a mensagem: o INSERT é a própria
+// trava (índice único uq_whatsapp_bot_envios_dia) — se outra mensagem quase
+// simultânea do mesmo contato já reivindicou, este perde a corrida (23505) e
+// não envia de novo. Falha de qualquer outro tipo (rede, tabela ausente por
+// migration não aplicada) também não envia — silêncio é mais seguro que
+// reenviar sem controle.
+async function reivindicarEnvioHoje(supabase, lojaId, telefone) {
+  const { error } = await supabase
+    .from('whatsapp_bot_envios')
+    .insert({ loja_id: lojaId, telefone, tipo_mensagem: TIPO_MSG, data_envio: dataDeHoje() })
+  if (error && error.code !== '23505') log.error('[BOT] Falha ao registrar envio do dia:', error)
+  return !error
+}
 
 function mensagemBoasVindas(nome, loja) {
   const url = linkCardapio(loja)
@@ -99,15 +122,14 @@ const botController = {
     const url = linkCardapio(loja)
     if (!url) { log.warn('[BOT] Sem loja/link configurado — não vou responder'); return }
 
-    const conversa = conversas.get(from) || { ultimaRespostaEm: 0 }
-    const desdeUltima = Date.now() - conversa.ultimaRespostaEm
-    const deveResponder = desdeUltima > COOLDOWN_MS
+    const supabase = await getSupabase()
+    if (!supabase || !loja?.id) { log.warn('[BOT] Sem Supabase/loja — não vou responder'); return }
 
-    log.info(`[BOT] ${from} "${texto.slice(0, 60)}" responder=${deveResponder}`)
-    if (!deveResponder) return
+    const podeEnviar = await reivindicarEnvioHoje(supabase, loja.id, from)
+    log.info(`[BOT] ${from} "${texto.slice(0, 60)}" enviaCardapio=${podeEnviar}`)
+    if (!podeEnviar) return // já recebeu o cardápio hoje — atendente humano assume
 
     const { whatsappController } = require('./whatsapp.controller')
-    conversas.set(from, { ultimaRespostaEm: Date.now() })
     await whatsappController.enviarTexto(from, mensagemBoasVindas(nome, loja))
   },
 }

@@ -354,6 +354,27 @@ async function createWindow() {
   global.cardapioView.webContents.on('did-finish-load', () => { descobrirLoja() })
   setInterval(descobrirLoja, 5 * 60 * 1000) // cobre login feito depois do boot
 
+  // Captura a sessão REAL do admin (access_token/refresh_token) da mesma view
+  // autenticada — outbox/bot passam a chamar o Supabase como esse usuário
+  // (is_admin_da_loja) em vez da chave anon compartilhada, que perdeu acesso
+  // a whatsapp_envios/whatsapp_config/whatsapp_bot_envios na migration 0094.
+  // Sempre tenta de novo (sem guard de "já tem"): o refresh_token pode ter
+  // sido revogado (logout/troca de senha) e o access_token expira em ~1h.
+  async function descobrirTokenWhatsapp() {
+    try {
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return
+      const data = await wc.executeJavaScript(
+        "fetch('/api/admin/whatsapp/token',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
+      if (data && data.access_token && data.refresh_token) {
+        setConfig({ wa_access_token: data.access_token, wa_refresh_token: data.refresh_token })
+        log.info('[CONFIG] sessão do WhatsApp (outbox/bot) atualizada')
+      }
+    } catch (e) { log.warn('[CONFIG] descobrirTokenWhatsapp falhou:', e && e.message) }
+  }
+  global.cardapioView.webContents.on('did-finish-load', () => { descobrirTokenWhatsapp() })
+  setInterval(descobrirTokenWhatsapp, 30 * 60 * 1000) // renova antes do access_token expirar
+
   const injetarSemScrollbar = (wc) => wc.insertCSS(CSS_NO_SCROLL).catch(() => {})
   // did-finish-load: carga inicial; did-navigate-in-page: rotas SPA (Next.js)
   global.cardapioView.webContents.on('did-finish-load',    () => injetarSemScrollbar(global.cardapioView.webContents))

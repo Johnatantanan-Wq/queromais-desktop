@@ -40,6 +40,12 @@ function getConfig() {
     // Última impressora usada com sucesso — fallback quando o pedido de
     // impressão chega SEM nome (senão cai na padrão do Windows, ex.: HP).
     impressoraNome: _store.get('impressora_nome') || '',
+    // Sessão real do admin (capturada da view autenticada — main.js), usada
+    // por outbox/bot pra autenticar como o usuário de verdade em vez da chave
+    // anon compartilhada. Sem isto, RLS (is_admin_da_loja) bloqueia leitura/
+    // escrita em whatsapp_envios/whatsapp_config/whatsapp_bot_envios.
+    waAccessToken: _store.get('wa_access_token') || '',
+    waRefreshToken: _store.get('wa_refresh_token') || '',
   }
 }
 

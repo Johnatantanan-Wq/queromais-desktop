@@ -17,11 +17,12 @@ const DELAY_MAX = 10000
 const delayAleatorio = () => Math.floor(Math.random() * (DELAY_MAX - DELAY_MIN) + DELAY_MIN)
 
 let _sb = null
+let _sessaoAplicadaToken = null
 let waView = null
 let waConectado = false
 let processando = false
 
-function getSb() {
+async function getSb() {
   if (!_sb) {
     const { supabaseUrl, supabaseKey } = getConfig()
     if (!supabaseUrl || !supabaseKey) { log.warn('[OUTBOX] Supabase não configurado'); return null }
@@ -33,6 +34,16 @@ function getSb() {
       log.error('[OUTBOX] createClient FALHOU:', e)
       return null
     }
+  }
+  // Autentica como o admin REAL (RLS is_admin_da_loja) — sem isto a chave anon
+  // compartilhada não enxerga whatsapp_envios desde a migration 0094 (fechou o
+  // vazamento cross-tenant). Só reaplica quando o token mudou (evitar setSession
+  // a cada poll de 6s).
+  const { waAccessToken, waRefreshToken } = getConfig()
+  if (waAccessToken && waAccessToken !== _sessaoAplicadaToken) {
+    const { error } = await _sb.auth.setSession({ access_token: waAccessToken, refresh_token: waRefreshToken })
+    if (error) log.error('[OUTBOX] Falha ao aplicar sessão do admin:', error)
+    else _sessaoAplicadaToken = waAccessToken
   }
   return _sb
 }
@@ -78,7 +89,7 @@ function enviarViaWA(destinatario, mensagem) {
 async function processarPendentes() {
   if (processando || !waConectado) return
 
-  const sb = getSb()
+  const sb = await getSb()
   if (!sb) return
 
   processando = true
