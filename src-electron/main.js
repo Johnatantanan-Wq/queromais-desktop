@@ -632,6 +632,9 @@ autoUpdater.on('update-available', (info) => {
 let _updatePronto = false
 let _reinicioAgendado = false
 
+const HORA_LIMITE_TENTATIVA = 6 // depois disso a loja certamente está em operação — desiste por hoje
+const RETRY_LOJA_ABERTA_MS = 30 * 60 * 1000 // tenta de novo em 30 min
+
 function agendarReinicioMadrugada() {
   if (_reinicioAgendado) return
   _reinicioAgendado = true
@@ -641,11 +644,32 @@ function agendarReinicioMadrugada() {
   if (alvo <= agora) alvo.setDate(alvo.getDate() + 1)
   const ms = alvo.getTime() - agora.getTime()
   log.info(`[UPDATE] reinício automático agendado para ${alvo.toLocaleString()}`)
-  setTimeout(() => {
-    if (!_updatePronto) return
-    log.info('[UPDATE] aplicando atualização (reinício automático da madrugada)')
-    try { autoUpdater.quitAndInstall(true, true) } catch (e) { log.warn('[UPDATE] quitAndInstall falhou:', e && e.message) }
-  }, ms)
+  setTimeout(tentarReiniciar, ms)
+}
+
+// Lojas com horário noturno (fecha depois da meia-noite) podem estar em
+// operação plena às 3h — nunca derruba WhatsApp/impressora com a loja
+// aberta. Confirma que está fechada antes de reiniciar; se estiver aberta,
+// tenta de novo a cada 30min até as 6h (depois disso, desiste por hoje —
+// o "instala ao fechar" de sempre continua valendo).
+async function tentarReiniciar() {
+  if (!_updatePronto) return
+  try {
+    const status = await buscarStatusLoja()
+    if (status && status.aberta === true) {
+      if (new Date().getHours() < HORA_LIMITE_TENTATIVA) {
+        log.info('[UPDATE] loja aberta — adiando reinício automático em 30min')
+        setTimeout(tentarReiniciar, RETRY_LOJA_ABERTA_MS)
+      } else {
+        log.info('[UPDATE] loja ainda aberta depois das 6h — desiste por hoje, instala ao fechar')
+      }
+      return
+    }
+  } catch (e) {
+    log.warn('[UPDATE] não deu pra checar status da loja, reinicia mesmo assim:', e && e.message)
+  }
+  log.info('[UPDATE] aplicando atualização (reinício automático da madrugada)')
+  try { autoUpdater.quitAndInstall(true, true) } catch (e) { log.warn('[UPDATE] quitAndInstall falhou:', e && e.message) }
 }
 
 autoUpdater.on('update-downloaded', () => {
