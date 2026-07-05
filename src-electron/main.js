@@ -625,9 +625,34 @@ autoUpdater.on('update-available', (info) => {
   global.mainWindow?.webContents.send('update-status', { status: 'disponivel', version: info.version })
 })
 
+// Aplica a atualização SOZINHO na madrugada (03h–05h, minuto aleatório pra não
+// reiniciar todas as lojas no mesmo segundo). Sem isso, máquina de loja que fica
+// ligada dias seguidos nunca instala (o download fica esperando um "fechar" que
+// não vem) — foi assim que uma loja rodou versão velha o dia inteiro.
+let _updatePronto = false
+let _reinicioAgendado = false
+
+function agendarReinicioMadrugada() {
+  if (_reinicioAgendado) return
+  _reinicioAgendado = true
+  const agora = new Date()
+  const alvo = new Date(agora)
+  alvo.setHours(3, Math.floor(Math.random() * 90), 0, 0) // 03:00–04:30
+  if (alvo <= agora) alvo.setDate(alvo.getDate() + 1)
+  const ms = alvo.getTime() - agora.getTime()
+  log.info(`[UPDATE] reinício automático agendado para ${alvo.toLocaleString()}`)
+  setTimeout(() => {
+    if (!_updatePronto) return
+    log.info('[UPDATE] aplicando atualização (reinício automático da madrugada)')
+    try { autoUpdater.quitAndInstall(true, true) } catch (e) { log.warn('[UPDATE] quitAndInstall falhou:', e && e.message) }
+  }, ms)
+}
+
 autoUpdater.on('update-downloaded', () => {
-  log.info('[UPDATE] Download concluído — será instalado ao fechar')
+  log.info('[UPDATE] Download concluído — instala ao fechar OU sozinho de madrugada')
+  _updatePronto = true
   global.mainWindow?.webContents.send('update-status', { status: 'pronto' })
+  agendarReinicioMadrugada()
 })
 
 autoUpdater.on('error', (e) => {
@@ -665,7 +690,7 @@ app.on('ready', () => {
   // só descobriria versão nova quando fosse reaberto.
   if (app.isPackaged) {
     setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 10_000)
-    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 4 * 60 * 60 * 1000)
+    setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 60 * 60 * 1000)
   }
 
   // --teste-impressao: imprime um cupom de teste LOCAL (data URL, sem rede) logo
