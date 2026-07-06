@@ -266,7 +266,8 @@ function posicionarViews() {
   const CW = w - SB
   const CH = h - HEADER
 
-  // Padrão Anota AI: ambas as views ficam na janela e a troca usa setTopBrowserView.
+  // Ambas as views ficam sempre na janela e a troca usa setTopBrowserView (evita
+  // add/remove de BrowserView em runtime, que causava congelamento no Windows).
   // O bounds nunca invade sidebar/titlebar, evitando congelamento dos controles HTML.
   if (global.activeView === 'split') {
     // Lado a lado: bounds não se sobrepõem, as duas ficam visíveis.
@@ -391,7 +392,7 @@ async function createWindow() {
       allowRunningInsecureContent: true,
     },
   })
-  // Ambas as views adicionadas com bounds corretos desde o início (padrão Anota AI)
+  // Ambas as views adicionadas com bounds corretos desde o início
   // Troca de tela via setTopBrowserView — nunca add/remove em runtime
   const { width: _cw, height: _ch } = global.mainWindow.getContentBounds()
   const _CW = _cw - global.sidebarW, _CH = _ch - HEADER
@@ -407,7 +408,9 @@ async function createWindow() {
     if (msg.includes('[QM')) log.info('[WA-CON]', msg)
   })
 
-  // ── Injeção do api.js via executeJavaScript (mesma técnica do Anota AI) ──────
+  // ── Injeção do api.js via executeJavaScript ──────────────────────────────────
+  // ⚠️ api.js é um bundle de TERCEIRO (extraído por engenharia reversa de outro
+  // app) — pendência de substituir por biblioteca própria/aberta. Ver memória.
   const _fs = require('fs')
   let _apiJsCode = null
   function _loadApiJs() {
@@ -439,7 +442,7 @@ async function createWindow() {
     }
   }
 
-  // Injeta api.js no dom-ready (antes do did-finish-load, como o Anota AI faz)
+  // Injeta api.js no dom-ready (antes do did-finish-load)
   global.whatsappView.webContents.on('dom-ready', () => {
     injetarApiJs(global.whatsappView.webContents)
     injetarSemScrollbar(global.whatsappView.webContents)

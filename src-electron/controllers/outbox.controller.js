@@ -1,7 +1,9 @@
 /**
  * Outbox controller — processa whatsapp_envios pendentes e envia via WhatsApp Web.
- * Mesmo padrão do anota.ai: injeção JS no WhatsApp Web via IPC wa-send → preload → mainSendMessage.
+ * Injeção de script no WhatsApp Web via IPC wa-send → preload → mainSendMessage.
  * Roda no Electron (sem depender de cron/servidor externo).
+ * ⚠️ mainSendMessage vem de src-electron/preload/api.js — ver pendência de
+ * substituição por biblioteca própria/aberta (motor de terceiro, ver memória).
  */
 const { createClient } = require('@supabase/supabase-js')
 const { ipcMain } = require('electron')
@@ -53,6 +55,7 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)) }
 let _sendCounter = 0
 
 // Envia via IPC → preload → window.API.anotaAI.mainSendMessage (addAndSendMsgToChat interno)
+// ⚠️ "anotaAI" é o nome literal do objeto exposto pelo api.js de terceiro (pendência acima) — não é nomenclatura nossa.
 function enviarViaWA(destinatario, mensagem) {
   return new Promise((resolve, reject) => {
     if (!waView?.webContents) return reject(new Error('WhatsApp View indisponível'))

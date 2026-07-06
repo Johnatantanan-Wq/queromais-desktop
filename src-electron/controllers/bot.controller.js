@@ -1,5 +1,5 @@
 /**
- * Controller do bot — atendimento automático estilo Anota AI, adaptado:
+ * Controller do bot — atendimento automático por WhatsApp:
  *  • Mensagem recebida → responde com boas-vindas + LINK do cardápio DA LOJA
  *    (dominio da marca + slug da loja: funciona pra toda marca e toda loja).
  *  • O pedido acontece no cardápio web — o bot NÃO vende por número no chat

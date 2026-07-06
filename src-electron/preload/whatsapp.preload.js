@@ -1,6 +1,6 @@
 /**
  * Preload do WhatsApp Web — injetado antes do DOM carregar.
- * Baseado na técnica do Anota AI: escuta eventos do api.js e repassa via IPC.
+ * Escuta eventos do api.js (bundle de terceiro, ver pendência em main.js) e repassa via IPC.
  */
 const { ipcRenderer } = require('electron')
 
