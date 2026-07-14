@@ -13,6 +13,9 @@
  *    migration 0105 do repo `aula`), não em memória: reiniciar o app não
  *    reseta o dia (era o bug — cooldown de 10min num Map() que zerava a
  *    cada restart, reenviando o link a qualquer troca de mensagem).
+ *  • Cliente com pedido nas últimas 24h NÃO recebe boas-vindas nenhuma —
+ *    "obrigado, chegou" depois da entrega não pode ganhar link de cardápio
+ *    de volta (quem fala com ele são as notificações do pedido/atendente).
  */
 const { createClient } = require('@supabase/supabase-js')
 const log = require('electron-log')
@@ -92,6 +95,38 @@ async function reivindicarEnvioHoje(supabase, lojaId, telefone) {
   return !error
 }
 
+// ── Cliente em atendimento (pedido recente) ──────────────────────────────────
+// O `from` vem como "5575988289808@c.us"; pedidos.cliente_telefone guarda só
+// DDD+número sem o 55 (às vezes sem o 9º dígito). Normaliza os dois pra
+// DDD + últimos 8 dígitos antes de comparar.
+function normalizarTelefone(v) {
+  let d = String(v || '').replace(/\D/g, '')
+  if (d.startsWith('55') && d.length >= 12) d = d.slice(2)
+  if (d.length < 10) return null
+  return d.slice(0, 2) + d.slice(-8)
+}
+
+const JANELA_PEDIDO_RECENTE_MS = 24 * 60 * 60 * 1000
+
+// Pedido nas últimas 24h = cliente já está comprando: qualquer mensagem dele
+// ("obrigado", "chegou", dúvida) é conversa do pedido, nunca gatilho de
+// boas-vindas. Falha na consulta NÃO silencia o bot (a trava diária ainda
+// segura reenvio) — só perde esta proteção extra.
+async function contatoComPedidoRecente(supabase, lojaId, from) {
+  const alvo = normalizarTelefone(from)
+  if (!alvo) return false
+  const desde = new Date(Date.now() - JANELA_PEDIDO_RECENTE_MS).toISOString()
+  const { data, error } = await supabase
+    .from('pedidos')
+    .select('id, cliente_telefone')
+    .eq('loja_id', lojaId)
+    .gte('criado_em', desde)
+    .like('cliente_telefone', `%${alvo.slice(-8)}`)
+    .limit(5)
+  if (error) { log.error('[BOT] Falha ao consultar pedido recente:', error); return false }
+  return (data || []).some((p) => normalizarTelefone(p.cliente_telefone) === alvo)
+}
+
 function mensagemBoasVindas(nome, loja) {
   const url = linkCardapio(loja)
   const nomeStr = nome ? `, ${String(nome).split(' ')[0]}` : ''
@@ -124,6 +159,14 @@ const botController = {
 
     const supabase = await getSupabase()
     if (!supabase || !loja?.id) { log.warn('[BOT] Sem Supabase/loja — não vou responder'); return }
+
+    // Antes de reivindicar a cota do dia: cliente com pedido recente está
+    // agradecendo/conversando sobre o pedido — silêncio (e a cota do dia
+    // fica intacta pra uma conversa realmente nova no futuro).
+    if (await contatoComPedidoRecente(supabase, loja.id, from)) {
+      log.info(`[BOT] ${from} tem pedido nas últimas 24h — não respondo`)
+      return
+    }
 
     const podeEnviar = await reivindicarEnvioHoje(supabase, loja.id, from)
     log.info(`[BOT] ${from} "${texto.slice(0, 60)}" enviaCardapio=${podeEnviar}`)
