@@ -16,11 +16,6 @@ const MAX_TENT  = 3
 // por mensagem (digitando + random); aqui garantimos separação mínima entre envios
 const DELAY_MIN = 4000
 const DELAY_MAX = 10000
-// Idade máxima de uma mensagem parada na fila antes de virar 'falhou' em vez
-// de ser despejada. Sem isto, se o WhatsApp cai e volta horas depois (app
-// fechado, PC reiniciado), o robô manda tudo que acumulou de uma vez — inclusive
-// avisos de pedido que já mudou de status há muito tempo.
-const JANELA_MS = 30 * 60 * 1000
 const delayAleatorio = () => Math.floor(Math.random() * (DELAY_MAX - DELAY_MIN) + DELAY_MIN)
 
 let _sb = null
@@ -109,10 +104,11 @@ async function processarPendentes() {
 
     const { data: envios, error: qErr } = await sb
       .from('whatsapp_envios')
-      .select('id, destinatario, mensagem, tentativas, evento, enviado_em')
+      .select('id, destinatario, mensagem, tentativas, evento')
       .eq('loja_id', lojaId)
       .in('status', ['pendente', 'falhou'])
       .lt('tentativas', MAX_TENT)
+      .gt('expira_em', agora) // servidor já expira as vencidas (migration 0121) — redundante de propósito
       .or(`proximo_retry.is.null,proximo_retry.lte.${agora}`)
       .order('enviado_em', { ascending: true })
       .limit(10)
@@ -123,17 +119,14 @@ async function processarPendentes() {
     for (const env of (envios || [])) {
       if (!env.mensagem || !env.destinatario) continue
 
-      const idadeMs = Date.now() - new Date(env.enviado_em).getTime()
-      if (idadeMs > JANELA_MS) {
-        await sb.from('whatsapp_envios')
-          .update({
-            status: 'falhou',
-            tentativas: MAX_TENT,
-            proximo_retry: null,
-            erro: `vencida: ${Math.round(idadeMs / 60000)}min parada na fila — não enviada`,
-          })
-          .eq('id', env.id)
-        log.warn(`[OUTBOX] ✗ vencida (${Math.round(idadeMs / 60000)}min) → ${env.evento} → ${env.destinatario} — não enviada`)
+      // O lote é de até 10 mensagens com 4-10s de intervalo — pode levar mais
+      // de um minuto. Reconfere se a linha ainda está pendente/falhou: o
+      // servidor pode tê-la marcado 'expirada' (venceu) ou 'cancelada'
+      // (pedido avançou de etapa/foi cancelado — trigger da migration 0121)
+      // depois da seleção acima.
+      const { data: atual } = await sb.from('whatsapp_envios').select('status').eq('id', env.id).single()
+      if (atual?.status !== 'pendente' && atual?.status !== 'falhou') {
+        log.warn(`[OUTBOX] ✗ ${env.evento} → ${env.destinatario} — não é mais válida (status=${atual?.status}), pulando`)
         continue
       }
 
@@ -147,12 +140,11 @@ async function processarPendentes() {
         log.info(`[OUTBOX] ✓ ${env.evento} → ${env.destinatario}`)
       } catch (e) {
         const tent = (env.tentativas || 0) + 1
-        const proximo = tent < MAX_TENT
-          ? new Date(Date.now() + tent * 60_000).toISOString()
-          : null
+        const desistiu = tent >= MAX_TENT
+        const proximo = desistiu ? null : new Date(Date.now() + tent * 60_000).toISOString()
 
         await sb.from('whatsapp_envios')
-          .update({ status: 'falhou', tentativas: tent, erro: String(e), proximo_retry: proximo })
+          .update({ status: desistiu ? 'dead_letter' : 'falhou', tentativas: tent, erro: String(e), proximo_retry: proximo })
           .eq('id', env.id)
 
         log.error(`[OUTBOX] ✗ ${env.destinatario}:`, e)
