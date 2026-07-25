@@ -124,9 +124,19 @@ async function processarPendentes() {
       // servidor pode tê-la marcado 'expirada' (venceu) ou 'cancelada'
       // (pedido avançou de etapa/foi cancelado — trigger da migration 0121)
       // depois da seleção acima.
-      const { data: atual } = await sb.from('whatsapp_envios').select('status').eq('id', env.id).single()
+      const { data: atual } = await sb.from('whatsapp_envios').select('status, expira_em').eq('id', env.id).single()
       if (atual?.status !== 'pendente' && atual?.status !== 'falhou') {
         log.warn(`[OUTBOX] ✗ ${env.evento} → ${env.destinatario} — não é mais válida (status=${atual?.status}), pulando`)
+        continue
+      }
+
+      // Mesma checagem que o cron (estaVencida): a idade original da linha
+      // ainda pode ter vencido só agora, durante o próprio lote.
+      if (atual.expira_em && new Date(atual.expira_em).getTime() <= Date.now()) {
+        await sb.from('whatsapp_envios')
+          .update({ status: 'expirada', proximo_retry: null, erro: 'janela de 30 min expirada' })
+          .eq('id', env.id)
+        log.warn(`[OUTBOX] ✗ ${env.evento} → ${env.destinatario} — venceu durante o lote, pulando`)
         continue
       }
 
