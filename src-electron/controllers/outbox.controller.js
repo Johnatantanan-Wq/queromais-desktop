@@ -16,6 +16,11 @@ const MAX_TENT  = 3
 // por mensagem (digitando + random); aqui garantimos separação mínima entre envios
 const DELAY_MIN = 4000
 const DELAY_MAX = 10000
+// Idade máxima de uma mensagem parada na fila antes de virar 'falhou' em vez
+// de ser despejada. Sem isto, se o WhatsApp cai e volta horas depois (app
+// fechado, PC reiniciado), o robô manda tudo que acumulou de uma vez — inclusive
+// avisos de pedido que já mudou de status há muito tempo.
+const JANELA_MS = 30 * 60 * 1000
 const delayAleatorio = () => Math.floor(Math.random() * (DELAY_MAX - DELAY_MIN) + DELAY_MIN)
 
 let _sb = null
@@ -104,7 +109,7 @@ async function processarPendentes() {
 
     const { data: envios, error: qErr } = await sb
       .from('whatsapp_envios')
-      .select('id, destinatario, mensagem, tentativas, evento')
+      .select('id, destinatario, mensagem, tentativas, evento, enviado_em')
       .eq('loja_id', lojaId)
       .in('status', ['pendente', 'falhou'])
       .lt('tentativas', MAX_TENT)
@@ -117,6 +122,20 @@ async function processarPendentes() {
 
     for (const env of (envios || [])) {
       if (!env.mensagem || !env.destinatario) continue
+
+      const idadeMs = Date.now() - new Date(env.enviado_em).getTime()
+      if (idadeMs > JANELA_MS) {
+        await sb.from('whatsapp_envios')
+          .update({
+            status: 'falhou',
+            tentativas: MAX_TENT,
+            proximo_retry: null,
+            erro: `vencida: ${Math.round(idadeMs / 60000)}min parada na fila — não enviada`,
+          })
+          .eq('id', env.id)
+        log.warn(`[OUTBOX] ✗ vencida (${Math.round(idadeMs / 60000)}min) → ${env.evento} → ${env.destinatario} — não enviada`)
+        continue
+      }
 
       try {
         await enviarViaWA(env.destinatario, env.mensagem)
