@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net, screen } = require('electron')
+const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net, screen, shell } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const { createClient } = require('@supabase/supabase-js')
 const path = require('path')
@@ -335,6 +335,27 @@ async function createWindow() {
     },
   })
   global.cardapioView.webContents.loadURL(CARDAPIO_URL)
+
+  // Sem isto, ctrl+clique / clique do meio / target="_blank" num link da view
+  // (ex.: menu lateral) cai no comportamento padrão do Electron: abre uma
+  // BrowserWindow genérica com a sessão PADRÃO (não a persist:cardapio) — sem
+  // o cookie de login, a página vem redirecionada pra tela de login. Links da
+  // mesma origem navegam na própria view (mantém a sessão autenticada);
+  // links externos abrem no navegador do sistema.
+  global.cardapioView.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const destino = new URL(url)
+      const atual = new URL(CARDAPIO_URL)
+      if (destino.origin === atual.origin) {
+        global.cardapioView.webContents.loadURL(url)
+      } else {
+        shell.openExternal(url)
+      }
+    } catch (e) {
+      log.warn('[NAV] setWindowOpenHandler: URL inválida:', url, e && e.message)
+    }
+    return { action: 'deny' }
+  })
 
   // Autodescoberta da loja: pergunta ao admin LOGADO quem é a loja (id/slug).
   // Sem isso, outbox (notificações WhatsApp) e bot ficavam mudos em máquina
