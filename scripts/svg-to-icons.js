@@ -29,11 +29,11 @@ const out = path.resolve(outDir)
 fs.mkdirSync(out, { recursive: true })
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'svg-icons-'))
 
-// 1) SVG → PNG 1024 (qlmanage rasteriza via Quick Look)
-execFileSync('qlmanage', ['-t', '-s', '1024', '-o', tmp, svg], { stdio: 'pipe' })
-const base = path.join(tmp, path.basename(svg) + '.png')
+// 1) SVG → PNG 1024 (sips preserva transparência; qlmanage -t force fundo branco no thumbnail)
+const base = path.join(tmp, 'base-1024.png')
+execFileSync('sips', ['-s', 'format', 'png', '-z', '1024', '1024', svg, '--out', base], { stdio: 'pipe' })
 if (!fs.existsSync(base)) {
-  console.error('qlmanage não gerou o PNG — confira o SVG:', svg)
+  console.error('sips não gerou o PNG — confira o SVG:', svg)
   process.exit(1)
 }
 
