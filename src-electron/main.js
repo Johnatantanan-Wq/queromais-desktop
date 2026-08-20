@@ -494,6 +494,34 @@ async function createWindow() {
     } catch (_) {}
   }, 4000)
 
+  // ── Presença na plataforma ────────────────────────────────────────────────
+  // Avisa o servidor que ESTE desktop está com o WhatsApp Web conectado. Enquanto
+  // o ping estiver fresco (validade de 2 min no servidor), as notificações da loja
+  // são roteadas pra cá mesmo que ela esteja configurada em Evolution/Cloud API —
+  // e voltam sozinhas pro provedor dela quando o app fecha ou o Web cai.
+  // Vai pela BrowserView do admin logado, mesmo caminho de /api/admin/loja.
+  let _waAuthAtual = false
+  let _presencaEnviada = null
+  async function pingarPresenca(conectado) {
+    try {
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return
+      const corpo = JSON.stringify({ conectado: !!conectado, versao: app.getVersion() })
+      const ok = await wc.executeJavaScript(
+        `fetch('/api/admin/whatsapp/presenca',{method:'POST',credentials:'include',` +
+        `headers:{'Content-Type':'application/json'},body:${JSON.stringify(corpo)}})` +
+        `.then(r=>r.ok).catch(()=>false)`, true)
+      if (ok) {
+        if (_presencaEnviada !== !!conectado) log.info(`[PRESENCA] servidor avisado: conectado=${!!conectado}`)
+        _presencaEnviada = !!conectado
+      }
+    } catch (e) { log.warn('[PRESENCA] falhou:', e && e.message) }
+  }
+  // Renova enquanto conectado; o carimbo do servidor vence em 2 min.
+  setInterval(() => pingarPresenca(_waAuthAtual), 60 * 1000)
+  // Fechou o app: derruba o carimbo na hora, sem esperar os 2 min de validade.
+  app.on('before-quit', () => { pingarPresenca(false) })
+
   // Detecção de auth via DOM — fallback quando api.js não dispara 'authenticated'
   setInterval(async () => {
     if (!global.whatsappView?.webContents) return
@@ -503,6 +531,12 @@ async function createWindow() {
       )
       const { outboxController } = require('./controllers/outbox.controller')
       outboxController.setConnected(isAuth)
+      // Mudou de estado (conectou ou caiu): avisa o servidor na hora, sem
+      // esperar o ping de 60s — é o que faz o envio trocar de caminho rápido.
+      if (isAuth !== _waAuthAtual) {
+        _waAuthAtual = isAuth
+        pingarPresenca(isAuth)
+      }
     } catch (_) {}
   }, 8000)
 

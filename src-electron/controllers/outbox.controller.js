@@ -107,6 +107,13 @@ async function processarPendentes() {
       .select('id, destinatario, mensagem, tentativas, evento')
       .eq('loja_id', lojaId)
       .in('status', ['pendente', 'falhou'])
+      // Só o que o servidor carimbou pra cá. Desde a migration 0137 o servidor
+      // decide o caminho na hora de enfileirar: com este app conectado (ping de
+      // presença), a linha nasce 'wabot'; sem ele, nasce com o provedor da loja
+      // (Evolution/Cloud API) e NÃO é nossa — pegar essas linhas fazia o cliente
+      // receber a mesma mensagem duas vezes quando a Evolution reportava falha
+      // depois de já ter entregado.
+      .eq('provedor', 'wabot')
       .lt('tentativas', MAX_TENT)
       .gt('expira_em', agora) // servidor já expira as vencidas (migration 0121) — redundante de propósito
       .or(`proximo_retry.is.null,proximo_retry.lte.${agora}`)
@@ -124,7 +131,13 @@ async function processarPendentes() {
       // servidor pode tê-la marcado 'expirada' (venceu) ou 'cancelada'
       // (pedido avançou de etapa/foi cancelado — trigger da migration 0121)
       // depois da seleção acima.
-      const { data: atual } = await sb.from('whatsapp_envios').select('status, expira_em').eq('id', env.id).single()
+      const { data: atual } = await sb.from('whatsapp_envios').select('status, expira_em, provedor').eq('id', env.id).single()
+      if (atual && atual.provedor !== 'wabot') {
+        // O servidor resgatou esta linha pra outro provedor (app ficou >5 min
+        // sem pingar presença) — não é mais nossa, alguém já vai mandar.
+        log.warn(`[OUTBOX] ✗ ${env.evento} → ${env.destinatario} — resgatada pelo servidor (provedor=${atual.provedor}), pulando`)
+        continue
+      }
       if (atual?.status !== 'pendente' && atual?.status !== 'falhou') {
         log.warn(`[OUTBOX] ✗ ${env.evento} → ${env.destinatario} — não é mais válida (status=${atual?.status}), pulando`)
         continue
