@@ -44,7 +44,13 @@
       background: var(--brand); display: flex; align-items: center; justify-content: center;
       font-weight: 900; font-size: 15px; color: #fff;
       margin-bottom: 16px; flex-shrink: 0;
+      overflow: hidden;
     }
+    /* Marca com logo própria (brand.logo_imagem): a imagem ocupa o quadrado
+       inteiro e o fundo colorido some — a sigla continua valendo p/ quem não
+       tem imagem (Quero Mais, Pediu!). */
+    .logo.tem-img { background: none; }
+    .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .ni {
       width: 40px; height: 40px; border-radius: 8px;
       border: none; background: none; cursor: pointer;
@@ -177,6 +183,25 @@
 
 <script>
 const { ipcRenderer } = require('electron')
+
+// Logo da barra lateral por marca: `logo_imagem` (arquivo em assets/, escrito
+// pelo apply-brand) ou `logo_sigla`. Sem nenhum dos dois, fica o "Q" do HTML —
+// Quero Mais e Pediu! seguem exatamente como estavam.
+try {
+  const __b = require('../src-electron/brand')
+  const __logo = document.querySelector('.logo')
+  if (__logo && __b.logo_imagem) {
+    const img = document.createElement('img')
+    img.src = '../assets/' + __b.logo_imagem
+    img.alt = ''
+    img.onerror = () => { __logo.classList.remove('tem-img'); __logo.textContent = __b.logo_sigla || 'Q' }
+    __logo.textContent = ''
+    __logo.classList.add('tem-img')
+    __logo.appendChild(img)
+  } else if (__logo && __b.logo_sigla) {
+    __logo.textContent = __b.logo_sigla
+  }
+} catch (_) { /* sem nodeIntegration → mantém o padrão do HTML */ }
 
 let viewAtual = 'cardapio'
 let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0

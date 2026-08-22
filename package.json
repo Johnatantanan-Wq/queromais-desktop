@@ -1,6 +1,6 @@
 {
   "name": "queromais-desktop",
-  "version": "1.1.29",
+  "version": "1.1.30",
   "description": "Quero Mais Delivery — App Desktop com WhatsApp",
   "main": "src-electron/main.js",
   "author": "Quero Mais",
@@ -16,8 +16,11 @@
     "build:queromais:win": "node scripts/apply-brand.js queromais && electron-builder --win --config electron-builder.brand.json",
     "build:pediu:mac": "node scripts/apply-brand.js pediu && electron-builder --mac --config electron-builder.brand.json",
     "build:pediu:win": "node scripts/apply-brand.js pediu && electron-builder --win --config electron-builder.brand.json",
+    "build:jasson:mac": "node scripts/apply-brand.js pizzariadojasson && electron-builder --mac --config electron-builder.brand.json",
+    "build:jasson:win": "node scripts/apply-brand.js pizzariadojasson && electron-builder --win --config electron-builder.brand.json",
     "release": "node scripts/apply-brand.js queromais && electron-builder --mac --win --publish always",
-    "release:pediu": "node scripts/apply-brand.js pediu && electron-builder --mac --win --publish always --config electron-builder.brand.json"
+    "release:pediu": "node scripts/apply-brand.js pediu && electron-builder --mac --win --publish always --config electron-builder.brand.json",
+    "release:jasson": "node scripts/apply-brand.js pizzariadojasson && electron-builder --mac --win --publish always --config electron-builder.brand.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

@@ -1,0 +1,24 @@
+{
+  "plataforma_slug": "pizzariadojasson",
+  "nome_app": "Pizzas do Jasson Desktop",
+  "produto_name": "Pizzas do Jasson Desktop",
+  "nome_delivery": "Pizzas do Jasson",
+  "app_id": "com.pizzasdojasson.desktop",
+  "artifact_name": "Jasson-Desktop",
+  "user_data_name": "jasson-desktop",
+  "publish_repo": "jasson-desktop",
+  "cor_primaria": "#E8823D",
+  "cor_primaria_rgb": "232,130,61",
+  "dominio_admin": "https://www.pizzasdojasson.com.br/admin",
+  "dominio_cardapio": "https://www.pizzasdojasson.com.br",
+  "ipp_user": "jasson",
+  "nome_comanda": "Comanda Pizzas do Jasson",
+  "logo_imagem": "icon-256.png",
+  "icons": {
+    "icns": "icons/icon.icns",
+    "ico": "icons/icon.ico",
+    "png256": "icons/icon-256.png",
+    "tray": "icons/tray-icon.png",
+    "tray2x": "icons/tray-icon@2x.png"
+  }
+}

@@ -1,6 +1,7 @@
 # Multi-marca (white-label)
 
-O mesmo código empacota como **Quero Mais Desktop** ou **Pediu! Desktop**.
+O mesmo código empacota como **Quero Mais Desktop**, **Pediu! Desktop** ou
+**Pizzas do Jasson Desktop**.
 A marca é escolhida em build-time por `scripts/apply-brand.js` (padrão: `queromais`
 — reproduz o build de hoje byte a byte).
 
@@ -9,8 +10,10 @@ A marca é escolhida em build-time por `scripts/apply-brand.js` (padrão: `quero
 ```bash
 npm run build:queromais:win   # ou :mac
 npm run build:pediu:win       # ou :mac
+npm run build:jasson:win      # ou :mac
 npm run release               # fluxo atual (Quero Mais, mac+win, publish)
 npm run release:pediu         # idem para Pediu! (exige repo GitHub pediu-desktop)
+npm run release:jasson        # idem para Pizzas do Jasson (repo jasson-desktop)
 ```
 
 `npm run apply-brand -- pediu` só aplica a marca (ícones em `assets/`,
@@ -23,6 +26,7 @@ npm run release:pediu         # idem para Pediu! (exige repo GitHub pediu-deskto
 brands/<slug>/brand.json    identidade (nomes, appId, cores, domínios, ícones)
 brands/<slug>/icons/        icon.icns, icon.ico, icon-256.png, tray-icon.png, tray-icon@2x.png
 brands/pediu/src/           SVGs originais da identidade Pediu!
+brands/pizzariadojasson/src/  PNGs originais da identidade Pizzas do Jasson
 ```
 
 Campos do brand.json: `plataforma_slug`, `nome_app`, `produto_name`,
@@ -30,6 +34,8 @@ Campos do brand.json: `plataforma_slug`, `nome_app`, `produto_name`,
 instaladores), `user_data_name` (pasta de config/sessão — separa o WhatsApp de
 cada marca), `publish_repo`, `cor_primaria`, `cor_primaria_rgb`,
 `dominio_admin`, `dominio_cardapio`, `ipp_user`, `nome_comanda`, `icons`.
+Opcionais da barra lateral: `logo_imagem` (arquivo em `assets/`, ex.:
+`icon-256.png` — vira a logo quadrada) ou `logo_sigla` (letra; padrão `Q`).
 
 Em runtime o app lê tudo via `src-electron/brand.js`; sem o arquivo gerado, o
 fallback são os padrões Quero Mais (checkout limpo continua funcionando igual).
@@ -50,7 +56,11 @@ fallback são os padrões Quero Mais (checkout limpo continua funcionando igual)
 
 ```bash
 node scripts/svg-to-icons.js brands/pediu/src/pediu-app-icon.svg brands/pediu/icons
+node scripts/svg-to-icons.js brands/pizzariadojasson/src/jasson-app-icon.png brands/pizzariadojasson/icons
 ```
+
+O script também aceita PNG de entrada (foi assim que saiu o kit do Jasson, a
+partir do favicon 512×512 da marca no site).
 
 Só roda no macOS (usa qlmanage/sips/iconutil nativos; o .ico é PNG-in-ICO
 montado pelo próprio script — mesmo formato do icon.ico do Quero Mais).
