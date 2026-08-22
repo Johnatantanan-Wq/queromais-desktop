@@ -1,6 +1,6 @@
 {
   "name": "queromais-desktop",
-  "version": "1.1.30",
+  "version": "1.1.31",
   "description": "Quero Mais Delivery — App Desktop com WhatsApp",
   "main": "src-electron/main.js",
   "author": "Quero Mais",
@@ -73,6 +73,7 @@
         }
       ],
       "icon": "assets/icon.ico",
+      "sign": "./scripts/sign-windows.js",
       "extraResources": [
         {
           "from": "node_modules/pdf-to-printer/dist/SumatraPDF-3.4.6-32.exe",

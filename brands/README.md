@@ -52,6 +52,23 @@ fallback são os padrões Quero Mais (checkout limpo continua funcionando igual)
   Pediu! é preciso criar o repo **Johnatantanan-Wq/pediu-desktop** antes do
   primeiro `release:pediu`.
 
+## Assinatura de código (Windows)
+
+Os `.exe` saem **assinados** com o certificado Certum Cloud Code Signing
+(SimplySign) via Jsign, direto do Mac — `build.win.sign` →
+`scripts/sign-windows.js`, herdado por todas as marcas.
+
+Pré-requisito: o app **SimplySign Desktop** aberto e conectado
+(ícone na barra do topo → *Connect with cloud* → Allow no celular; sessão ~2h).
+Conferir o cartão: `pkcs11-tool --module /usr/local/lib/libSimplySignPKCS.dylib -T`
+(tem que aparecer `Slot 0 … Code Signing … CERTUM`). Sem sessão o build **não
+quebra** — o hook avisa e o instalador sai SEM assinatura, então confira depois
+com `osslsigncode verify <arquivo>.exe`.
+
+⚠️ Só vale pro Windows. Os `.dmg` do Mac continuam sem assinatura Apple
+(exigiria conta Apple Developer paga) — no primeiro uso, abrir com
+botão direito → Abrir.
+
 ## Ícones (regenerar)
 
 ```bash
