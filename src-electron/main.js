@@ -342,14 +342,27 @@ async function createWindow() {
   // o cookie de login, a página vem redirecionada pra tela de login. Links da
   // mesma origem navegam na própria view (mantém a sessão autenticada);
   // links externos abrem no navegador do sistema.
+  // ⚠️ NUNCA navegar/abrir nada DE DENTRO deste handler: ele roda de forma
+  // síncrona enquanto o renderer da view está PARADO esperando a resposta do
+  // window.open(). Chamar loadURL no MESMO webContents nesse instante deixava
+  // o frame em deadlock no Windows — a view virava "zumbi" (parava de pintar
+  // e de responder), o WhatsApp por baixo aparecia no lugar e a sidebar
+  // parecia congelada (v1.1.28/29, relato "trava após o login ao imprimir").
+  // A navegação sai daqui pra um setImmediate: o window.open resolve primeiro,
+  // o frame volta a rodar, e só então a view navega. Mesmo destino, sem trava.
   global.cardapioView.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const destino = new URL(url)
       const atual = new URL(CARDAPIO_URL)
       if (destino.origin === atual.origin) {
-        global.cardapioView.webContents.loadURL(url)
+        log.info('[NAV] window.open same-origin → navegando a view:', url)
+        setImmediate(() => {
+          const wc = global.cardapioView?.webContents
+          if (!wc || wc.isDestroyed()) return
+          wc.loadURL(url).catch((e) => log.warn('[NAV] loadURL falhou:', e && e.message))
+        })
       } else {
-        shell.openExternal(url)
+        setImmediate(() => shell.openExternal(url))
       }
     } catch (e) {
       log.warn('[NAV] setWindowOpenHandler: URL inválida:', url, e && e.message)
@@ -423,6 +436,49 @@ async function createWindow() {
   global.mainWindow.addBrowserView(global.whatsappView)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
   global.whatsappView.webContents.loadURL(WA_URL)
+
+  // ── Blindagem: view NUNCA vira zumbi ──────────────────────────────────────
+  // Antes não havia recuperação nenhuma: se o renderer de uma view morria
+  // (OOM, deadlock do window.open, crash de GPU), ela ficava morta até o
+  // usuário reiniciar o app — o WhatsApp por baixo aparecia no lugar e a
+  // sidebar parecia congelada (nenhum clique mudava nada visível). Agora:
+  // renderer morto → recarrega sozinho (com backoff pra não ciclar em OOM);
+  // renderer travado → 10s de tolerância e derruba pra cair no reload.
+  function blindarView(nome, view, urlInicial) {
+    const wc = view.webContents
+    let quedas = 0
+    let ultimaQueda = 0
+    wc.on('render-process-gone', (_e, det) => {
+      const agora = Date.now()
+      quedas = (agora - ultimaQueda < 60_000) ? quedas + 1 : 1
+      ultimaQueda = agora
+      const espera = Math.min(30_000, 500 * 2 ** (quedas - 1))
+      log.error(`[VIEW ${nome}] renderer morreu (${det && det.reason}) — recarregando em ${espera}ms (queda ${quedas})`)
+      setTimeout(() => {
+        if (wc.isDestroyed()) return
+        const atual = wc.getURL()
+        const destino = atual && !atual.startsWith('about:') ? atual : urlInicial
+        wc.loadURL(destino).catch((e) => log.error(`[VIEW ${nome}] reload pós-queda falhou:`, e && e.message))
+      }, espera)
+    })
+    let timerTravada = null
+    wc.on('unresponsive', () => {
+      log.warn(`[VIEW ${nome}] não responde — 10s de tolerância antes de derrubar o renderer`)
+      clearTimeout(timerTravada)
+      timerTravada = setTimeout(() => {
+        if (wc.isDestroyed() || wc.isCrashed()) return
+        log.error(`[VIEW ${nome}] continua travada — derrubando o renderer pra recarregar`)
+        try { wc.forcefullyCrashRenderer() } catch (_) {}
+      }, 10_000)
+    })
+    wc.on('responsive', () => {
+      clearTimeout(timerTravada)
+      timerTravada = null
+      log.info(`[VIEW ${nome}] voltou a responder`)
+    })
+  }
+  blindarView('cardapio', global.cardapioView, CARDAPIO_URL)
+  blindarView('whatsapp', global.whatsappView, WA_URL)
 
   // Captura console do WhatsApp para o log do Electron
   global.whatsappView.webContents.on('console-message', (e, level, msg) => {
@@ -539,6 +595,16 @@ async function createWindow() {
         }
       } catch (_) {}
     }
+    // Também reafirma QUAL view fica por cima (fora do split as duas ocupam o
+    // mesmo retângulo — se a ordem nativa virar por qualquer motivo, o usuário
+    // vê a view errada "presa" na tela). setTopBrowserView é idempotente.
+    try {
+      if (global.activeView === 'whatsapp' && global.whatsappView) {
+        win.setTopBrowserView(global.whatsappView)
+      } else if (global.activeView !== 'split' && global.cardapioView) {
+        win.setTopBrowserView(global.cardapioView)
+      }
+    } catch (_) {}
   }, 2000)
 
   global.mainWindow.on('closed', () => {
@@ -606,6 +672,13 @@ ipcMain.on('change-view', (event, { view }) => {
   const nextView = ['whatsapp', 'split'].includes(view) ? view : 'cardapio'
   log.info('[NAV] change-view recebido:', view, '=>', nextView)
   global.activeView = nextView
+  // Clique da sidebar cura view morta na hora: se o renderer do destino
+  // estiver crashado (blindarView ainda no backoff), recarrega já — o
+  // usuário nunca fica olhando pra uma view em branco/errada.
+  const alvo = nextView === 'whatsapp' ? global.whatsappView : global.cardapioView
+  try {
+    if (alvo && !alvo.webContents.isDestroyed() && alvo.webContents.isCrashed()) alvo.webContents.reload()
+  } catch (_) {}
   posicionarViews()
   const b = global.mainWindow?.getContentBounds()
   log.info('[NAV] bounds após posicionar: SB='+global.sidebarW+' win='+JSON.stringify(b))
