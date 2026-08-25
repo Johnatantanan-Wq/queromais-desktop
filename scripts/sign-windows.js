@@ -68,7 +68,9 @@ exports.default = async function (configuration) {
   } catch (err) {
     const saida = `${err.stdout || ''}${err.stderr || ''}${err.message || ''}`;
     // Cartão fora do ar = sessão do SimplySign caiu. Não quebra o build.
-    if (/No slots|CKR_TOKEN_NOT_PRESENT|keystore is empty|No certificate found/i.test(saida)) {
+    // "No slots" é o texto do pkcs11-tool; o jsign relata o mesmo estado como
+    // "slotListIndex is 0 but token only has 0 slots" (visto em 2026-08-24).
+    if (/No slots|has 0 slots|CKR_TOKEN_NOT_PRESENT|keystore is empty|No certificate found/i.test(saida)) {
       avisarPulado(filePath, 'o SimplySign Desktop não está conectado (nenhum cartão visível)');
       return;
     }
