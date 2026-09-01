@@ -88,15 +88,18 @@ function imprimirUrl(url, impressoraNome) {
           finalizar(true)
           return
         } catch (e) {
-          impressaoService.plog('error', 'Falha na impressão, caindo pro diálogo:', e.message, absUrl)
+          impressaoService.plog('error', 'Falha na impressão (PDF/Sumatra/IPP), tentando silent print puro:', e.message, absUrl)
           if (resolvido) return
         }
-        // Último recurso: diálogo nativo (usuário vê e confirma manualmente)
-        armarTimeout(120000, 'aguardando diálogo de impressão')
-        try { win.setPosition(100, 100); win.show() } catch (_) {}
-        win.webContents.print({ silent: false, printBackground: true }, (ok2, err2) => {
-          if (!ok2) impressaoService.plog('error', 'Falha também no diálogo:', err2, absUrl)
-          else impressaoService.plog('info', 'Impresso via diálogo (fallback):', absUrl)
+        // Último recurso: NUNCA abre diálogo nativo (loja pediu — a janela do
+        // Windows ficava aparecendo toda hora no balcão). Mais uma tentativa
+        // 100% silenciosa, sem mostrar a janela; se isto também falhar, o
+        // trabalho é perdido silenciosamente — fica só no print.log (a
+        // impressora "Reimprimir" da tela cobre o caso de a via não sair).
+        armarTimeout(60000, 'fallback silent print')
+        win.webContents.print({ silent: true, printBackground: true, deviceName: impressoraNome || undefined }, (ok2, err2) => {
+          if (!ok2) impressaoService.plog('error', 'Falha também no fallback silencioso:', err2, absUrl)
+          else impressaoService.plog('info', 'Impresso via fallback silent print:', absUrl)
           finalizar(ok2)
         })
       }, 400)
