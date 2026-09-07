@@ -73,7 +73,7 @@ function htmlClientes(dados, estado) {
   const linhas = (dados.itens || []).map((c) => ({
     chave: c.telefone || c.nome,
     celulas: [
-      { texto: c.nome + (c.telefone ? '\n' + c.telefone : ''), forte: true, cor: '#111' },
+      { texto: c.nome, sub: c.telefone || '', forte: true, cor: '#111' },
       c.bairro || '—',
       { texto: c.segmento || '—', etiqueta: COR_SEGMENTO[c.segmento] || 'cinza' },
       String(c.pedidos || 0),

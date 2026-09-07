@@ -74,3 +74,11 @@ test('apenasGrade não embrulha em cartão (senão vira cartão dentro de cartã
   assert.ok(h.includes('x') && h.includes('A'))
   assert.ok(h.includes('1 registro'))
 })
+
+test('célula com sub desenha duas linhas (nome em cima, telefone embaixo)', () => {
+  const h = L.apenasGrade({ colunas: ['Cliente'], grade: '1fr' },
+    [{ chave: '1', celulas: [{ texto: 'Maria Silva', sub: '(75) 98811-0001', forte: true }] }])
+  assert.ok(h.includes('Maria Silva') && h.includes('(75) 98811-0001'))
+  const i = h.indexOf('Maria Silva'), j = h.indexOf('(75) 98811-0001')
+  assert.ok(h.slice(i, j).includes('</span>'), 'o telefone precisa estar num elemento separado')
+})

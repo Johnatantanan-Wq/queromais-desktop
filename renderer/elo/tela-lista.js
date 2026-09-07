@@ -41,6 +41,14 @@ function celula(c, alinhaDireita) {
     if (c.etiqueta) {
       return '<span style="font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;background:' + e.bg + ';color:' + e.c + ';white-space:nowrap">' + esc(c.texto) + '</span>'
     }
+    // duas linhas: a de baixo é o detalhe (telefone, código) — como no painel
+    if (c.sub) {
+      return '<span style="min-width:0;display:block' + (alinhaDireita ? ';text-align:right' : '') + '">'
+        + '<span style="display:block;font-size:13px;font-weight:' + (c.forte ? 700 : 600) + ';color:' + (c.cor || '#111')
+        + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(c.texto) + '</span>'
+        + '<span style="display:block;font-size:11.5px;font-weight:600;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+        + esc(c.sub) + '</span></span>'
+    }
     return '<span style="font-size:13px;font-weight:' + (c.forte ? 700 : 600) + ';color:' + (c.cor || '#4b5563') + (alinhaDireita ? ';text-align:right;display:block' : '') + '">' + esc(c.texto) + '</span>'
   }
   return '<span style="font-size:13px;font-weight:600;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' + (alinhaDireita ? ';text-align:right;display:block' : '') + '">' + esc(c) + '</span>'
