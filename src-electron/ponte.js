@@ -1,3 +1,5 @@
+const { TELAS, SEM_API } = require('./telas-ponte')
+
 // A ponte entre o shell nativo e os dados. O renderer pede; aqui se decide entre
 // servidor e cache. Na F3, é aqui que entra a fila de escrita offline.
 //
@@ -37,6 +39,21 @@ async function buscarTela({ cache, chave, pedirAoPainel, valida }) {
   return { dados: guardado ? guardado.body : null, offline: true, ts: guardado ? guardado.ts : 0 }
 }
 
+/**
+ * Busca uma tela que junta VÁRIAS rotas do painel (Atendimento, Gestão, Fidelidade).
+ * Uma rota que falha não derruba a tela: vem `null` no lugar dela e o adaptador decide
+ * o que dá para mostrar — melhor meia tela verdadeira do que tela inteira vazia.
+ */
+async function buscarVarias({ rotas, pedirTela }) {
+  const chaves = Object.keys(rotas)
+  const respostas = await Promise.all(chaves.map(async (k) => {
+    try { return await pedirTela(rotas[k]) } catch (e) { return null }
+  }))
+  const junto = {}
+  chaves.forEach((k, i) => { junto[k] = respostas[i] })
+  return junto
+}
+
 /** Registra os canais. Chamado uma vez, no boot do main. */
 function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual }) {
   ipcMain.handle('menu-carregar', () => buscarMenu({ cache, pedirAoPainel, lojaId: lojaIdAtual() }))
@@ -52,6 +69,28 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
     pedirAoPainel: () => pedirTela('/api/admin/caixa/resumo'),
     valida: (d) => Object.prototype.hasOwnProperty.call(d, 'aberto'),
   }))
+
+  // As demais telas vêm do catálogo (telas-ponte.js): uma linha por tela, com as
+  // rotas do painel, o adaptador e o que conta como resposta boa.
+  for (const tela of TELAS) {
+    ipcMain.handle(tela.canal, () => buscarTela({
+      cache,
+      chave: tela.cache + '|' + (lojaIdAtual() || 'sem-loja'),
+      pedirAoPainel: async () => {
+        const bruto = await buscarVarias({ rotas: tela.rotas, pedirTela })
+        if (tela.valida && !tela.valida(bruto)) return null
+        return tela.adaptar(bruto)
+      },
+      // O adaptador já devolveu no formato da tela; aqui só se recusa o vazio.
+      valida: (d) => d != null,
+    }))
+  }
+
+  // Telas que o painel ainda não expõe por rota de leitura: em vez de "No handler
+  // registered" (que vira erro genérico na tela), o app diz o que falta.
+  for (const canal of Object.keys(SEM_API)) {
+    ipcMain.handle(canal, () => ({ dados: null, offline: false, ts: 0, semApi: SEM_API[canal] }))
+  }
 }
 
-module.exports = { buscarMenu, buscarTela, registrar }
+module.exports = { buscarMenu, buscarTela, buscarVarias, registrar }

@@ -388,6 +388,15 @@ if (typeof document !== 'undefined') {
       const r = await ipcRenderer.invoke(tela.canal, tela.argumentos ? tela.argumentos() : undefined)
       if (ROTA !== rota) return   // o lojista já foi para outra tela
       DADOS_TELA = r && r.dados
+      // Tela pronta cujo painel ainda não tem rota de leitura: dizer o que falta é mais
+      // útil que "não deu para carregar", que faz pensar em queda de internet.
+      if (r && r.semApi) {
+        alvo.innerHTML = '<div class="ecard"><div class="evazio">'
+          + 'Esta tela ainda não recebe dado do painel.<br>'
+          + '<span style="font-size:12px">Falta ligar: ' + esc(r.semApi) + '.</span><br><br>'
+          + 'No modo demonstração ela funciona inteira.</div></div>'
+        return
+      }
       alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
       if (silencioso) alvo.scrollTop = rolagem
     } catch (e) {
