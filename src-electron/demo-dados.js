@@ -283,6 +283,18 @@ function visaoGeral(periodo) {
         anterior: conjunto.fatAnt.map((v, i) => Math.round((v / (conjunto.pedAnt[i] || 1)) * 100) / 100),
       },
     },
+    // espelha o que as lojas abertas mostram: cancelamento relevante e, na maioria,
+    // sem motivo registrado
+    cancelados: {
+      pedidos: Math.max(1, Math.round(24 * proporcao)),
+      valor: Math.round(1296.27 * proporcao * 100) / 100,
+      motivos: [
+        { label: 'Sem motivo registrado', value: Math.max(1, Math.round(18 * proporcao)) },
+        { label: 'Desistiu', value: Math.max(1, Math.round(4 * proporcao)) },
+        { label: 'Pedido errado', value: Math.max(1, Math.round(3 * proporcao)) },
+        { label: 'Produto em falta', value: Math.max(1, Math.round(2 * proporcao)) },
+      ],
+    },
     canais: [
       { label: 'Delivery', value: Math.max(1, Math.round(214 * proporcao)) },
       { label: 'Balcão', value: Math.max(1, Math.round(78 * proporcao)) },
@@ -357,11 +369,17 @@ function listas() {
     despacho: {
       contadores: { aguardando: 2, rota: 3, entregue: 24 },
       itens: [
-        { pedido: '1040', cliente: 'Carla Nunes', bairro: 'Vila Nova', entregador: 'Tiago', situacao: 'Em rota', saiu: '20:02' },
-        { pedido: '1034', cliente: 'Sandra Reis', bairro: 'Centro', entregador: 'Wesley', situacao: 'Em rota', saiu: '19:51' },
-        { pedido: '1033', cliente: 'Otávio Brito', bairro: 'Boa Vista', entregador: 'Tiago', situacao: 'Em rota', saiu: '19:40' },
-        { pedido: '1041', cliente: 'João Pereira', bairro: 'Jardim América', entregador: null, situacao: 'Aguardando', saiu: null },
-        { pedido: '1038', cliente: 'Rafael Souza', bairro: 'Industrial', entregador: null, situacao: 'Aguardando', saiu: null },
+        { pedido: '1040', cliente: 'Carla Nunes', bairro: 'Vila Nova', entregador: 'Tiago', situacao: 'Em rota', saiu: '20:02', valor: 132.40, forma: 'dinheiro' },
+        { pedido: '1034', cliente: 'Sandra Reis', bairro: 'Centro', entregador: 'Wesley', situacao: 'Em rota', saiu: '19:51', valor: 88.00, forma: 'cartao_entrega' },
+        { pedido: '1033', cliente: 'Otávio Brito', bairro: 'Boa Vista', entregador: 'Tiago', situacao: 'Em rota', saiu: '19:40', valor: 64.90, forma: 'dinheiro' },
+        { pedido: '1041', cliente: 'João Pereira', bairro: 'Jardim América', entregador: null, situacao: 'Aguardando', saiu: null, valor: 54.00, forma: 'pix' },
+        { pedido: '1038', cliente: 'Rafael Souza', bairro: 'Industrial', entregador: null, situacao: 'Aguardando', saiu: null, valor: 76.30, forma: 'dinheiro' },
+      ],
+      // a rota é o mini-caixa do entregador: sai com troco, volta com dinheiro
+      rotas: [
+        { id: 'r1', entregador: 'Tiago Moura', saiu: '19:40', entregas: 2, dinheiroEsperado: 197.30, fundoTroco: 50.00, status: 'aberta' },
+        { id: 'r2', entregador: 'Wesley Barros', saiu: '18:10', entregas: 4, dinheiroEsperado: 288.00, fundoTroco: 50.00, dinheiroContado: 285.00, diferenca: -3.00, status: 'fechada' },
+        { id: 'r3', entregador: 'Diego Rocha', saiu: '17:20', entregas: 3, dinheiroEsperado: 164.50, fundoTroco: 30.00, dinheiroContado: 164.50, diferenca: 0, status: 'fechada' },
       ],
     },
     financeiro: {

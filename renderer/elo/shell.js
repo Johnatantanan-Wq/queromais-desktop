@@ -116,6 +116,7 @@ if (typeof document !== 'undefined') {
   const TERMO = {}              // busca digitada, por rota
   const ABA = {}                // aba escolhida, por rota
   const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
+  const VISAO = {}              // visão (Despacho: entregas | rotas)
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let EXTRAS_PEDIDOS = false    // colunas de entrega no quadro
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
@@ -222,7 +223,14 @@ if (typeof document !== 'undefined') {
   }
 
   const TelaImpressao = require('./tela-impressao')
+  const TelaDespacho = require('./tela-despacho')
   const Ficha = require('./ficha')
+  NATIVAS['/admin/despacho'] = {
+    canal: 'despacho-carregar',
+    desenhar: (dados, estado) => TelaDespacho.htmlDespacho(dados, { ...estado, visao: VISAO['/admin/despacho'] }),
+    erro: 'Não deu para carregar o despacho agora.',
+  }
+
   NATIVAS['/app/impressao'] = {
     canal: 'impressao-info',
     desenhar: (dados, estado) => TelaImpressao.htmlImpressao(dados, estado),
@@ -325,6 +333,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btVisao = e.target.closest ? e.target.closest('[data-visao]') : null
+    if (btVisao) {
+      VISAO[ROTA] = btVisao.getAttribute('data-visao')
+      redesenharTelaAtual()
+      return
+    }
     const btSubaba = e.target.closest ? e.target.closest('[data-subaba]') : null
     if (btSubaba) {
       SUBABA[ROTA] = btSubaba.getAttribute('data-subaba')

@@ -41,6 +41,22 @@ function variacao(atual, anterior) {
   return { texto: sinal + pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%', subiu: pct >= 0 }
 }
 
+// Cancelamento não é detalhe: nas lojas abertas em 07/09 era 7,7% numa e 21% na outra,
+// e não aparecia em lugar nenhum do app. Fica ao lado dos outros números, e a cor sobe
+// para vermelho quando passa de 10% dos pedidos.
+function cartaoCancelados(dados) {
+  const c = dados.cancelados
+  if (!c) return ''
+  const pct = c.pedidos && dados.kpis && dados.kpis.pedidos
+    ? (c.pedidos / (Number(dados.kpis.pedidos.atual) + c.pedidos)) * 100 : 0
+  const alto = pct >= 10
+  return '<div class="ecard" style="padding:13px 20px;min-width:0;border-color:' + (alto ? '#f3c0bb' : 'var(--linha)') + '">'
+    + '<div style="font-size:11.5px;font-weight:700;color:#6b7280;margin-bottom:6px">Cancelados</div>'
+    + '<div style="font-size:22px;font-weight:800;color:' + (alto ? '#b42318' : '#111') + ';letter-spacing:-.02em;line-height:1">'
+    + fmtInt(c.pedidos) + ' <span style="font-size:14px;font-weight:700">(' + pct.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%)</span></div>'
+    + '<div style="font-size:11.5px;font-weight:600;color:#9ca3af;margin-top:5px">R$ ' + fmtBRL(c.valor) + ' que deixaram de entrar</div></div>'
+}
+
 function cartaoKpi(chave, dados, metricaAtiva) {
   const m = METRICAS[chave]
   const k = (dados.kpis || {})[chave] || {}
@@ -97,8 +113,9 @@ function htmlVisaoGeral(dados, estado) {
     ? { labels: dados.series.labels || [], atual: porMetrica.atual || [], anterior: porMetrica.anterior || [] }
     : (dados.serie || { labels: [], atual: [], anterior: [] })
 
-  const kpis = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both">'
-    + ['faturamento', 'pedidos', 'ticket'].map((c) => cartaoKpi(c, dados, metrica)).join('') + '</div>'
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both">'
+    + ['faturamento', 'pedidos', 'ticket'].map((c) => cartaoKpi(c, dados, metrica)).join('')
+    + cartaoCancelados(dados) + '</div>'
 
   const qtdPontos = (s.labels || []).length
   const grafico = G.linha(
@@ -122,6 +139,21 @@ function htmlVisaoGeral(dados, estado) {
   const comCor = (lista) => (lista || []).map((r, i) => ({ ...r, color: paleta[i % paleta.length] }))
 
   const canais = bloco('Pedidos por canal', 'de onde vem a venda', G.barras(comCor(dados.canais), { fmt: fmtInt }), 0.07)
+
+  // Por que cancelou: nas lojas abertas, 3 de cada 4 cancelamentos não têm motivo
+  // registrado — e é isso que a tela precisa dizer, para o dono cobrar o registro.
+  const mot = (dados.cancelados && dados.cancelados.motivos) || []
+  const semMotivo = mot.find((m) => /sem motivo/i.test(m.label))
+  const totalMot = mot.reduce((s2, m) => s2 + (Number(m.value) || 0), 0) || 1
+  const motivos = mot.length ? bloco('Por que cancelou', 'motivos registrados no período',
+    G.barras(mot.map((m, i) => ({ ...m, color: /sem motivo/i.test(m.label) ? '#b42318' : G.PALETA[i % G.PALETA.length] })), { fmt: fmtInt })
+    + (semMotivo
+      ? '<div style="margin-top:14px;background:#fdeaea;border:1px solid #f3c0bb;border-radius:10px;padding:12px 14px">'
+        + '<div style="font-size:12.5px;font-weight:800;color:#b42318">'
+        + Math.round((semMotivo.value / totalMot) * 100) + '% dos cancelamentos não têm motivo registrado</div>'
+        + '<div style="font-size:12px;color:#b42318;font-weight:600;margin-top:2px">'
+        + 'sem o motivo não dá para saber se é falta de produto, desistência ou erro de pedido</div></div>'
+      : ''), 0.1) : ''
   const formas = bloco('Formas de pagamento', 'faturamento por forma',
     '<div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">'
     + '<div style="flex:none">' + G.donut(comCor(dados.formas)) + '</div>'
@@ -134,7 +166,7 @@ function htmlVisaoGeral(dados, estado) {
     + kpis
     + bloco(m.titulo, (dados.periodo && dados.periodo.rotulo) || '', grafico + legenda, 0.04, botoesPeriodo(estado.periodo || (dados.periodo && dados.periodo.chave) || 'semana'))
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + canais + formas + '</div>'
-    + bairros
+    + (motivos ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + motivos + bairros + '</div>' : bairros)
     + '</div>'
 }
 
