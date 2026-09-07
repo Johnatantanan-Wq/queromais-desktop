@@ -200,4 +200,51 @@ function caixa() {
   }
 }
 
-module.exports = { menu, caixa }
+/** Um período de 7 dias com faturamento, pedidos e ticket, e as quebras do painel. */
+function visaoGeral() {
+  const dias = ['01/09', '02/09', '03/09', '04/09', '05/09', '06/09', '07/09']
+  const fat = [2110.40, 2680.00, 3010.90, 2450.30, 3980.70, 4210.00, 1978.20]
+  const ped = [38, 45, 52, 41, 66, 71, 33]
+  const fatAnt = [1900.00, 2400.50, 2210.00, 2600.80, 3110.40, 3720.10, 1810.60]
+  const pedAnt = [35, 42, 39, 44, 55, 62, 31]
+  const soma = (a) => Math.round(a.reduce((x, y) => x + y, 0) * 100) / 100
+  const totFat = soma(fat), totPed = soma(ped), totFatAnt = soma(fatAnt), totPedAnt = soma(pedAnt)
+  return {
+    periodo: { de: '2026-09-01', ate: '2026-09-07', rotulo: 'Últimos 7 dias · comparado com os 7 anteriores' },
+    kpis: {
+      faturamento: { atual: totFat, anterior: totFatAnt },
+      pedidos: { atual: totPed, anterior: totPedAnt },
+      ticket: { atual: Math.round((totFat / totPed) * 100) / 100, anterior: Math.round((totFatAnt / totPedAnt) * 100) / 100 },
+    },
+    series: {
+      labels: dias,
+      faturamento: { atual: fat, anterior: fatAnt },
+      pedidos: { atual: ped, anterior: pedAnt },
+      ticket: {
+        atual: fat.map((v, i) => Math.round((v / ped[i]) * 100) / 100),
+        anterior: fatAnt.map((v, i) => Math.round((v / pedAnt[i]) * 100) / 100),
+      },
+    },
+    canais: [
+      { label: 'Delivery', value: 214 },
+      { label: 'Balcão', value: 78 },
+      { label: 'Mesa', value: 42 },
+      { label: 'Retirada', value: 12 },
+    ],
+    formas: [
+      { label: 'Pix', value: 8210.40 },
+      { label: 'Cartão', value: 7180.90 },
+      { label: 'Dinheiro', value: 3120.20 },
+      { label: 'A receber', value: 1908.00 },
+    ],
+    bairros: [
+      { label: 'Centro', value: 88 },
+      { label: 'Jardim América', value: 54 },
+      { label: 'Vila Nova', value: 37 },
+      { label: 'Boa Vista', value: 21 },
+      { label: 'Industrial', value: 14 },
+    ],
+  }
+}
+
+module.exports = { menu, caixa, visaoGeral }

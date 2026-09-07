@@ -1,0 +1,121 @@
+// renderer/elo/tela-visao-geral.js — "Visão geral" nativa.
+//
+// Espelha as demandas do painel do Pediu (app/admin/analise-vendas/PainelAnalise.tsx):
+// Faturamento, Pedidos e Ticket médio com métrica selecionável, comparação com o
+// período anterior e quebra por canal, forma de pagamento e bairro.
+//
+// Como no Caixa, a tela NÃO calcula: recebe os números prontos e desenha. Os gráficos
+// são SVG local (renderer/elo/graficos.js) — nada de biblioteca externa, para a tela
+// continuar desenhando com dado de cache, sem internet.
+
+const G = require('./graficos')
+
+const esc = G.esc
+
+function fmtBRL(v) {
+  const x = Number(v)
+  return (isFinite(x) ? x : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtInt(v) {
+  const x = Number(v)
+  return isFinite(x) ? Math.round(x).toLocaleString('pt-BR') : '—'
+}
+function fmtCompacto(v) {
+  const x = Number(v) || 0
+  if (Math.abs(x) >= 1000) return (x / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k'
+  return fmtInt(x)
+}
+
+const METRICAS = {
+  faturamento: { titulo: 'Faturamento', fmt: (v) => 'R$ ' + fmtBRL(v), eixo: fmtCompacto },
+  pedidos:     { titulo: 'Pedidos',     fmt: fmtInt,                   eixo: fmtInt },
+  ticket:      { titulo: 'Ticket médio', fmt: (v) => 'R$ ' + fmtBRL(v), eixo: fmtCompacto },
+}
+
+/** Variação contra o período anterior. Sem base anterior, não há variação — e não se inventa. */
+function variacao(atual, anterior) {
+  const a = Number(atual) || 0, b = Number(anterior) || 0
+  if (!b) return { texto: '', subiu: null }
+  const pct = ((a - b) / Math.abs(b)) * 100
+  const sinal = pct > 0 ? '+' : ''
+  return { texto: sinal + pct.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%', subiu: pct >= 0 }
+}
+
+function cartaoKpi(chave, dados, metricaAtiva) {
+  const m = METRICAS[chave]
+  const k = (dados.kpis || {})[chave] || {}
+  const v = variacao(k.atual, k.anterior)
+  const ativo = chave === metricaAtiva
+  const corVar = v.subiu === null ? '#9ca3af' : (v.subiu ? '#0A7A3E' : '#b42318')
+  const seta = v.subiu === null ? '' : (v.subiu ? '↑ ' : '↓ ')
+  return '<button type="button" data-metrica="' + chave + '" class="ecard kpi-sel' + (ativo ? ' is-on' : '') + '"'
+    + ' style="padding:13px 20px;min-width:0;text-align:left;cursor:pointer;font-family:inherit;border:1px solid '
+    + (ativo ? 'var(--acento)' : 'var(--linha)') + ';background:' + (ativo ? 'var(--acento-suave)' : '#fff') + '">'
+    + '<div style="font-size:11.5px;font-weight:700;color:#6b7280;margin-bottom:6px">' + esc(m.titulo) + '</div>'
+    + '<div style="font-size:22px;font-weight:800;color:#111111;letter-spacing:-.02em;line-height:1">' + esc(m.fmt(k.atual)) + '</div>'
+    + '<div style="font-size:11.5px;font-weight:700;color:' + corVar + ';margin-top:5px">'
+    + (v.texto ? seta + esc(v.texto) + ' <span style="color:#9ca3af;font-weight:600">vs. anterior</span>' : '<span style="color:#9ca3af;font-weight:600">sem período anterior</span>')
+    + '</div></button>'
+}
+
+function bloco(titulo, subtitulo, conteudo, atraso) {
+  return '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease ' + (atraso || 0) + 's both">'
+    + '<div style="margin-bottom:18px">'
+    + '<div style="font-size:15px;font-weight:800;color:#111111;margin-bottom:4px">' + esc(titulo) + '</div>'
+    + (subtitulo ? '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">' + esc(subtitulo) + '</div>' : '')
+    + '</div>' + conteudo + '</div>'
+}
+
+function htmlVisaoGeral(dados, estado) {
+  estado = estado || {}
+  if (!dados) {
+    return '<div class="ecard"><div class="evazio">Sem dados do período ainda.<br>'
+      + 'Quando o app falar com o painel, os números aparecem aqui — e ficam guardados para as próximas aberturas.</div></div>'
+  }
+
+  const metrica = METRICAS[estado.metrica] ? estado.metrica : 'faturamento'
+  const m = METRICAS[metrica]
+  // As séries vêm por métrica (o painel troca o gráfico sem nova consulta); aceita
+  // também o formato simples {serie:{labels,atual,anterior}} de quem só tem uma.
+  const porMetrica = dados.series && dados.series[metrica]
+  const s = porMetrica
+    ? { labels: dados.series.labels || [], atual: porMetrica.atual || [], anterior: porMetrica.anterior || [] }
+    : (dados.serie || { labels: [], atual: [], anterior: [] })
+
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both">'
+    + ['faturamento', 'pedidos', 'ticket'].map((c) => cartaoKpi(c, dados, metrica)).join('') + '</div>'
+
+  const grafico = G.linha(
+    [
+      { values: s.atual || [], color: 'var(--acento, #14CE6B)', labelColor: '#0A7A3E' },
+      { values: s.anterior || [], color: '#c9c6bd', labelColor: '#9ca3af', tracejada: true },
+    ],
+    s.labels || [],
+    { area: 'gradVisaoGeral', areaColor: '#14CE6B', fmt: m.eixo, w: 900, h: 210, yBottom: 150 },
+  )
+
+  const legenda = '<div style="display:flex;gap:16px;align-items:center;font-size:12px;font-weight:600;color:#6b7280;margin-top:6px">'
+    + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:3px;background:var(--acento);border-radius:2px;display:inline-block"></i>período atual</span>'
+    + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:3px;background:#c9c6bd;border-radius:2px;display:inline-block"></i>período anterior</span></div>'
+
+  const paleta = G.PALETA
+  const comCor = (lista) => (lista || []).map((r, i) => ({ ...r, color: paleta[i % paleta.length] }))
+
+  const canais = bloco('Pedidos por canal', 'de onde vem a venda', G.barras(comCor(dados.canais), { fmt: fmtInt }), 0.07)
+  const formas = bloco('Formas de pagamento', 'faturamento por forma',
+    '<div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">'
+    + '<div style="flex:none">' + G.donut(comCor(dados.formas)) + '</div>'
+    + '<div style="flex:1;min-width:260px">' + G.barras(comCor(dados.formas), { fmt: (v) => 'R$ ' + fmtBRL(v), colRotulo: '110px' }) + '</div></div>', 0.1)
+  const bairros = (dados.bairros && dados.bairros.length)
+    ? bloco('Pedidos por bairro', 'entregas no período', G.barras(comCor(dados.bairros), { fmt: fmtInt }), 0.13)
+    : ''
+
+  return '<div style="display:flex;flex-direction:column;gap:18px">'
+    + kpis
+    + bloco(m.titulo + ' no período', (dados.periodo && dados.periodo.rotulo) || '', grafico + legenda, 0.04)
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + canais + formas + '</div>'
+    + bairros
+    + '</div>'
+}
+
+module.exports = { htmlVisaoGeral, variacao, fmtBRL, fmtInt, METRICAS }

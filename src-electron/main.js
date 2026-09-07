@@ -525,6 +525,7 @@ async function createWindow() {
       log.info('[DEMO] modo demonstração ligado — dados fictícios, sem servidor')
       ipcMain.handle('menu-carregar', () => ({ dados: dadosDemo.menu(), offline: false, ts: Date.now(), demo: true }))
       ipcMain.handle('caixa-carregar', () => ({ dados: dadosDemo.caixa(), offline: false, ts: Date.now(), demo: true }))
+      ipcMain.handle('visao-geral-carregar', () => ({ dados: dadosDemo.visaoGeral(), offline: false, ts: Date.now(), demo: true }))
       ipcMain.handle('rede-status', () => ({ online: true, demo: true }))
       ipcMain.handle('cache-get', () => null)
       ipcMain.handle('cache-set', () => ({ ok: true }))

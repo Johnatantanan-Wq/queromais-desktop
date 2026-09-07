@@ -14,10 +14,12 @@ function iconeSvg(interno) {
 // Telas que o app já desenha por conta própria (não dependem da BrowserView).
 // Lista explícita: um módulo só entra aqui quando tem tela nativa DE VERDADE —
 // enquanto não tiver, o item abre o painel e fica esmaecido sem internet.
-const TELAS_NATIVAS = ['/admin/caixa']
+const TELAS_NATIVAS = ['/admin', '/admin/caixa']
 
 function ehNativa(rota) {
-  return TELAS_NATIVAS.some((base) => rota === base || ('' + rota).indexOf(base + '/') === 0)
+  // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
+  // senão '/admin/cardapio' (que não é nativa) entraria junto.
+  return TELAS_NATIVAS.some((base) => (base === '/admin' ? rota === '/admin' : (rota === base || ('' + rota).indexOf(base + '/') === 0)))
 }
 
 function ehAtivo(href, rota) {
@@ -95,12 +97,15 @@ if (typeof document !== 'undefined') {
   const { ipcRenderer } = require('electron')
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
+  const TelaVisaoGeral = require('./tela-visao-geral')
 
   let MENU = null
   let ROTA = '/admin'
   let ONLINE = false
   let VIEW = 'cardapio'
   let DEMO = false
+  let METRICA = 'faturamento'   // Visão geral: faturamento | pedidos | ticket
+  let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
 
   const $ = (id) => document.getElementById(id)
 
@@ -144,17 +149,48 @@ if (typeof document !== 'undefined') {
     ipcRenderer.invoke('abrir-rota', rota)
   }
 
+  // Cada tela nativa declara de onde vem o dado e como se desenha. Novo módulo
+  // nativo entra aqui e no TELAS_NATIVAS — o resto do shell não muda.
+  const NATIVAS = {
+    '/admin': {
+      canal: 'visao-geral-carregar',
+      desenhar: (dados, estado) => TelaVisaoGeral.htmlVisaoGeral(dados, { ...estado, metrica: METRICA }),
+      erro: 'Não deu para carregar os números agora.',
+    },
+    '/admin/caixa': {
+      canal: 'caixa-carregar',
+      desenhar: (dados, estado) => TelaCaixa.htmlDoCaixa(dados, estado),
+      erro: 'Não deu para carregar o caixa agora.',
+    },
+  }
+
+  function telaDe(rota) {
+    if (NATIVAS[rota]) return NATIVAS[rota]
+    const base = Object.keys(NATIVAS).find((b) => b !== '/admin' && ('' + rota).indexOf(b + '/') === 0)
+    return base ? NATIVAS[base] : null
+  }
+
   async function carregarTelaNativa(rota) {
     const alvo = document.getElementById('econtent')
-    if (!ehNativa(rota)) return
+    const tela = telaDe(rota)
+    if (!tela) return
     alvo.innerHTML = '<div class="ecard"><div class="evazio">Carregando…</div></div>'
     try {
-      const r = await ipcRenderer.invoke('caixa-carregar')
+      const r = await ipcRenderer.invoke(tela.canal)
       if (ROTA !== rota) return   // o lojista já foi para outra tela
-      alvo.innerHTML = TelaCaixa.htmlDoCaixa(r && r.dados, { online: !(r && r.offline), ts: (r && r.ts) || 0 })
+      DADOS_TELA = r && r.dados
+      alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
     } catch (e) {
-      alvo.innerHTML = '<div class="ecard"><div class="evazio">Não deu para carregar o caixa agora.</div></div>'
+      alvo.innerHTML = '<div class="ecard"><div class="evazio">' + tela.erro + '</div></div>'
     }
+  }
+
+  // Trocar a métrica redesenha com o dado que já está na mão — sem nova consulta,
+  // como no painel (o servidor manda as três séries de uma vez).
+  function redesenharTelaAtual() {
+    const tela = telaDe(ROTA)
+    if (!tela || !DADOS_TELA) return
+    document.getElementById('econtent').innerHTML = tela.desenhar(DADOS_TELA, { online: ONLINE, ts: Date.now(), demo: DEMO })
   }
 
   async function carregarMenu() {
@@ -165,6 +201,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btMetrica = e.target.closest ? e.target.closest('[data-metrica]') : null
+    if (btMetrica) {
+      METRICA = btMetrica.getAttribute('data-metrica')
+      redesenharTelaAtual()
+      return
+    }
     const item = e.target.closest ? e.target.closest('.erailitem') : null
     if (item && !item.classList.contains('off')) {
       ROTA = item.getAttribute('data-href')
@@ -193,7 +235,14 @@ if (typeof document !== 'undefined') {
     ipcRenderer.send('change-view', { view: VIEW })
   })
 
-  ipcRenderer.on('rota-mudou', (e, rota) => { ROTA = rota; pintar() })
+  ipcRenderer.on('rota-mudou', (e, rota) => {
+    // A view por trás não manda no menu: com uma tela nativa na frente (ou em
+    // demonstração), o painel navegando sozinho — para o login, por exemplo —
+    // apagava o item ativo e trocava o título por "Painel".
+    if (DEMO || ehNativa(ROTA)) return
+    ROTA = rota
+    pintar()
+  })
   ipcRenderer.on('rede-mudou', (e, online) => {
     ONLINE = online
     pintar()
@@ -229,7 +278,7 @@ if (typeof document !== 'undefined') {
   pintar()
   ipcRenderer.invoke('app-info').then((info) => {
     DEMO = !!(info && info.demo)
-    if (DEMO) { ONLINE = true; abrirRota('/admin/caixa'); ROTA = '/admin/caixa' }
+    if (DEMO) { ONLINE = true; ROTA = '/admin'; abrirRota('/admin') }
     pintar()
   }).catch(() => {})
   ipcRenderer.invoke('rede-status').then((r) => { ONLINE = !!(r && r.online); pintar() }).catch(() => {})
