@@ -34,7 +34,8 @@ test('o tempo aparece e destaca quem está esperando demais', () => {
   const h = Q.htmlQuadro(dados, { extras: false })
   assert.ok(h.includes('3 min') && h.includes('26 min'))
   const cartao26 = h.split('data-pedido="1039"')[1].slice(0, 700)
-  assert.ok(/b42318|atras/i.test(cartao26), 'pedido parado há 26 min precisa gritar')
+  assert.ok(/b42318/.test(cartao26), 'pedido parado há 26 min precisa gritar')
+  assert.ok(!/box-shadow/.test(cartao26), 'sem anel em volta: o destaque é faixa, não moldura')
 })
 
 test('coluna vazia diz que está vazia, sem cartão fantasma', () => {

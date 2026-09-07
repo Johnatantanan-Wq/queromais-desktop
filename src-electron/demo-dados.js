@@ -520,4 +520,131 @@ function apoioFinal() {
   }
 }
 
-module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal }
+/** Dados das telas com abas: Financeiro (7), Atendimento (7) e Gestão (6). */
+function telasComAbas() {
+  const op = operacao()
+  const contas = [
+    { descricao: 'Fornecedor de queijo — NF 8821', categoria: 'Insumos', vencimento: '10/09', situacao: 'A vencer', valor: 4200.00, tipo: 'pagar' },
+    { descricao: 'Aluguel do ponto', categoria: 'Fixas', vencimento: '05/09', situacao: 'Vencido', valor: 6800.00, tipo: 'pagar' },
+    { descricao: 'Energia elétrica', categoria: 'Fixas', vencimento: '15/09', situacao: 'A vencer', valor: 1920.50, tipo: 'pagar' },
+    { descricao: 'Folha — quinzena', categoria: 'Pessoal', vencimento: '20/09', situacao: 'A vencer', valor: 8400.00, tipo: 'pagar' },
+    { descricao: 'Manutenção do forno', categoria: 'Manutenção', vencimento: '02/09', situacao: 'Vencido', valor: 4400.00, tipo: 'pagar' },
+    { descricao: 'Repasse iFood — semana 36', categoria: 'Canais', vencimento: '12/09', situacao: 'A vencer', valor: 8300.00, tipo: 'receber' },
+    { descricao: 'Cartão — antecipação', categoria: 'Cartões', vencimento: '09/09', situacao: 'A vencer', valor: 16500.00, tipo: 'receber' },
+    { descricao: 'Convênio Hotel Praia Bela', categoria: 'Parceiros', vencimento: '18/09', situacao: 'A vencer', valor: 3200.00, tipo: 'receber' },
+  ]
+  const dias = ['01/09','02/09','03/09','04/09','05/09','06/09','07/09']
+  const entradasDia = [2110, 2680, 3010, 2450, 3980, 4210, 1978]
+  const saidasDia = [1800, 900, 2400, 1100, 3100, 1500, 820]
+  let saldo = 3200
+  const extrato = []
+  dias.forEach((d, i) => {
+    saldo += entradasDia[i]
+    extrato.push({ data: d, descricao: 'Vendas do dia', tipo: 'Entrada', valor: entradasDia[i], saldo: Math.round(saldo * 100) / 100 })
+    saldo -= saidasDia[i]
+    extrato.push({ data: d, descricao: i % 2 ? 'Pagamento a fornecedor' : 'Despesas do dia', tipo: 'Saída', valor: saidasDia[i], saldo: Math.round(saldo * 100) / 100 })
+  })
+
+  return {
+    financeiro: {
+      entradas: 20418, saidas: 11620, aReceber: 28000, aPagar: 25720.50,
+      serie: { labels: dias, entradas: entradasDia, saidas: saidasDia },
+      vendas: dias.map((d, i) => ({ dia: d, pedidos: [38,45,52,41,66,71,33][i], total: entradasDia[i] })),
+      extrato: extrato.reverse(),
+      contas,
+      dre: [
+        { conta: 'Receita bruta', pct: 100, valor: 20418, nivel: 'grupo' },
+        { conta: 'Vendas de produtos', pct: 94, valor: 19193, nivel: 'item' },
+        { conta: 'Taxas de entrega', pct: 6, valor: 1225, nivel: 'item' },
+        { conta: 'Deduções', pct: -8, valor: -1633, nivel: 'grupo' },
+        { conta: 'Taxas de cartão', pct: -5, valor: -1020, nivel: 'item' },
+        { conta: 'Cupons e descontos', pct: -3, valor: -613, nivel: 'item' },
+        { conta: 'Custo dos produtos', pct: -34, valor: -6942, nivel: 'grupo' },
+        { conta: 'Despesas operacionais', pct: -23, valor: -4696, nivel: 'grupo' },
+        { conta: 'Pessoal', pct: -14, valor: -2858, nivel: 'item' },
+        { conta: 'Aluguel e fixas', pct: -9, valor: -1838, nivel: 'item' },
+        { conta: 'Resultado do período', pct: 35, valor: 7147, nivel: 'grupo' },
+      ],
+    },
+    atendimento: {
+      salao: op.salao,
+      solicitacoes: [
+        { mesa: '4', tipo: 'Chamou o garçom', hora: '20:14', situacao: 'Aberta' },
+        { mesa: '9', tipo: 'Pediu a conta', hora: '20:09', situacao: 'Aberta' },
+        { mesa: '2', tipo: 'Pediu mais uma bebida', hora: '19:58', situacao: 'Atendida' },
+        { mesa: '7', tipo: 'Chamou o garçom', hora: '19:41', situacao: 'Atendida' },
+      ],
+      gorjetas: [
+        { nome: 'Ana', mesas: 4, vendas: 892.40, valor: 89.24 },
+        { nome: 'Bruno', mesas: 3, vendas: 641.70, valor: 64.17 },
+        { nome: 'Carla', mesas: 2, vendas: 318.00, valor: 31.80 },
+      ],
+      relatorios: [
+        { nome: 'Vendas por garçom', desc: 'faturamento e mesas atendidas' },
+        { nome: 'Tempo de mesa', desc: 'quanto tempo cada mesa ficou ocupada' },
+        { nome: 'Gorjetas do período', desc: 'total e divisão por garçom' },
+        { nome: 'Consumo por mesa', desc: 'itens e valores de cada comanda' },
+      ],
+      controle: [
+        { rotulo: 'Mesas cadastradas', valor: '10 mesas · 42 lugares' },
+        { rotulo: 'Abertura automática', valor: 'ao primeiro pedido' },
+        { rotulo: 'Fechamento exige conferência', valor: 'sim' },
+        { rotulo: 'Transferir mesa', valor: 'permitido para gerente' },
+        { rotulo: 'Dividir conta', valor: 'por pessoa e por item' },
+      ],
+      taxas: [
+        { nome: 'Taxa de serviço', valor: '10%', aplicacao: 'sobre o consumo', situacao: 'Ativa' },
+        { nome: 'Couvert artístico', valor: 'R$ 12,00', aplicacao: 'por pessoa, sexta e sábado', situacao: 'Ativa' },
+        { nome: 'Taxa de reserva', valor: 'R$ 30,00', aplicacao: 'mesas de 8 lugares', situacao: 'Inativa' },
+      ],
+      app: [
+        { rotulo: 'Garçons com acesso', valor: '3 (Ana, Bruno, Carla)' },
+        { rotulo: 'Pedido pelo celular', valor: 'ativo' },
+        { rotulo: 'Fechar conta pelo app', valor: 'só gerente' },
+        { rotulo: 'Impressão automática', valor: 'na cozinha e no bar' },
+      ],
+    },
+    estoque: {
+      valorTotal: 18420.00,
+      produtos: [
+        { nome: 'Muçarela', unidade: 'kg', saldo: 42, minimo: 30, custo: 38.90 },
+        { nome: 'Farinha de trigo', unidade: 'kg', saldo: 18, minimo: 40, custo: 4.20 },
+        { nome: 'Molho de tomate', unidade: 'lata', saldo: 61, minimo: 24, custo: 12.50 },
+        { nome: 'Calabresa', unidade: 'kg', saldo: 9, minimo: 15, custo: 29.80 },
+        { nome: 'Refrigerante 2L', unidade: 'un', saldo: 8, minimo: 24, custo: 6.90 },
+        { nome: 'Caixa de pizza G', unidade: 'un', saldo: 340, minimo: 200, custo: 1.80 },
+      ],
+      nfEntrada: [
+        { numero: '8821', parte: 'Laticínios Vale Verde', data: '05/09', itens: 6, valor: 4200.00 },
+        { numero: '4410', parte: 'Distribuidora Bebidas SA', data: '04/09', itens: 14, valor: 3180.90 },
+        { numero: '992', parte: 'Hortifruti do Porto', data: '03/09', itens: 22, valor: 1290.40 },
+      ],
+      nfSaida: [
+        { numero: '000.412', parte: 'Consumidor final', data: '07/09', itens: 3, valor: 132.40 },
+        { numero: '000.411', parte: 'Hotel Praia Bela', data: '06/09', itens: 18, valor: 1840.00 },
+        { numero: '000.410', parte: 'Consumidor final', data: '06/09', itens: 2, valor: 89.90 },
+      ],
+      movimentacoes: [
+        { data: '07/09', insumo: 'Muçarela', tipo: 'Saída', qtd: '3,2 kg', motivo: 'Produção do turno' },
+        { data: '07/09', insumo: 'Refrigerante 2L', tipo: 'Saída', qtd: '12 un', motivo: 'Vendas' },
+        { data: '06/09', insumo: 'Muçarela', tipo: 'Entrada', qtd: '20 kg', motivo: 'NF 8821' },
+        { data: '06/09', insumo: 'Calabresa', tipo: 'Saída', qtd: '1,8 kg', motivo: 'Produção do turno' },
+        { data: '05/09', insumo: 'Caixa de pizza G', tipo: 'Entrada', qtd: '200 un', motivo: 'NF 1571' },
+      ],
+      fichas: [
+        { produto: 'Pizza Calabresa G', insumos: 6, custo: 18.40, preco: 59.90 },
+        { produto: 'Pizza Portuguesa G', insumos: 8, custo: 21.10, preco: 62.90 },
+        { produto: 'Pizza Chocolate M', insumos: 5, custo: 14.20, preco: 48.00 },
+        { produto: 'Borda recheada', insumos: 2, custo: 2.10, preco: 8.00 },
+      ],
+      fornecedores: [
+        { nome: 'Laticínios Vale Verde', telefone: '(75) 3222-1010', ultima: '05/09', mes: 8400.00 },
+        { nome: 'Distribuidora Bebidas SA', telefone: '(75) 3222-2020', ultima: '04/09', mes: 6320.90 },
+        { nome: 'Hortifruti do Porto', telefone: '(75) 3222-3030', ultima: '03/09', mes: 2580.80 },
+        { nome: 'Embalagens Norte', telefone: '(75) 3222-4040', ultima: '02/09', mes: 1760.00 },
+      ],
+    },
+  }
+}
+
+module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal, telasComAbas }

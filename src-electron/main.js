@@ -552,6 +552,14 @@ async function createWindow() {
         const chave = CANAIS_FINAIS[canal]
         ipcMain.handle(canal, () => ({ dados: dadosDemo.apoioFinal()[chave], offline: false, ts: Date.now(), demo: true }))
       }
+      const CANAIS_ABAS = {
+        'financeiro-abas-carregar': 'financeiro', 'atendimento-abas-carregar': 'atendimento',
+        'estoque-abas-carregar': 'estoque',
+      }
+      for (const canal of Object.keys(CANAIS_ABAS)) {
+        const chave = CANAIS_ABAS[canal]
+        ipcMain.handle(canal, () => ({ dados: dadosDemo.telasComAbas()[chave], offline: false, ts: Date.now(), demo: true }))
+      }
       const CANAIS_OPERACAO = { 'cozinha-carregar': 'cozinha', 'bar-carregar': 'bar', 'salao-carregar': 'salao' }
       for (const canal of Object.keys(CANAIS_OPERACAO)) {
         const chave = CANAIS_OPERACAO[canal]

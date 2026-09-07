@@ -112,6 +112,7 @@ if (typeof document !== 'undefined') {
   let METRICA = 'faturamento'   // Visão geral: faturamento | pedidos | ticket
   const FILTRO = {}             // filtro escolhido, por rota
   const TERMO = {}              // busca digitada, por rota
+  const ABA = {}                // aba escolhida, por rota
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let EXTRAS_PEDIDOS = false    // colunas de entrega no quadro
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
@@ -191,11 +192,6 @@ if (typeof document !== 'undefined') {
     erro: 'Não deu para carregar o salão agora.',
   }
 
-  const Finais = require('./telas-finais')
-  NATIVAS['/admin/insights'] = { canal: 'insights-carregar', desenhar: (d, e) => Finais.htmlInsights(d, e), erro: 'Não deu para carregar os insights agora.' }
-  NATIVAS['/admin/relatorios'] = { canal: 'relatorios-carregar', desenhar: (d, e) => Finais.htmlRelatorios(d, e), erro: 'Não deu para carregar os relatórios agora.' }
-  NATIVAS['/admin/configuracoes'] = { canal: 'configuracoes-carregar', desenhar: (d, e) => Finais.htmlConfiguracoes(d, e), erro: 'Não deu para carregar as configurações agora.' }
-
   // As telas de lista vêm do catálogo: cada uma declara colunas, filtros e ações,
   // e o desenho é o formato único (tela-lista.js).
   const Catalogo = require('./telas-catalogo')
@@ -209,6 +205,23 @@ if (typeof document !== 'undefined') {
       erro: 'Não deu para carregar esta tela agora.',
     }
   }
+
+
+  // Telas com seções por dentro: as mesmas abas do painel.
+  const ComAbas = require('./telas-abas')
+  const CANAL_ABAS = { '/admin/financeiro': 'financeiro-abas-carregar', '/admin/atendimento': 'atendimento-abas-carregar', '/admin/estoque': 'estoque-abas-carregar' }
+  for (const rota of Object.keys(ComAbas.ABAS)) {
+    NATIVAS[rota] = {
+      canal: CANAL_ABAS[rota],
+      desenhar: (dados, estado) => ComAbas.htmlComAbas(rota, dados, { ...estado, aba: ABA[rota] }),
+      erro: 'Não deu para carregar esta tela agora.',
+    }
+  }
+
+  const Finais = require('./telas-finais')
+  NATIVAS['/admin/insights'] = { canal: 'insights-carregar', desenhar: (d, e) => Finais.htmlInsights(d, e), erro: 'Não deu para carregar os insights agora.' }
+  NATIVAS['/admin/relatorios'] = { canal: 'relatorios-carregar', desenhar: (d, e) => Finais.htmlRelatorios(d, e), erro: 'Não deu para carregar os relatórios agora.' }
+  NATIVAS['/admin/configuracoes'] = { canal: 'configuracoes-carregar', desenhar: (d, e) => Finais.htmlConfiguracoes(d, e), erro: 'Não deu para carregar as configurações agora.' }
 
   function telaDe(rota) {
     if (NATIVAS[rota]) return NATIVAS[rota]
@@ -247,6 +260,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btAba = e.target.closest ? e.target.closest('[data-aba]') : null
+    if (btAba) {
+      ABA[ROTA] = btAba.getAttribute('data-aba')
+      redesenharTelaAtual()
+      return
+    }
     const btModo = e.target.closest ? e.target.closest('[data-modo]') : null
     if (btModo) {
       MODO_PEDIDOS = btModo.getAttribute('data-modo')

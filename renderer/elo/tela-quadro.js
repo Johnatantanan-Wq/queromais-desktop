@@ -50,8 +50,11 @@ function cartao(p, coluna) {
   const acao = PROXIMA_ACAO[coluna.id]
   const itens = (p.itens || []).slice(0, 3).map((i) => '<div style="font-size:12px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(i) + '</div>').join('')
   const mais = (p.itens || []).length > 3 ? '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">+ ' + ((p.itens || []).length - 3) + ' item(ns)</div>' : ''
-  return '<div data-pedido="' + esc(p.numero) + '" class="ecard" style="padding:12px 14px;cursor:pointer;border-radius:12px;'
-    + (atrasado ? 'border-color:#f3c0bb;box-shadow:0 0 0 1px #fdeaea' : '') + '">'
+  // Atrasado: FAIXA vermelha à esquerda, como o item ativo do menu. A tentativa
+  // anterior (borda + sombra) desenhava dois anéis em volta do cartão e parecia a
+  // cor da coluna vazando por trás dele — reportado ao olhar o quadro.
+  return '<div data-pedido="' + esc(p.numero) + '" class="ecard" style="padding:12px 14px 12px 11px;cursor:pointer;border-radius:12px;'
+    + (atrasado ? 'border-left:3px solid #b42318' : 'border-left:3px solid transparent') + '">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">'
     + '<span style="font-size:13.5px;font-weight:800;color:#111">#' + esc(p.numero) + '</span>'
     + '<span style="font-size:11.5px;font-weight:' + (atrasado ? '800' : '700') + ';color:' + corTempo + '">'

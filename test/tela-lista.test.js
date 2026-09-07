@@ -67,3 +67,10 @@ test('escapa conteúdo vindo de dado', () => {
   const h = L.htmlLista(def, [{ chave: 'x', celulas: ['<script>', 'a', 'b', 'c'] }], { filtro: 'todos', online: true, ts: Date.now() })
   assert.ok(h.includes('&lt;script&gt;'))
 })
+
+test('apenasGrade não embrulha em cartão (senão vira cartão dentro de cartão)', () => {
+  const h = L.apenasGrade({ colunas: ['A', 'B'], grade: '1fr 1fr' }, [{ chave: '1', celulas: ['x', 'y'] }])
+  assert.ok(!h.includes('class="ecard"'), 'não pode trazer cartão próprio')
+  assert.ok(h.includes('x') && h.includes('A'))
+  assert.ok(h.includes('1 registro'))
+})

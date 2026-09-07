@@ -40,8 +40,8 @@ function htmlKds(dados, estado) {
     const doColuna = itens.filter((i) => i.estado === c.id)
     const cards = doColuna.length ? doColuna.map((i) => {
       const atrasado = c.limite != null && i.esperaMin > c.limite
-      return '<div data-item="' + esc(i.pedido) + '" class="ecard" style="padding:12px 14px;border-radius:12px;'
-        + (atrasado ? 'border-color:#f3c0bb;box-shadow:0 0 0 1px #fdeaea' : '') + '">'
+      return '<div data-item="' + esc(i.pedido) + '" class="ecard" style="padding:12px 14px 12px 11px;border-radius:12px;'
+        + (atrasado ? 'border-left:3px solid #b42318' : 'border-left:3px solid transparent') + '">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">'
         + '<span style="font-size:11.5px;font-weight:800;color:#6b7280">#' + esc(i.pedido) + ' · ' + esc(i.canal) + '</span>'
         + '<span style="font-size:12px;font-weight:800;color:' + (atrasado ? '#b42318' : '#6b7280') + '">'

@@ -46,6 +46,31 @@ function celula(c, alinhaDireita) {
   return '<span style="font-size:13px;font-weight:600;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' + (alinhaDireita ? ';text-align:right;display:block' : '') + '">' + esc(c) + '</span>'
 }
 
+/** Só a grade (cabeçalho + linhas), sem cartão em volta — para quem já está dentro
+ *  de um cartão, como as abas. Sem isto, sai cartão dentro de cartão e a tela ganha
+ *  duas bordas concêntricas. */
+function apenasGrade(def, linhas) {
+  const nCols = def.colunas.length
+  const grade = def.grade || def.colunas.map(() => '1fr').join(' ')
+  const direita = def.direita || []
+  const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';font-size:10.5px;font-weight:700;color:#6b7280;'
+    + 'text-transform:uppercase;letter-spacing:.05em;background:#f6f6f4;border-bottom:1px solid #e5e7eb">'
+    + def.colunas.map((c, i) => '<span style="padding:8px 10px' + (i < nCols - 1 ? ';border-right:1px solid #e5e7eb' : '')
+      + (direita.indexOf(i) >= 0 ? ';text-align:right' : '') + '">' + esc(c) + '</span>').join('') + '</div>'
+  const corpo = (linhas && linhas.length)
+    ? linhas.map((l, i) => '<div data-linha="' + esc(l.chave) + '" data-rownav-idx="' + i + '"'
+        + ' style="display:grid;grid-template-columns:' + grade + ';background:' + (i % 2 ? '#fafafa' : '#fff')
+        + ';border-bottom:1px solid #ececec">'
+        + l.celulas.map((c, ci) => '<div style="min-width:0;padding:7px 10px;display:flex;align-items:center'
+          + (direita.indexOf(ci) >= 0 ? ';justify-content:flex-end' : '')
+          + (ci < l.celulas.length - 1 ? ';border-right:1px solid #ececec' : '') + '">'
+          + celula(c, direita.indexOf(ci) >= 0) + '</div>').join('') + '</div>').join('')
+    : '<div class="evazio">Nenhum registro.</div>'
+  return '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">' + cabecalho + corpo + '</div>'
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
+    + ((linhas && linhas.length) || 0) + (((linhas && linhas.length) || 0) === 1 ? ' registro' : ' registros') + '</div>'
+}
+
 function htmlLista(def, linhas, estado) {
   estado = estado || {}
   if (!linhas) {
@@ -122,4 +147,4 @@ function htmlLista(def, linhas, estado) {
     + '</div></div>'
 }
 
-module.exports = { htmlLista, idade, esc, ETIQUETAS }
+module.exports = { htmlLista, apenasGrade, idade, esc, ETIQUETAS }
