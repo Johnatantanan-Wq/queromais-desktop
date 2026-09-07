@@ -72,14 +72,45 @@ test('Gestão › Produtos: bloco fechado esconde a tabela, e a busca filtra den
   assert.ok(busca.includes('data-linha="Pizza Calabresa G"'), 'e não mexe na Produção Própria')
 })
 
-test('Gestão › Nota Fiscal (Entrada): notas de compra e pendências', () => {
+test('Gestão › Nota Fiscal (Entrada): a nota entra "A conferir" e o estoque não muda', () => {
   const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada' })
   assert.ok(h.includes('data-subgestao="entrada:notas"') && h.includes('data-subgestao="entrada:pendencias"'))
-  assert.ok(/A nota entra como/.test(h), 'o aviso explica por que o estoque não mudou ainda')
-  assert.ok(h.includes('Notas de compra (3)') && h.includes('A conferir'))
-  const pend = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', subGestao: 'pendencias' })
-  assert.ok(pend.includes('sem produto vinculado'))
-  assert.ok(!pend.includes('Notas de compra ('), 'a sub-aba troca o conteúdo')
+  assert.ok(/A nota entra como/.test(h), 'o aviso explica por que o estoque ainda não mudou')
+  assert.ok(h.includes('Notas de compra (4)') && h.includes('A conferir') && h.includes('Processada'))
+  assert.ok(h.includes('Conferir') && h.includes('Ver'), 'pendente convida a conferir; processada, a ver')
+})
+
+test('Gestão › NF entrada: "Nova entrada" pergunta de onde vem a nota', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', menuEntrada: true })
+  assert.ok(/Buscar da SEFAZ/.test(h) && /Importar XML/.test(h))
+  assert.ok(/com nota fiscal/.test(h) && /sem nota fiscal/.test(h))
+})
+
+test('Gestão › NF entrada: abrir a nota mostra a conferência item a item', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', notaAberta: '4410' })
+  assert.ok(/Distribuidora Bebidas SA · NF 4410/.test(h))
+  assert.ok(h.includes('Refrigerante 2L — cx 6') && h.includes('Preço unitário'))
+  assert.ok(h.includes('sem vínculo'), 'item sem produto vinculado precisa gritar')
+  assert.ok(h.includes('Confirmar entradas'), 'nota pendente oferece confirmar')
+  assert.ok(/enquanto não confirmar, o estoque não muda/.test(h))
+})
+
+test('Gestão › NF entrada: nota já processada não oferece confirmar de novo', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', notaAberta: '8821' })
+  assert.ok(/Laticínios Vale Verde · NF 8821/.test(h))
+  assert.ok(!/Confirmar entradas/.test(h))
+})
+
+test('Gestão › NF entrada: fornecedor sem cadastro é apontado na conferência', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', notaAberta: '1571' })
+  assert.ok(/Fornecedor ainda não cadastrado/.test(h))
+})
+
+test('Gestão › NF entrada: pendências trazem problema, produto e a nota de origem', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada', subGestao: 'pendencias' })
+  assert.ok(h.includes('Falta') && h.includes('Energético 269ml') && h.includes('NF 4410'))
+  assert.ok(h.includes('resolvida'), 'pendência já resolvida não oferece resolver de novo')
+  assert.ok(!/Notas de compra \(/.test(h), 'a sub-aba troca o conteúdo')
 })
 
 test('Gestão › Nota Fiscal (Saída): sem provedor, a tela avisa antes de tudo', () => {

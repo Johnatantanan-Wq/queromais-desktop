@@ -1056,12 +1056,37 @@ function telasComAbas() {
       ],
       nfEntrada: {
         notas: [
-          { numero: '8821', fornecedor: 'Laticínios Vale Verde', emissao: '05/09', itens: 6, situacao: 'Conferida', valor: 4200.00 },
-          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', emissao: '04/09', itens: 14, situacao: 'A conferir', valor: 3180.90 },
-          { numero: '992', fornecedor: 'Hortifruti do Porto', emissao: '03/09', itens: 22, situacao: 'Conferida', valor: 1290.40 },
+          { numero: '8821', fornecedor: 'Laticínios Vale Verde', cnpj: '12.345.678/0001-90', emissao: '05/09',
+            tipoDocumento: 'nfe', situacao: 'processada', valor: 4200.00, fornecedorCadastrado: true, itens: [
+              { nome: 'Muçarela peça 5kg', qtd: 12, unidade: 'cx', precoUnitario: 210.00, destino: 'Muçarela' },
+              { nome: 'Requeijão balde 3kg', qtd: 8, unidade: 'un', precoUnitario: 84.00, destino: 'Requeijão' },
+              { nome: 'Creme de leite 1L', qtd: 24, unidade: 'un', precoUnitario: 12.30, destino: 'Creme de leite' },
+            ] },
+          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', cnpj: '98.765.432/0001-10', emissao: '04/09',
+            tipoDocumento: 'nfe', situacao: 'pendente', valor: 3180.90, fornecedorCadastrado: true, itens: [
+              { nome: 'Refrigerante 2L — cx 6', qtd: 30, unidade: 'cx', precoUnitario: 41.40, destino: 'Refrigerante 2L' },
+              { nome: 'Cerveja long neck — cx 24', qtd: 15, unidade: 'cx', precoUnitario: 100.80, destino: 'Cerveja long neck' },
+              { nome: 'Energético 269ml', qtd: 48, unidade: 'un', precoUnitario: 6.90, destino: null },
+              { nome: 'Água com gás 500ml', qtd: 60, unidade: 'un', precoUnitario: 1.60, destino: null },
+            ] },
+          { numero: '992', fornecedor: 'Hortifruti do Porto', cnpj: '45.111.222/0001-33', emissao: '03/09',
+            tipoDocumento: 'nfe', situacao: 'processada', valor: 1290.40, fornecedorCadastrado: true, itens: [
+              { nome: 'Tomate caixa 20kg', qtd: 6, unidade: 'cx', precoUnitario: 98.00, destino: 'Tomate' },
+              { nome: 'Cebola saco 20kg', qtd: 4, unidade: 'sc', precoUnitario: 72.00, destino: 'Cebola' },
+            ] },
+          { numero: '1571', fornecedor: 'Embalagens Norte', cnpj: '77.888.999/0001-55', emissao: '02/09',
+            tipoDocumento: 'manual', situacao: 'pendente', valor: 880.00, fornecedorCadastrado: false, itens: [
+              { nome: 'Caixa de pizza G', qtd: 400, unidade: 'un', precoUnitario: 1.80, destino: 'Caixa de pizza G' },
+              { nome: 'Sacola kraft', qtd: 500, unidade: 'un', precoUnitario: 0.32, destino: null },
+            ] },
         ],
         pendencias: [
-          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', pendencia: '14 itens sem produto vinculado', valor: 3180.90 },
+          { problema: 'Falta', produto: 'Energético 269ml', qtd: 6, valor: 41.40, nota: 'NF 4410',
+            fornecedor: 'Distribuidora Bebidas SA', registrada: '04/09', resolvida: false },
+          { problema: 'Avaria', produto: 'Tomate caixa 20kg', qtd: 1, valor: 98.00, nota: 'NF 992',
+            fornecedor: 'Hortifruti do Porto', registrada: '03/09', resolvida: false },
+          { problema: 'Vencimento', produto: 'Creme de leite 1L', qtd: 4, valor: 49.20, nota: 'NF 8821',
+            fornecedor: 'Laticínios Vale Verde', registrada: '05/09', resolvida: true },
         ],
       },
       nfSaida: {

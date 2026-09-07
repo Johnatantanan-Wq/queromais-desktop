@@ -312,6 +312,81 @@ const SUB_MOV = [
 const SUB_FICHAS = [{ chave: 'produto', rotulo: 'Por produto' }, { chave: 'insumo', rotulo: '⇄ Por insumo (onde é usado)' }]
 
 // ── Nota Fiscal (Entrada) ───────────────────────────────────────────────────
+// Conforme PainelEntradas.tsx: a nota entra "A conferir" e o estoque SÓ muda quando
+// alguém confirma os itens. Por isso a tela tem dois níveis: a lista de notas e, ao
+// abrir uma, a conferência item a item com o destino de cada um.
+//
+// "Nova entrada" é um menu em cascata, porque a nota chega de três jeitos diferentes:
+// buscando na SEFAZ (as emitidas contra o CNPJ da loja), importando o XML que o
+// fornecedor mandou, ou digitando à mão — e aí ainda pergunta se tem nota fiscal.
+
+const STATUS_NOTA = {
+  pendente: { rotulo: 'A conferir', etiqueta: 'amarelo' },
+  processada: { rotulo: 'Processada', etiqueta: 'verde' },
+  ignorada: { rotulo: 'Ignorada', etiqueta: 'cinza' },
+}
+const TIPO_DOC = { nfe: 'NF-e', nfse: 'NFS-e', manual: 'Manual', sem_nota: 'Sem nota' }
+
+function menuNovaEntrada() {
+  const opcao = (acao, titulo, explica) => '<button type="button" data-acao="' + esc(acao) + '"'
+    + ' style="display:block;width:100%;text-align:left;padding:12px 14px;background:none;border:none;'
+    + 'border-bottom:1px solid #f0f0ee;cursor:pointer;font-family:inherit">'
+    + '<div style="font-size:13.5px;font-weight:700;color:#111">' + esc(titulo) + '</div>'
+    + '<div style="font-size:11px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(explica) + '</div></button>'
+  return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
+    + '<div style="padding:10px 14px;font-size:12.5px;font-weight:800;color:#6b7280;'
+    + 'border-bottom:1px solid #f0f0ee;background:#f6f6f4">Nova entrada — de onde vem a nota?</div>'
+    + opcao('entrada:sefaz', '☁ Buscar da SEFAZ (automática)', 'Traz as notas de compra emitidas contra o CNPJ da loja')
+    + opcao('entrada:xml', '⭱ Importar XML', 'Você já tem o arquivo da nota')
+    + opcao('entrada:manual', '📄 Lançar manualmente — com nota fiscal', 'Digita fornecedor e itens; vai para a conferência normal')
+    + opcao('entrada:sem-nota', '📄 Lançar manualmente — sem nota fiscal', 'Entra no estoque marcada como sem comprovante fiscal')
+    + '</div>'
+}
+
+/** Conferência: a nota aberta, item a item, com o destino de cada um. */
+function conferenciaDaNota(nota) {
+  const itens = nota.itens || []
+  const cabecalho = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;'
+    + 'flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid #f0f0ee">'
+    + '<div style="min-width:0"><div style="font-size:15px;font-weight:800;color:#111">'
+    + esc(nota.fornecedor) + ' · NF ' + esc(nota.numero) + '</div>'
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;margin-top:3px">'
+    + esc(TIPO_DOC[nota.tipoDocumento || 'nfe'] || 'NF-e') + ' · ' + esc(nota.emissao) + ' · '
+    + esc(brl(nota.valor)) + ' · CNPJ ' + esc(nota.cnpj || '—') + '</div>'
+    + (nota.fornecedorCadastrado === false
+      ? '<div style="font-size:11.5px;color:#8a6508;font-weight:600;margin-top:4px">'
+        + 'Fornecedor ainda não cadastrado — cadastre em Fornecedores para completar o contato.</div>'
+      : '')
+    + '</div>'
+    + '<div style="display:flex;gap:8px;flex-shrink:0">'
+    + botaoEstoque('entrada:fechar', 'Fechar', false)
+    + (nota.situacao === 'pendente' ? botaoEstoque('entrada:confirmar:' + nota.numero, '✓ Confirmar entradas', true) : '')
+    + '</div></div>'
+
+  const linhas = itens.map((i) => ({
+    chave: i.nome,
+    celulas: [
+      { texto: i.nome, forte: true, cor: '#111' },
+      String(i.qtd), i.unidade || 'un',
+      brl(i.precoUnitario), { texto: brl(i.qtd * i.precoUnitario), forte: true, cor: '#111' },
+      i.destino
+        ? { texto: i.destino, etiqueta: 'verde' }
+        : { texto: 'sem vínculo', etiqueta: 'vermelho' },
+      { html: botaoEstoque('entrada:ajustar:' + i.nome, 'Ajustar', false, true) },
+    ],
+  }))
+
+  return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px;'
+    + 'animation:eloFadeUp .4s ease both">' + cabecalho
+    + '<div style="padding:18px">'
+    + L.apenasGrade({
+      colunas: ['Item', 'Qtd', 'Unid.', 'Preço unitário', 'Preço total', 'Destino', ''],
+      grade: '1fr 80px 80px 130px 130px 160px 110px', direita: [1, 3, 4],
+    }, linhas)
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
+    + 'enquanto não confirmar, o estoque não muda — é assim no painel</div></div></div>'
+}
+
 function gestaoEntrada(d, estado) {
   const sub = subAtual(SUB_ENTRADA, estado.subGestao)
   const dados = d.nfEntrada || {}
@@ -321,32 +396,53 @@ function gestaoEntrada(d, estado) {
 
   if (sub === 'pendencias') {
     return topo + (pendencias.length
-      ? cartao('Pendências', 'notas que entraram mas ainda não bateram com o estoque',
-        grade(['Nota', 'Fornecedor', 'Pendência', 'Valor'],
-          pendencias.map((p) => ({ chave: p.numero, celulas: [{ texto: p.numero, forte: true, cor: '#111' },
-            p.fornecedor, p.pendencia, { texto: brl(p.valor), forte: true, cor: '#111' }] })),
-          '130px 1fr 260px 150px', [3]))
-      : aviso('Nenhuma pendência — todas as notas importadas já foram conferidas.'))
+      ? cartao('Pendências da conferência', 'falta, avaria e vencimento apontados item a item',
+        grade(['Problema', 'Produto', 'Qtd', 'Valor', 'Nota / fornecedor', 'Registrada', ''],
+          pendencias.map((p) => ({ chave: p.produto + p.registrada, celulas: [
+            { texto: p.problema, etiqueta: p.resolvida ? 'cinza' : (p.problema === 'Falta' ? 'vermelho' : 'amarelo') },
+            { texto: p.produto, forte: true, cor: '#111' },
+            String(p.qtd), brl(p.valor),
+            { texto: p.nota, sub: p.fornecedor || '' },
+            p.registrada,
+            { html: p.resolvida
+              ? '<span style="font-size:11.5px;color:#9ca3af;font-weight:700">resolvida</span>'
+              : botaoEstoque('entrada:resolver:' + p.produto, 'Resolver', true, true) }] })),
+          '120px 1fr 90px 110px 190px 120px 120px', [2, 3]))
+      : aviso('Nenhuma pendência em aberto. Falta, avaria e vencimento são apontados na conferência da nota, '
+        + 'no botão Ajustar de cada item.'))
   }
 
+  const aberta = estado.notaAberta && notas.find((n) => n.numero === estado.notaAberta)
+
   const barra = '<div class="ecard" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;'
-    + 'gap:14px;flex-wrap:wrap">' + botao('estoque:nova-entrada', '+ Nova entrada', true)
+    + 'gap:14px;flex-wrap:wrap">' + botaoEstoque('entrada:nova', '+ Nova entrada', true)
     + '<span style="margin-left:auto;font-size:12.5px;color:#9ca3af;font-weight:500">'
     + 'A nota entra como “A conferir” — o estoque só muda quando você confirmar os itens.</span></div>'
+    + (estado.menuEntrada ? menuNovaEntrada() : '')
+    + (aberta ? conferenciaDaNota(aberta) : '')
 
   const filtros = '<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:0 0 16px">'
     + '<div style="font-size:15px;font-weight:800;color:#111">Notas de compra (' + notas.length + ')</div>'
     + campoFalso('', 'Buscar fornecedor, NF ou CNPJ…', '260px')
     + '<span style="margin-left:auto;display:flex;align-items:flex-end;gap:10px">'
     + campoFalso('DE', 'dd/mm/aaaa', '150px') + campoFalso('ATÉ', 'dd/mm/aaaa', '150px')
-    + botao('estoque:buscar-notas', 'Buscar', true, true) + '</span></div>'
+    + botaoEstoque('entrada:buscar-notas', 'Buscar', true, true) + '</span></div>'
 
   const corpo = notas.length
-    ? grade(['Nota', 'Fornecedor', 'Emissão', 'Itens', 'Situação', 'Valor'],
-      notas.map((n) => ({ chave: n.numero, celulas: [{ texto: n.numero, forte: true, cor: '#111' },
-        n.fornecedor, n.emissao, String(n.itens), et(n.situacao), { texto: brl(n.valor), forte: true, cor: '#111' }] })),
-      '120px 1fr 110px 90px 130px 150px', [3, 5])
-    : '<div class="evazio">Nenhuma nota importada ainda. Use “Importar da SEFAZ” (notas emitidas contra o CNPJ da loja) '
+    ? grade(['Data', 'Fornecedor', 'CNPJ', 'NF', 'Tipo', 'Valor', 'Itens', 'Status', ''],
+      notas.map((n) => {
+        const st = STATUS_NOTA[n.situacao] || STATUS_NOTA.pendente
+        return { chave: n.numero, celulas: [
+          n.emissao, { texto: n.fornecedor, forte: true, cor: '#111' }, n.cnpj || '—',
+          { texto: n.numero, forte: true, cor: '#111' },
+          TIPO_DOC[n.tipoDocumento || 'nfe'] || 'NF-e',
+          { texto: brl(n.valor), forte: true, cor: '#111' },
+          String((n.itens || []).length || n.qtdItens || 0),
+          { texto: st.rotulo, etiqueta: st.etiqueta },
+          { html: botaoEstoque('entrada:abrir:' + n.numero, n.situacao === 'pendente' ? 'Conferir' : 'Ver', n.situacao === 'pendente', true) },
+        ] }
+      }), '110px 1fr 160px 100px 90px 130px 80px 120px 110px', [5, 6])
+    : '<div class="evazio">Nenhuma nota importada ainda. Use “Buscar da SEFAZ” (notas emitidas contra o CNPJ da loja) '
       + 'ou envie o XML que o fornecedor mandou.</div>'
 
   return topo + barra + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'

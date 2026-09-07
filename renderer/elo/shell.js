@@ -149,6 +149,8 @@ if (typeof document !== 'undefined') {
   const AVULSO = {}             // Compras: item avulso sendo digitado
   const TelaVenda = require('./tela-venda')
   let VENDA = TelaVenda.vendaVazia()   // Venda manual: o pedido sendo montado agora
+  let NOTA_ABERTA = null        // Gestão › NF entrada: nota em conferência
+  let MENU_ENTRADA = false      // Gestão › NF entrada: menu "de onde vem a nota?"
   let ABA_CFG = 'geral'         // Configurações: assunto escolhido
   let SUB_CFG = 'config'        // Configurações › Geral: seção escolhida
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
@@ -274,6 +276,7 @@ if (typeof document !== 'undefined') {
           tipoConta: FIN.tipoConta,
           catEstoque: CAT_ESTOQUE, blocosFechados: BLOCOS_FECHADOS, buscaBloco: BUSCA_BLOCO,
           subGestao: SUB_GESTAO[aba || 'produtos'], periodoMov: PERIODO_MOV, fichaAberta: FICHA_ABERTA,
+          notaAberta: NOTA_ABERTA, menuEntrada: MENU_ENTRADA,
         })
       },
       erro: 'Não deu para carregar esta tela agora.',
@@ -886,6 +889,15 @@ if (typeof document !== 'undefined') {
         abrirRota(ROTA)
         return
       }
+      if (destino && destino.app === 'entrada-menu') { MENU_ENTRADA = !MENU_ENTRADA; redesenharTelaAtual(); return }
+      if (destino && destino.app === 'entrada-abrir') {
+        const n = acao.split(':')[2]
+        NOTA_ABERTA = NOTA_ABERTA === n ? null : n
+        MENU_ENTRADA = false
+        redesenharTelaAtual()
+        return
+      }
+      if (destino && destino.app === 'entrada-fechar') { NOTA_ABERTA = null; redesenharTelaAtual(); return }
       if (destino && destino.app === 'venda-etapa') { VENDA.etapa = acao.split(':')[2]; redesenharTelaAtual(); return }
       if (destino && destino.app === 'venda-fechar') { fecharVenda(); return }
       if (destino && destino.app === 'venda-nova') {
