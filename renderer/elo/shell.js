@@ -18,9 +18,15 @@ const CATALOGO_LISTAS = require('./telas-catalogo').CATALOGO
 // Telas de operação (quadro de produção e salão) — desenho próprio, fora do formato de lista.
 const TELAS_OPERACAO = ['/admin/cozinha', '/admin/bar', '/admin/atendimento']
 const TELAS_FINAIS = ['/admin/insights', '/admin/relatorios', '/admin/configuracoes']
+// Marketing e compras: saíram do catálogo de listas quando ganharam desenho próprio.
+// Ficar de fora desta lista as deixava ESMAECIDAS no menu e inalcançáveis sem internet,
+// mesmo já sendo nativas — foi o que a simulação de cliques pegou.
+const TELAS_MARKETING = ['/admin/cupons', '/admin/vendedores', '/admin/fidelidade',
+  '/admin/food-marketing/campanhas', '/admin/food-marketing/push', '/admin/compras']
 // Telas do APP, que não existem no painel: impressora é da máquina, não da nuvem.
 const TELAS_DO_APP = ['/app/impressao']
-const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_DO_APP)
+const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS))
+  .concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_MARKETING).concat(TELAS_DO_APP)
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -402,10 +408,10 @@ if (typeof document !== 'undefined') {
   }
 
   /** Impressão de comanda — é da MÁQUINA, então o app faz de verdade. */
-  function imprimirComanda(botao, pedido) {
+  function imprimirComanda(botao, pedido, canal) {
     const antes = botao.textContent
     botao.textContent = 'imprimindo…'
-    ipcRenderer.invoke('impressao-comanda', pedido ? { pedido } : undefined).then((r) => {
+    ipcRenderer.invoke(canal || 'impressao-comanda', pedido ? { pedido } : undefined).then((r) => {
       const ok = !!(r && r.ok)
       botao.textContent = ok ? '✓ enviado à impressora' : '✗ não imprimiu'
       avisar(ok ? 'Comanda enviada à impressora.' : 'Não deu para imprimir — confira a impressora em Impressão.', ok ? 'ok' : 'erro')
@@ -697,7 +703,12 @@ if (typeof document !== 'undefined') {
     if (btAcao) {
       const acao = btAcao.getAttribute('data-acao')
       // As ações de impressão FAZEM (o resto ainda é pelo painel).
-      if (acao === 'impressao:procurar') { carregarTelaNativa(ROTA); return }
+      // Casos que precisam do dado da tela, antes do mapa.
+      if (acao === 'impressao:procurar') {
+        avisar('Procurando impressoras deste computador…', 'ok')
+        carregarTelaNativa(ROTA)
+        return
+      }
       if (acao === 'kds:tv') {
         const kds = (DADOS_TELA && DADOS_TELA.acessoTv) || {}
         abrirFicha('Acesso pela TV', Ficha.fichaAcessoTv({
@@ -705,36 +716,23 @@ if (typeof document !== 'undefined') {
         }))
         return
       }
-      if (acao.indexOf('ficha:imprimir:') === 0) {
-        const pedido = acharNoDado(acao.split(':')[2])
-        const antes = btAcao.textContent
-        btAcao.textContent = 'imprimindo…'
-        ipcRenderer.invoke('impressao-comanda', { pedido }).then((r) => {
-          btAcao.textContent = (r && r.ok) ? '✓ enviado à impressora' : '✗ não imprimiu'
-          setTimeout(() => { btAcao.textContent = antes }, 3500)
-        }).catch(() => { btAcao.textContent = '✗ não imprimiu' })
-        return
-      }
       if (acao === 'impressao:teste' || acao === 'impressao:comanda') {
-        const canal = acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda'
-        const antes = btAcao.textContent
-        btAcao.textContent = 'imprimindo…'
-        ipcRenderer.invoke(canal).then((r) => {
-          btAcao.textContent = (r && r.ok) ? '✓ enviado à impressora' : '✗ não imprimiu'
-          if (r && !r.ok) console.error('[impressao]', r.erro)
-          setTimeout(() => { btAcao.textContent = antes }, 3500)
-        }).catch(() => { btAcao.textContent = '✗ não imprimiu'; setTimeout(() => { btAcao.textContent = antes }, 3500) })
+        imprimirComanda(btAcao, null, acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda')
         return
       }
-    }
-    if (btAcao) {
+
       // Cada ação tem um destino declarado em acoes.js. Se depende do servidor, o app
       // ABRE a tela certa do painel — o clique leva ao lugar da ação, em vez de morrer
       // num recado. Se é da máquina (impressora, PDF) ou só muda a tela, o app faz.
       const destino = Acoes.destinoDe(acao)
       if (destino && destino.app === 'comanda') { imprimirComanda(btAcao, acharNoDado(acao.split(':').pop())); return }
+      if (destino && destino.app === 'comanda-ficha') { imprimirComanda(btAcao, acharNoDado(acao.split(':')[2])); return }
       if (destino && destino.app === 'pdf') { salvarPdf(btAcao); return }
-      if (destino && destino.app === 'recarregar') { carregarTelaNativa(ROTA); return }
+      if (destino && destino.app === 'recarregar') {
+        avisar('Período aplicado — números atualizados.', 'ok')
+        carregarTelaNativa(ROTA)
+        return
+      }
       if (destino && destino.app === 'limpar-selecao') { SEL_DESPACHO = []; redesenharTelaAtual(); return }
       if (destino && destino.app === 'nf-limpar') { avisar('Os filtros da nota são do painel — aqui a lista vem inteira.', 'aviso'); return }
       if (destino && destino.app === 'ordenar-clientes') {
