@@ -184,12 +184,12 @@ function caixa() {
   const hoje = new Date()
   const hora = (h, m) => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), h, m).toISOString()
   return {
-    aberto: { id: 'demo-caixa', abertoEm: hora(8, 0), abertoPor: 'Ana Paula (demonstração)', fundoInicial: 150 },
+    aberto: { id: 'demo-caixa', abertoEm: hora(9, 56), abertoPor: 'Administrador', fundoInicial: 0, abertoHaMin: 298 },
     resumo: {
       vendaDinheiro: 842.50, vendaPix: 1310.00, vendaCartao: 2145.90,
       vendaAReceber: 180.00, suprimentos: 50, sangrias: 300, ajustes: 0,
     },
-    esperadoDinheiro: 742.50,
+    esperadoDinheiro: 592.50,
     temMesas: true,
     movimentacoes: [
       { id: 'd1', tipo: 'venda', forma: 'pix', valor: 89.90, descricao: 'Pedido #1042 — Maria S.', criadoEm: hora(20, 12), estornada: false },
@@ -201,11 +201,11 @@ function caixa() {
     ],
     // contas de mesa abertas — o que precisa fechar antes de o caixa fechar
     mesas: [
-      { mesa: '2', abertaHa: 22, consumo: 96.40, garcom: 'Ana', pedidos: 2 },
-      { mesa: '4', abertaHa: 61, consumo: 312.80, garcom: 'Bruno', pedidos: 6 },
-      { mesa: '7', abertaHa: 48, consumo: 128.50, garcom: 'Ana', pedidos: 3 },
-      { mesa: '9', abertaHa: 95, consumo: 214.90, garcom: 'Bruno', pedidos: 5 },
-      { mesa: '10', abertaHa: 15, consumo: 78.00, garcom: 'Carla', pedidos: 1 },
+      { mesa: '14', abertaHa: 114, consumo: 76.90, garcom: 'Valdecir de Jesus', pedidos: 2, situacao: 'Em preparo', cliente: null },
+      { mesa: '16', abertaHa: 293, consumo: 184.28, garcom: 'Valdecir de Jesus', pedidos: 4, situacao: 'Pedido pronto', cliente: null },
+      { mesa: '19', abertaHa: 188, consumo: 221.58, garcom: 'Ícaro Santos', pedidos: 5, situacao: 'Em preparo', cliente: null },
+      { mesa: '27', abertaHa: 33, consumo: 156.80, garcom: null, pedidos: 2, situacao: 'Em preparo', cliente: null, pessoas: 2 },
+      { mesa: '34', abertaHa: 98, consumo: 76.65, garcom: 'Ícaro Santos', pedidos: 1, situacao: 'Em preparo', cliente: null },
     ],
     // entregas já entregues cujo dinheiro ninguém confirmou (a checagem que o painel
     // faz ao fechar: sem isso a venda fica fora do caixa)
@@ -367,20 +367,21 @@ function listas() {
       ],
     },
     despacho: {
-      contadores: { aguardando: 2, rota: 3, entregue: 24 },
-      itens: [
-        { pedido: '1040', cliente: 'Carla Nunes', bairro: 'Vila Nova', entregador: 'Tiago', situacao: 'Em rota', saiu: '20:02', valor: 132.40, forma: 'dinheiro' },
-        { pedido: '1034', cliente: 'Sandra Reis', bairro: 'Centro', entregador: 'Wesley', situacao: 'Em rota', saiu: '19:51', valor: 88.00, forma: 'cartao_entrega' },
-        { pedido: '1033', cliente: 'Otávio Brito', bairro: 'Boa Vista', entregador: 'Tiago', situacao: 'Em rota', saiu: '19:40', valor: 64.90, forma: 'dinheiro' },
-        { pedido: '1041', cliente: 'João Pereira', bairro: 'Jardim América', entregador: null, situacao: 'Aguardando', saiu: null, valor: 54.00, forma: 'pix' },
-        { pedido: '1038', cliente: 'Rafael Souza', bairro: 'Industrial', entregador: null, situacao: 'Aguardando', saiu: null, valor: 76.30, forma: 'dinheiro' },
+      // fila agrupada por bairro, como o painel: quem despacha junta o mesmo lado da cidade
+      prontos: [
+        { pedido: '7', cliente: 'Ilzadora Matos', bairro: 'Areal', esperaMin: 36, forma: 'pix', pago: true, valor: 28.99 },
+        { pedido: '10', cliente: 'Franciele Silva', bairro: 'Centro', esperaMin: 29, forma: 'cartao', pago: false, valor: 66.97 },
+        { pedido: '132', cliente: 'Ana Souza', bairro: 'São Félix', esperaMin: 18, forma: 'pix', pago: true, valor: 139.80 },
+        { pedido: '133', cliente: 'Bruno Lima', bairro: 'São Félix', esperaMin: 15, forma: 'dinheiro', pago: false, valor: 74.90 },
+        { pedido: '134', cliente: 'Carla Santos', bairro: 'São Félix', esperaMin: 12, forma: 'dinheiro', pago: false, valor: 98.90 },
+        { pedido: '135', cliente: 'Diego Ferreira', bairro: 'Guaibim', esperaMin: 47, forma: 'pix', pago: true, valor: 142.80 },
+        { pedido: '136', cliente: 'Elaine Costa', bairro: 'Guaibim', esperaMin: 9, forma: 'cartao', pago: false, valor: 64.90 },
       ],
-      // a rota é o mini-caixa do entregador: sai com troco, volta com dinheiro
-      rotas: [
-        { id: 'r1', entregador: 'Tiago Moura', saiu: '19:40', entregas: 2, dinheiroEsperado: 197.30, fundoTroco: 50.00, status: 'aberta' },
-        { id: 'r2', entregador: 'Wesley Barros', saiu: '18:10', entregas: 4, dinheiroEsperado: 288.00, fundoTroco: 50.00, dinheiroContado: 285.00, diferenca: -3.00, status: 'fechada' },
-        { id: 'r3', entregador: 'Diego Rocha', saiu: '17:20', entregas: 3, dinheiroEsperado: 164.50, fundoTroco: 30.00, dinheiroContado: 164.50, diferenca: 0, status: 'fechada' },
+      emTransito: [
+        { entregador: 'Tiago Moura', entregas: 2, dinheiroAReceber: 197.30, esperadoDeVolta: 247.30, rotaId: 'r1' },
+        { entregador: 'Wesley Barros', entregas: 3, dinheiroAReceber: 88.00, esperadoDeVolta: 138.00, rotaId: 'r2' },
       ],
+      entregadores: ['Tiago Moura', 'Wesley Barros', 'Diego Rocha', 'Paulo Vieira'],
     },
     financeiro: {
       aReceber: 24800.00, aPagar: 17320.50, vencidas: 2,

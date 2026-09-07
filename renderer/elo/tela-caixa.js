@@ -76,18 +76,40 @@ function grade(colunas, linhas, gradeCss, direita) {
   return L.apenasGrade({ colunas, grade: gradeCss, direita: direita || [] }, linhas)
 }
 
-/** Contas de mesa abertas — o que falta fechar antes de o caixa fechar. */
+/** Contas de mesa abertas, em CARTÕES — é assim no painel, e faz sentido: o operador
+ *  procura a mesa pelo número, não lê uma tabela. Cada cartão traz garçom, situação do
+ *  pedido, há quanto tempo está aberta e o consumo, com imprimir e fechar conta. */
 function subabaMesas(dados) {
   const mesas = dados.mesas || []
   const total = mesas.reduce((s, m) => s + (Number(m.consumo) || 0), 0)
+  if (!mesas.length) {
+    return cartaoBloco('Contas de mesa', 'nenhuma conta aberta',
+      '<div class="evazio">Nenhuma mesa com conta aberta agora.</div>')
+  }
+  const cartoes = mesas.map((m) => {
+    const demorada = m.abertaHa > 90
+    return '<div data-mesa="' + esc(m.mesa) + '" style="border:1.5px solid ' + (demorada ? '#f3c0bb' : '#ebebe8')
+      + ';border-radius:14px;padding:14px;background:#fff;min-width:0;cursor:pointer">'
+      + (m.garcom ? '<div style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">'
+        + 'Garçom: ' + esc(m.garcom) + '</div>' : '')
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
+      + '<span style="font-size:17px;font-weight:800;color:#111">Mesa ' + esc(m.mesa) + '</span>'
+      + '<span style="font-size:11.5px;font-weight:700;color:' + (demorada ? '#b42318' : '#6b7280') + '">' + esc(tempoLongo(m.abertaHa)) + '</span></div>'
+      + (m.situacao ? '<div style="font-size:12px;font-weight:700;color:var(--acento-texto);margin-top:2px">' + esc(m.situacao) + '</div>' : '')
+      + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">' + esc(m.cliente || 'Sem identificação')
+      + (m.pessoas ? ' · ' + esc(m.pessoas) + 'p' : '') + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px">'
+      + '<span style="font-size:16px;font-weight:800;color:#111">R$ ' + fmtBRL(m.consumo) + '</span>'
+      + '<span style="display:flex;gap:6px">'
+      + '<button type="button" data-acao="mesa:imprimir:' + esc(m.mesa) + '" title="Imprimir conta" style="width:32px;height:30px;'
+      + 'border:1px solid #e5e7eb;border-radius:9px;background:#fff;cursor:pointer;font-family:inherit">🖨</button>'
+      + '<button type="button" data-acao="mesa:fechar:' + esc(m.mesa) + '" style="height:30px;padding:0 12px;border:none;border-radius:9px;'
+      + 'background:var(--acento);color:#fff;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer">Fechar conta</button>'
+      + '</span></div></div>'
+  }).join('')
   return cartaoBloco('Contas de mesa em aberto', mesas.length + ' conta(s) · ' + fmtBRL(total) + ' a receber',
-    grade(['Mesa', 'Garçom', 'Pedidos', 'Aberta há', 'Consumo'],
-      mesas.map((m) => ({ chave: m.mesa, celulas: [
-        { texto: 'Mesa ' + m.mesa, forte: true, cor: '#111' }, m.garcom || '—', String(m.pedidos || 0),
-        { texto: tempoLongo(m.abertaHa), cor: m.abertaHa > 90 ? '#b42318' : '#4b5563' },
-        { texto: 'R$ ' + fmtBRL(m.consumo), forte: true, cor: '#111' },
-      ] })), '120px 1fr 110px 140px 150px', [2, 3, 4])
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">fechar conta de mesa ainda é pelo painel</div>')
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">' + cartoes + '</div>'
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">fechar conta de mesa ainda é pelo painel</div>')
 }
 
 /** Entregas já entregues cujo dinheiro ninguém confirmou — se o caixa fechar assim,
@@ -155,6 +177,32 @@ function htmlDoCaixa(dados, estado) {
   subabas.push({ chave: 'movimentacoes', rotulo: 'Movimentações', contador: (dados.movimentacoes || []).length })
   const subaba = subabas.some((x) => x.chave === estado.subaba) ? estado.subaba : subabas[0].chave
 
+  // Faixa de status: quem abriu, há quanto tempo e desde que hora — é a primeira coisa
+  // que o operador confere ao chegar no balcão.
+  const a = dados.aberto
+  const faixa = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-left:3px solid var(--acento);'
+    + 'background:#fff;border:1px solid var(--linha);border-left-width:3px;border-radius:12px;padding:12px 16px;margin-bottom:18px">'
+    + '<span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--acento-texto)">'
+    + '<span style="width:9px;height:9px;border-radius:50%;background:var(--acento);display:inline-block"></span>CAIXA ABERTO</span>'
+    + '<span style="color:#ebebe8">|</span>'
+    + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">Por <b style="color:#111">' + esc(a.abertoPor || '—') + '</b></span>'
+    + (a.abertoHaMin != null ? '<span style="color:#ebebe8">|</span><span style="font-size:12.5px;color:#6b7280;font-weight:600">'
+      + esc(tempoLongo(a.abertoHaMin)) + ' aberto</span>' : '')
+    + '<span style="margin-left:auto;font-size:12.5px;color:#9ca3af;font-weight:600">Desde ' + esc(fmtHora(a.abertoEm)) + '</span></div>'
+
+  const resumoLinha = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px">'
+    + [['Fundo inicial', fmtBRL(a.fundoInicial), ''], ['Sangrias', fmtBRL((dados.resumo || {}).sangrias), '− '],
+       ['Suprimentos', fmtBRL((dados.resumo || {}).suprimentos), '+ ']].map((x) =>
+      '<span class="echip" style="background:#f0f0ee;color:#4b5563">' + esc(x[0]) + ': <b style="color:#111">' + esc(x[2]) + 'R$ ' + esc(x[1]) + '</b></span>').join('')
+    + '<span style="display:flex;gap:8px;align-items:center;margin-left:auto">'
+    + '<button type="button" data-acao="caixa:suprimento" style="height:34px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;'
+    + 'background:#fff;color:#111;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">+ Suprimento</button>'
+    + '<button type="button" data-acao="caixa:sangria" style="height:34px;padding:0 14px;border:1px solid #f3c0bb;border-radius:10px;'
+    + 'background:#fff;color:#b42318;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">− Sangria</button>'
+    + '<button type="button" data-acao="caixa:fechar" style="height:34px;padding:0 14px;border:none;border-radius:10px;'
+    + 'background:#111;color:#fff;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">Fechar caixa</button>'
+    + '</span></div>'
+
   const r = dados.resumo || {}
   const naRua = (dados.entregas || []).reduce((s, e) => s + (Number(e.valor) || 0), 0)
   const kpis = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both;margin-bottom:18px">'
@@ -180,7 +228,7 @@ function htmlDoCaixa(dados, estado) {
   else if (subaba === 'delivery') corpo = subabaDelivery(dados)
   else corpo = movimentacoesHtml(dados, selo)
 
-  return '<div>' + barraAbas + kpis + alertaRua + barra(subabas, subaba, 'data-subaba') + corpo + '</div>'
+  return '<div>' + barraAbas + faixa + kpis + resumoLinha + alertaRua + barra(subabas, subaba, 'data-subaba') + corpo + '</div>'
 }
 
 /** A lista de movimentações do turno (a aba que já existia). */
