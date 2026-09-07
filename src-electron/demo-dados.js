@@ -285,14 +285,15 @@ function visaoGeral(periodo) {
 /** Listas de demonstração das telas de módulo (pedidos, carrinhos, clientes, …). */
 function listas() {
   const pedidos = [
-    { numero: '1042', hora: '20:12', cliente: 'Maria Silva', canal: 'Delivery', status: 'Em produção', valor: 89.90, filtro: 'producao' },
-    { numero: '1041', hora: '20:05', cliente: 'João Pereira', canal: 'Balcão', status: 'Pronto', valor: 54.00, filtro: 'pronto' },
-    { numero: '1040', hora: '19:58', cliente: 'Carla Nunes', canal: 'Delivery', status: 'Em entrega', valor: 132.40, filtro: 'entrega' },
-    { numero: '1039', hora: '19:22', cliente: 'Mesa 7', canal: 'Mesa', status: 'Em produção', valor: 128.50, filtro: 'producao' },
-    { numero: '1038', hora: '19:10', cliente: 'Rafael Souza', canal: 'Delivery', status: 'Novo', valor: 76.30, filtro: 'novo' },
-    { numero: '1037', hora: '18:47', cliente: 'Ana Paula Dias', canal: 'Retirada', status: 'Pronto', valor: 45.00, filtro: 'pronto' },
-    { numero: '1036', hora: '18:30', cliente: 'Pedro Henrique', canal: 'Delivery', status: 'Entregue', valor: 98.70, filtro: 'entregue' },
-    { numero: '1035', hora: '18:05', cliente: 'Luiza Martins', canal: 'Delivery', status: 'Cancelado', valor: 62.00, filtro: 'cancelado' },
+    { numero: '1043', hora: '20:18', cliente: 'Sandra Reis', canal: 'Delivery', status: 'Novo', valor: 112.80, filtro: 'novo', etapa: 'aguardando', entrouHaMin: 2, pagamento: 'Pix', itens: ['1x Pizza Portuguesa G', '1x Borda recheada', '1x Refrigerante 2L'] },
+    { numero: '1042', hora: '20:12', cliente: 'Maria Silva', canal: 'Delivery', status: 'Em produção', valor: 89.90, filtro: 'producao', etapa: 'producao', entrouHaMin: 8, pagamento: 'Pix', itens: ['1x Pizza Calabresa G', '1x Refrigerante 2L'] },
+    { numero: '1041', hora: '20:05', cliente: 'João Pereira', canal: 'Balcão', status: 'Pronto', valor: 54.00, filtro: 'pronto', etapa: 'pronto', entrouHaMin: 15, pagamento: 'Cartão', itens: ['1x Pizza Chocolate M'] },
+    { numero: '1040', hora: '19:58', cliente: 'Carla Nunes', canal: 'Delivery', status: 'Em entrega', valor: 132.40, filtro: 'entrega', etapa: 'transito', entrouHaMin: 22, pagamento: 'Dinheiro', itens: ['2x Pizza Calabresa G', '1x Cerveja long neck', '1x Borda recheada', '1x Água'] },
+    { numero: '1039', hora: '19:22', cliente: 'Mesa 7', canal: 'Mesa', status: 'Em produção', valor: 128.50, filtro: 'producao', etapa: 'producao', entrouHaMin: 31, pagamento: 'Na entrega', itens: ['2x Pizza Portuguesa G'] },
+    { numero: '1038', hora: '19:10', cliente: 'Rafael Souza', canal: 'Delivery', status: 'Novo', valor: 76.30, filtro: 'novo', etapa: 'aguardando', entrouHaMin: 12, pagamento: 'Cartão', itens: ['1x Pizza Calabresa M', '1x Refrigerante lata'] },
+    { numero: '1037', hora: '18:47', cliente: 'Ana Paula Dias', canal: 'Retirada', status: 'Pronto', valor: 45.00, filtro: 'pronto', etapa: 'pronto', entrouHaMin: 19, pagamento: 'Pix', itens: ['1x Pizza Chocolate M'] },
+    { numero: '1036', hora: '18:30', cliente: 'Pedro Henrique', canal: 'Delivery', status: 'Entregue', valor: 98.70, filtro: 'entregue', etapa: 'entregue', entrouHaMin: 62, pagamento: 'Pix', itens: ['1x Pizza Portuguesa G', '1x Refrigerante 2L'] },
+    { numero: '1035', hora: '18:05', cliente: 'Luiza Martins', canal: 'Delivery', status: 'Cancelado', valor: 62.00, filtro: 'cancelado', etapa: null, entrouHaMin: 88, pagamento: 'Pix', itens: ['1x Pizza Calabresa M'] },
   ]
   const conta = (f) => pedidos.filter((p) => p.filtro === f).length
   return {

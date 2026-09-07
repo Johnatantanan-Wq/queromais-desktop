@@ -5,6 +5,7 @@
 // Os dados chegam prontos do servidor (ou do modo demonstração): a tela não calcula.
 
 const L = require('./tela-lista')
+const Quadro = require('./tela-quadro')
 
 function brl(v) {
   const n = Number(v)
@@ -202,8 +203,58 @@ const CATALOGO = {
   },
 }
 
+// Pedidos tem dois modos: QUADRO (kanban, o padrão — é como o balcão trabalha) e
+// LISTA (a mesma grade das outras telas, para quem quer ver tudo de uma vez).
+function htmlPedidos(dados, estado) {
+  if (!dados) return L.htmlLista({ titulo: '', colunas: [] }, null, estado)
+  const modo = estado.modo === 'lista' ? 'lista' : 'quadro'
+  const cfg = CATALOGO['/admin/pedidos']
+  const def = cfg.def(dados)
+
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both">'
+    + def.kpis.map((k) => '<div class="ecard" style="padding:13px 20px;min-width:0">'
+      + '<div style="font-size:11.5px;font-weight:700;color:#6b7280;margin-bottom:6px">' + L.esc(k.rotulo) + '</div>'
+      + '<div style="font-size:22px;font-weight:800;color:' + (k.cor || '#111111') + ';letter-spacing:-.02em;line-height:1">' + L.esc(k.valor) + '</div>'
+      + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:5px">' + L.esc(k.sub || '') + '</div></div>').join('')
+    + '</div>'
+
+  const botao = (chave, rotulo, ligado) =>
+    '<button type="button" data-modo="' + chave + '" class="echip' + (ligado ? ' is-on' : '') + '" style="cursor:pointer;'
+    + (ligado ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#f0f0ee;color:#4b5563') + '">' + rotulo + '</button>'
+
+  const barra = '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">'
+    + '<div><div style="font-size:15px;font-weight:800;color:#111">Pedidos do turno</div>'
+    + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">tudo que entrou hoje, por etapa</div></div>'
+    + '<div style="display:flex;gap:6px;align-items:center;margin-left:auto">'
+    + botao('quadro', 'Quadro', modo === 'quadro') + botao('lista', 'Lista', modo === 'lista')
+    + (modo === 'quadro'
+        ? '<button type="button" data-extras="1" class="echip' + (estado.extras ? ' is-on' : '') + '" style="cursor:pointer;'
+          + (estado.extras ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#f0f0ee;color:#4b5563')
+          + '">' + (estado.extras ? '− Entrega' : '+ Entrega') + '</button>'
+        : '')
+    + '<button type="button" data-acao="novo-pedido" style="height:36px;padding:0 16px;border:none;border-radius:10px;background:var(--acento);'
+    + 'color:#fff;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer">+ Novo pedido</button>'
+    + '</div></div>'
+
+  if (modo === 'lista') {
+    return '<div style="display:flex;flex-direction:column;gap:18px">' + kpis
+      + '<div class="ecard" style="padding:24px">' + barra + '</div>'
+      + htmlListaDaRota('/admin/pedidos', dados, estado) + '</div>'
+  }
+  return '<div style="display:flex;flex-direction:column;gap:18px">' + kpis
+    + '<div class="ecard" style="padding:20px 24px">' + barra + '</div>'
+    + Quadro.htmlQuadro(dados, estado)
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600">'
+    + 'aceitar, imprimir e despachar ainda são pelo painel</div></div>'
+}
+
 /** Desenha a tela de lista da rota, com o filtro e a busca do momento. */
 function htmlDaRota(rota, dados, estado) {
+  if (rota === '/admin/pedidos') return htmlPedidos(dados, estado)
+  return htmlListaDaRota(rota, dados, estado)
+}
+
+function htmlListaDaRota(rota, dados, estado) {
   const cfg = CATALOGO[rota]
   if (!cfg) return null
   if (!dados) return L.htmlLista({ titulo: '', colunas: [] }, null, estado)
@@ -221,4 +272,4 @@ function htmlDaRota(rota, dados, estado) {
   return L.htmlLista(def, linhas, { ...estado, filtro })
 }
 
-module.exports = { CATALOGO, htmlDaRota, brl, etiqueta, COR_STATUS }
+module.exports = { CATALOGO, htmlDaRota, htmlListaDaRota, htmlPedidos, brl, etiqueta, COR_STATUS }

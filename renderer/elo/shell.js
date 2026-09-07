@@ -109,6 +109,8 @@ if (typeof document !== 'undefined') {
   let METRICA = 'faturamento'   // Visão geral: faturamento | pedidos | ticket
   const FILTRO = {}             // filtro escolhido, por rota
   const TERMO = {}              // busca digitada, por rota
+  let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
+  let EXTRAS_PEDIDOS = false    // colunas de entrega no quadro
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
 
   const $ = (id) => document.getElementById(id)
@@ -175,7 +177,10 @@ if (typeof document !== 'undefined') {
   for (const rota of Object.keys(CATALOGO_LISTAS)) {
     NATIVAS[rota] = {
       canal: CATALOGO_LISTAS[rota].canal,
-      desenhar: (dados, estado) => Catalogo.htmlDaRota(rota, dados, { ...estado, filtro: FILTRO[rota], termo: TERMO[rota] }),
+      desenhar: (dados, estado) => Catalogo.htmlDaRota(rota, dados, {
+        ...estado, filtro: FILTRO[rota], termo: TERMO[rota],
+        modo: MODO_PEDIDOS, extras: EXTRAS_PEDIDOS,
+      }),
       erro: 'Não deu para carregar esta tela agora.',
     }
   }
@@ -217,6 +222,18 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btModo = e.target.closest ? e.target.closest('[data-modo]') : null
+    if (btModo) {
+      MODO_PEDIDOS = btModo.getAttribute('data-modo')
+      redesenharTelaAtual()
+      return
+    }
+    const btExtras = e.target.closest ? e.target.closest('[data-extras]') : null
+    if (btExtras) {
+      EXTRAS_PEDIDOS = !EXTRAS_PEDIDOS
+      redesenharTelaAtual()
+      return
+    }
     const btFiltro = e.target.closest ? e.target.closest('[data-filtro]') : null
     if (btFiltro) {
       FILTRO[ROTA] = btFiltro.getAttribute('data-filtro')
