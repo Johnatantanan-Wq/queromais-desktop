@@ -356,6 +356,17 @@ function htmlParceiros(dados, estado) {
       + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(p.vendas)) + '</span></div>').join('') + '</div>'
     : '<div class="evazio">Nenhuma venda registrada ainda.</div>'
 
+  // Comissões é OUTRA lista: quem tem quanto a receber, não quem vendeu mais.
+  const porComissao = [...itens].sort((a2, b2) => (b2.comissao || 0) - (a2.comissao || 0))
+  const blocoComissoes = porComissao.length
+    ? '<div style="padding:18px 20px">' + porComissao.map((p2) =>
+      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f6f6f4">'
+      + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:#111">' + esc(p2.nome)
+      + '<span style="font-size:11.5px;color:#9ca3af;font-weight:600"> · ' + esc(p2.pedidos) + ' pedido(s)</span></span>'
+      + '<span style="font-size:13px;font-weight:800;color:var(--acento-texto)">' + esc(brl(p2.comissao)) + '</span></div>').join('')
+      + '</div>'
+    : '<div class="evazio">Nenhum parceiro cadastrado.</div>'
+
   return topo('Parceiros', 'Gerencie parceiros, acompanhe vendas, cupons e comissões em tempo real.',
     botao('parceiro:novo', '+ Novo parceiro', true))
     + kpis
@@ -364,8 +375,7 @@ function htmlParceiros(dados, estado) {
     + cartao('Top parceiros por faturamento', '', blocoTop, 0.09)
     + cartao('Faturamento por tipo', '', blocoTipos, 0.09) + '</div>'
     + '<div style="margin-top:18px">'
-    + cartao('Comissões', 'Total pago a parceiros: ' + brl(dados.comissaoPaga),
-      itens.length ? blocoTop : '<div class="evazio">Nenhum parceiro cadastrado.</div>', 0.12) + '</div>'
+    + cartao('Comissões', 'Total pago a parceiros: ' + brl(dados.comissaoPaga), blocoComissoes, 0.12) + '</div>'
 }
 
 // ── Fidelidade ──────────────────────────────────────────────────────────────

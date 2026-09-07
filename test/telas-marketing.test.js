@@ -65,6 +65,13 @@ test('Parceiros: números somados da lista, não inventados', () => {
   assert.ok(h.includes('Faturamento por tipo') && h.includes('Influencer'))
 })
 
+test('Parceiros: Comissões é a lista do que cada um tem a receber, não a de vendas', () => {
+  const h = M.htmlParceiros(apoio.parceiros, {})
+  const bloco = h.split('Total pago a parceiros')[1]
+  assert.ok(bloco.includes('R$ 780,00'), 'a comissão do primeiro parceiro, não o faturamento dele')
+  assert.ok(bloco.includes('62 pedido(s)'))
+})
+
 test('Fidelidade: a visão geral traz os quatro números e os rankings', () => {
   const h = M.htmlFidelidade(apoio.fidelidade, {})
   assert.ok(h.includes('Programa ativado'))
