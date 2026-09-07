@@ -15,6 +15,28 @@ para que o modo offline do Pediu caiba depois **sem reescrever nada**.
 
 Acento: **verde `#14CE6B`** (`brands/pediu/brand.json`) no lugar do amarelo `#FFC107` do Elo.
 
+## Isolamento: é um app beta, e nada do que existe muda (decidido 07/09)
+
+O shell novo **não** substitui o app de ninguém. Cada marca ganha uma variante beta — um app
+separado, que instala **ao lado** do de produção:
+
+| | produção | beta |
+|---|---|---|
+| `app_id` | `com.pediu.desktop` | `com.pediu.desktop.beta` |
+| dados e sessão | `pediu-desktop` | `pediu-desktop-beta` |
+| instalador / releases | `Pediu-Desktop-*` | `Pediu-Desktop-Beta-*` |
+| shell | o de hoje (ícones, 56px) | `"shell": "elo"` |
+
+Mesma `plataforma_slug`, mesmo domínio, mesma conta: o beta conversa com o **mesmo painel**. O que
+muda é só o app. Serve todas as marcas (`pediu-beta`, `queromais-beta`), cada uma com a sua cor — o
+acento sai de `cor_primaria`, com os tons derivados.
+
+O gatilho é o campo `shell` do `brand.json`. Sem ele, o `main.js` **não carrega nem executa** uma
+linha do caminho novo: `posicionarViews` mantém o corpo original, e ponte, cache e monitor de rede
+ficam dentro de `if (SHELL_ELO)`. No `cardapiopro`, mesma regra: o `AdminShell` fica idêntico ao
+`main`, a rota `GET /api/admin/menu` é aditiva, e um teste trava a sincronia entre o menu do painel
+e o servido ao app (verificado que ele falha quando as duas listas divergem).
+
 ## Por que a casca de hoje não serve
 
 O Pediu! Desktop atual (v1.1.29) é uma casca: barra escura de 56px só com ícones
@@ -159,7 +181,7 @@ Requisito no CardapioPro: `POST /api/admin/venda` (e as escritas de caixa) passa
 
 ## Fora de escopo
 
-- Quero Mais e Pizzaria do Jasson: o shell novo nasce **só na marca `pediu`**.
+- Mexer nos apps de produção: o shell novo vive só nas marcas beta (ver o isolamento acima).
 - O painel no navegador não muda de visual.
 - Portar todos os módulos de uma vez: só o Caixa/PDV nasce nativo; o resto entra por prioridade.
 
