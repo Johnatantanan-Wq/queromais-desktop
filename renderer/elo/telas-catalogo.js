@@ -202,29 +202,6 @@ const CATALOGO = {
     })),
   },
 
-  '/admin/compras': {
-    canal: 'compras-carregar',
-    def: (d) => ({
-      titulo: 'Compras',
-      subtitulo: 'entradas de insumo e fornecedores',
-      kpis: [
-        { rotulo: 'Compras no mês', valor: brl(d.totalMes), sub: 'em insumos' },
-        { rotulo: 'Notas lançadas', valor: String(d.itens.length), sub: 'no período' },
-        { rotulo: 'Fornecedores', valor: String(d.fornecedores), sub: 'ativos' },
-      ],
-      filtros: [{ chave: 'todos', rotulo: 'Todas' }, { chave: 'pendente', rotulo: 'A conferir' }],
-      busca: 'Buscar fornecedor ou nota',
-      colunas: ['Fornecedor', 'Nota', 'Entrada', 'Itens', 'Situação', 'Valor'],
-      grade: '1fr 120px 110px 90px 130px 130px',
-      direita: [5],
-      acoes: [{ chave: 'nova-compra', rotulo: '+ Lançar compra', primaria: true }],
-    }),
-    linhas: (d) => d.itens.map((c) => ({
-      chave: c.nota,
-      celulas: [c.fornecedor, c.nota, c.entrada, String(c.itens), etiqueta(c.situacao), { texto: brl(c.valor), forte: true, cor: '#111' }],
-    })),
-  },
-
   '/admin/estoque': {
     canal: 'estoque-carregar',
     def: (d) => ({

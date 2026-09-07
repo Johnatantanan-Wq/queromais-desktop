@@ -16,6 +16,7 @@ const TelaDespacho = require('../renderer/elo/tela-despacho')
 const TelaCardapio = require('../renderer/elo/tela-cardapio')
 const TelaVisaoGeral = require('../renderer/elo/tela-visao-geral')
 const TelaImpressao = require('../renderer/elo/tela-impressao')
+const TelaCompras = require('../renderer/elo/tela-compras')
 
 const listas = demo.listas()
 const apoio = demo.listasApoio()
@@ -36,7 +37,7 @@ const TELAS = {
   '/admin/bar': () => Operacao.htmlKds(oper.bar, { ...estado, departamento: 'bar' }),
   '/admin/atendimento': () => Principais.htmlSalao(comAbas.atendimento.salaoDetalhado, estado),
   '/admin/estoque': () => ComAbas.htmlComAbas('/admin/estoque', comAbas.estoque, { aba: 'produtos' }),
-  '/admin/compras': () => Catalogo.htmlDaRota('/admin/compras', apoio.compras, estado),
+  '/admin/compras': () => TelaCompras.htmlCompras(apoio.compras, estado),
   '/admin/financeiro': () => Principais.htmlFinanceiroVisao(comAbas.financeiro.visao, estado),
   '/admin/motoboys': () => Catalogo.htmlDaRota('/admin/motoboys', listas.entregadores, estado),
   '/admin/relatorios': () => Finais.htmlRelatorios(finais.relatorios, estado),
@@ -78,6 +79,7 @@ test('nenhuma tela quebra quando o dado ainda não chegou', () => {
     '/admin/atendimento': () => Principais.htmlSalao(null, estado),
     '/admin/cardapio': () => TelaCardapio.htmlCardapio(null, estado),
     '/admin/cozinha': () => Operacao.htmlKds(null, estado),
+    '/admin/compras': () => TelaCompras.htmlCompras(null, estado),
     '/app/impressao': () => TelaImpressao.htmlImpressao(null, estado),
   }
   for (const rota of Object.keys(semDado)) {

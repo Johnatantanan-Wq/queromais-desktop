@@ -500,12 +500,17 @@ function operacao() {
 function listasApoio() {
   return {
     compras: {
-      totalMes: 21840.60, fornecedores: 12,
-      itens: [
-        { fornecedor: 'Laticínios Vale Verde', nota: '8821', entrada: '05/09', itens: 6, situacao: 'Pago', valor: 4200.00 },
-        { fornecedor: 'Distribuidora Bebidas SA', nota: '4410', entrada: '04/09', itens: 14, situacao: 'Pendente', valor: 3180.90 },
-        { fornecedor: 'Hortifruti do Porto', nota: '992', entrada: '03/09', itens: 22, situacao: 'Pago', valor: 1290.40 },
-        { fornecedor: 'Embalagens Norte', nota: '1571', entrada: '02/09', itens: 4, situacao: 'Pendente', valor: 880.00 },
+      repor: [
+        { nome: 'Farinha de trigo', saldo: 18, unidade: 'kg', minimo: 40, custo: 4.20 },
+        { nome: 'Calabresa', saldo: 9, unidade: 'kg', minimo: 15, custo: 29.80 },
+        { nome: 'Refrigerante 2L', saldo: 0, unidade: 'un', minimo: 24, custo: 6.90 },
+      ],
+      avulsos: [
+        { nome: 'Saco de lixo 100L', qtd: 4, unidade: 'pct' },
+        { nome: 'Detergente neutro', qtd: 6, unidade: 'un' },
+      ],
+      comprados: [
+        { nome: 'Papel toalha', qtd: 12, unidade: 'rolo' },
       ],
     },
     estoque: {

@@ -248,6 +248,13 @@ if (typeof document !== 'undefined') {
     }
   }
 
+  const TelaCompras = require('./tela-compras')
+  NATIVAS['/admin/compras'] = {
+    canal: 'compras-carregar',
+    desenhar: (d, e) => TelaCompras.htmlCompras(d, e),
+    erro: 'Não deu para carregar as compras agora.',
+  }
+
   const TelaImpressao = require('./tela-impressao')
   const TelaDespacho = require('./tela-despacho')
   const TelaCardapio = require('./tela-cardapio')
