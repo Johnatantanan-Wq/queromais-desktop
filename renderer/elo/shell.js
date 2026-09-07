@@ -104,6 +104,7 @@ if (typeof document !== 'undefined') {
   let ONLINE = false
   let VIEW = 'cardapio'
   let DEMO = false
+  let PERIODO = 'semana'        // Visão geral: dia | ontem | semana | mes
   let METRICA = 'faturamento'   // Visão geral: faturamento | pedidos | ticket
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
 
@@ -154,7 +155,8 @@ if (typeof document !== 'undefined') {
   const NATIVAS = {
     '/admin': {
       canal: 'visao-geral-carregar',
-      desenhar: (dados, estado) => TelaVisaoGeral.htmlVisaoGeral(dados, { ...estado, metrica: METRICA }),
+      desenhar: (dados, estado) => TelaVisaoGeral.htmlVisaoGeral(dados, { ...estado, metrica: METRICA, periodo: PERIODO }),
+      argumentos: () => ({ periodo: PERIODO }),
       erro: 'Não deu para carregar os números agora.',
     },
     '/admin/caixa': {
@@ -176,7 +178,7 @@ if (typeof document !== 'undefined') {
     if (!tela) return
     alvo.innerHTML = '<div class="ecard"><div class="evazio">Carregando…</div></div>'
     try {
-      const r = await ipcRenderer.invoke(tela.canal)
+      const r = await ipcRenderer.invoke(tela.canal, tela.argumentos ? tela.argumentos() : undefined)
       if (ROTA !== rota) return   // o lojista já foi para outra tela
       DADOS_TELA = r && r.dados
       alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
@@ -201,6 +203,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btPeriodo = e.target.closest ? e.target.closest('[data-periodo]') : null
+    if (btPeriodo) {
+      PERIODO = btPeriodo.getAttribute('data-periodo')
+      carregarTelaNativa(ROTA)   // período novo = série nova: recarrega
+      return
+    }
     const btMetrica = e.target.closest ? e.target.closest('[data-metrica]') : null
     if (btMetrica) {
       METRICA = btMetrica.getAttribute('data-metrica')

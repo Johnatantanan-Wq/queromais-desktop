@@ -58,12 +58,27 @@ function cartaoKpi(chave, dados, metricaAtiva) {
     + '</div></button>'
 }
 
-function bloco(titulo, subtitulo, conteudo, atraso) {
+const PERIODOS = [
+  { chave: 'dia', rotulo: 'Hoje' },
+  { chave: 'ontem', rotulo: 'Ontem' },
+  { chave: 'semana', rotulo: 'Semana' },
+  { chave: 'mes', rotulo: 'Mês' },
+]
+
+function botoesPeriodo(atual) {
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap">' + PERIODOS.map((p) =>
+    '<button type="button" data-periodo="' + p.chave + '" class="echip' + (p.chave === atual ? ' is-on' : '') + '"'
+    + ' style="cursor:pointer;' + (p.chave === atual
+      ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
+      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+}
+
+function bloco(titulo, subtitulo, conteudo, atraso, acao) {
   return '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease ' + (atraso || 0) + 's both">'
-    + '<div style="margin-bottom:18px">'
-    + '<div style="font-size:15px;font-weight:800;color:#111111;margin-bottom:4px">' + esc(titulo) + '</div>'
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap">'
+    + '<div><div style="font-size:15px;font-weight:800;color:#111111;margin-bottom:4px">' + esc(titulo) + '</div>'
     + (subtitulo ? '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">' + esc(subtitulo) + '</div>' : '')
-    + '</div>' + conteudo + '</div>'
+    + '</div>' + (acao || '') + '</div>' + conteudo + '</div>'
 }
 
 function htmlVisaoGeral(dados, estado) {
@@ -85,13 +100,18 @@ function htmlVisaoGeral(dados, estado) {
   const kpis = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both">'
     + ['faturamento', 'pedidos', 'ticket'].map((c) => cartaoKpi(c, dados, metrica)).join('') + '</div>'
 
+  const qtdPontos = (s.labels || []).length
   const grafico = G.linha(
     [
       { values: s.atual || [], color: 'var(--acento, #14CE6B)', labelColor: '#0A7A3E' },
       { values: s.anterior || [], color: '#c9c6bd', labelColor: '#9ca3af', tracejada: true },
     ],
     s.labels || [],
-    { area: 'gradVisaoGeral', areaColor: '#14CE6B', fmt: m.eixo, w: 900, h: 210, yBottom: 150 },
+    {
+      area: 'gradVisaoGeral', areaColor: '#14CE6B', fmt: m.eixo, w: 900, h: 210, yBottom: 150,
+      // um mês (30 dias) ou um dia hora a hora não cabem com rótulo em cada ponto
+      rotulosACada: qtdPontos > 16 ? Math.ceil(qtdPontos / 8) : 1,
+    },
   )
 
   const legenda = '<div style="display:flex;gap:16px;align-items:center;font-size:12px;font-weight:600;color:#6b7280;margin-top:6px">'
@@ -112,10 +132,10 @@ function htmlVisaoGeral(dados, estado) {
 
   return '<div style="display:flex;flex-direction:column;gap:18px">'
     + kpis
-    + bloco(m.titulo + ' no período', (dados.periodo && dados.periodo.rotulo) || '', grafico + legenda, 0.04)
+    + bloco(m.titulo, (dados.periodo && dados.periodo.rotulo) || '', grafico + legenda, 0.04, botoesPeriodo(estado.periodo || (dados.periodo && dados.periodo.chave) || 'semana'))
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + canais + formas + '</div>'
     + bairros
     + '</div>'
 }
 
-module.exports = { htmlVisaoGeral, variacao, fmtBRL, fmtInt, METRICAS }
+module.exports = { htmlVisaoGeral, variacao, fmtBRL, fmtInt, METRICAS, PERIODOS }

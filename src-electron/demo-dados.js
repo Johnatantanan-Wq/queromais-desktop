@@ -200,49 +200,84 @@ function caixa() {
   }
 }
 
-/** Um período de 7 dias com faturamento, pedidos e ticket, e as quebras do painel. */
-function visaoGeral() {
-  const dias = ['01/09', '02/09', '03/09', '04/09', '05/09', '06/09', '07/09']
-  const fat = [2110.40, 2680.00, 3010.90, 2450.30, 3980.70, 4210.00, 1978.20]
-  const ped = [38, 45, 52, 41, 66, 71, 33]
-  const fatAnt = [1900.00, 2400.50, 2210.00, 2600.80, 3110.40, 3720.10, 1810.60]
-  const pedAnt = [35, 42, 39, 44, 55, 62, 31]
+/** Visão geral por período. `dia`/`ontem` vêm hora a hora; `semana`/`mes`, dia a dia.
+ *  Cada período traz também o anterior, para a comparação dos KPIs e do gráfico. */
+function visaoGeral(periodo) {
+  const p = ['dia', 'ontem', 'semana', 'mes'].indexOf(periodo) >= 0 ? periodo : 'semana'
   const soma = (a) => Math.round(a.reduce((x, y) => x + y, 0) * 100) / 100
-  const totFat = soma(fat), totPed = soma(ped), totFatAnt = soma(fatAnt), totPedAnt = soma(pedAnt)
+
+  // curva de um dia de restaurante: almoço e jantar
+  const horas = ['10h', '11h', '12h', '13h', '14h', '15h', '16h', '17h', '18h', '19h', '20h', '21h', '22h', '23h']
+  const fatDia = [95.4, 288.0, 742.6, 611.2, 240.8, 118.0, 96.5, 152.3, 388.7, 704.1, 921.4, 806.9, 512.6, 201.3]
+  const pedDia = [2, 5, 13, 11, 4, 2, 2, 3, 7, 12, 16, 14, 9, 4]
+  const fatOntem = [88.2, 244.9, 690.1, 588.4, 260.2, 90.0, 110.4, 130.9, 402.5, 668.8, 870.2, 742.4, 480.1, 188.6]
+  const pedOntem = [2, 4, 12, 10, 5, 2, 2, 3, 7, 11, 15, 13, 8, 4]
+  const fatAnteontem = [80.0, 230.0, 640.0, 520.0, 210.0, 85.0, 99.0, 120.0, 360.0, 610.0, 800.0, 690.0, 430.0, 170.0]
+  const pedAnteontem = [2, 4, 11, 9, 4, 2, 2, 3, 6, 10, 14, 12, 7, 3]
+
+  const dias7 = ['01/09', '02/09', '03/09', '04/09', '05/09', '06/09', '07/09']
+  const fat7 = [2110.40, 2680.00, 3010.90, 2450.30, 3980.70, 4210.00, 1978.20]
+  const ped7 = [38, 45, 52, 41, 66, 71, 33]
+  const fat7Ant = [1900.00, 2400.50, 2210.00, 2600.80, 3110.40, 3720.10, 1810.60]
+  const ped7Ant = [35, 42, 39, 44, 55, 62, 31]
+
+  // mês: 30 dias com fim de semana mais forte
+  const diasMes = [], fatMes = [], pedMes = [], fatMesAnt = [], pedMesAnt = []
+  for (let d = 1; d <= 30; d++) {
+    const fds = d % 7 === 5 || d % 7 === 6
+    const base = fds ? 3900 : 2400
+    diasMes.push(String(d).padStart(2, '0') + '/08')
+    fatMes.push(Math.round((base + (d % 5) * 130) * 100) / 100)
+    pedMes.push(Math.round((base + (d % 5) * 130) / 62))
+    fatMesAnt.push(Math.round((base * 0.88 + (d % 4) * 110) * 100) / 100)
+    pedMesAnt.push(Math.round((base * 0.88 + (d % 4) * 110) / 63))
+  }
+
+  const conjunto = {
+    dia:    { labels: horas,   fat: fatDia, ped: pedDia, fatAnt: fatOntem,     pedAnt: pedOntem,     rotulo: 'Hoje · comparado com ontem' },
+    ontem:  { labels: horas,   fat: fatOntem, ped: pedOntem, fatAnt: fatAnteontem, pedAnt: pedAnteontem, rotulo: 'Ontem · comparado com anteontem' },
+    semana: { labels: dias7,   fat: fat7,   ped: ped7,   fatAnt: fat7Ant,      pedAnt: ped7Ant,      rotulo: 'Últimos 7 dias · comparado com os 7 anteriores' },
+    mes:    { labels: diasMes, fat: fatMes, ped: pedMes, fatAnt: fatMesAnt,    pedAnt: pedMesAnt,    rotulo: 'Este mês · comparado com o mês anterior' },
+  }[p]
+
+  const totFat = soma(conjunto.fat), totPed = soma(conjunto.ped)
+  const totFatAnt = soma(conjunto.fatAnt), totPedAnt = soma(conjunto.pedAnt)
+  const proporcao = totFat / (soma(fat7) || 1)   // as quebras acompanham o tamanho do período
+
   return {
-    periodo: { de: '2026-09-01', ate: '2026-09-07', rotulo: 'Últimos 7 dias · comparado com os 7 anteriores' },
+    periodo: { chave: p, rotulo: conjunto.rotulo },
     kpis: {
       faturamento: { atual: totFat, anterior: totFatAnt },
       pedidos: { atual: totPed, anterior: totPedAnt },
-      ticket: { atual: Math.round((totFat / totPed) * 100) / 100, anterior: Math.round((totFatAnt / totPedAnt) * 100) / 100 },
+      ticket: { atual: Math.round((totFat / (totPed || 1)) * 100) / 100, anterior: Math.round((totFatAnt / (totPedAnt || 1)) * 100) / 100 },
     },
     series: {
-      labels: dias,
-      faturamento: { atual: fat, anterior: fatAnt },
-      pedidos: { atual: ped, anterior: pedAnt },
+      labels: conjunto.labels,
+      faturamento: { atual: conjunto.fat, anterior: conjunto.fatAnt },
+      pedidos: { atual: conjunto.ped, anterior: conjunto.pedAnt },
       ticket: {
-        atual: fat.map((v, i) => Math.round((v / ped[i]) * 100) / 100),
-        anterior: fatAnt.map((v, i) => Math.round((v / pedAnt[i]) * 100) / 100),
+        atual: conjunto.fat.map((v, i) => Math.round((v / (conjunto.ped[i] || 1)) * 100) / 100),
+        anterior: conjunto.fatAnt.map((v, i) => Math.round((v / (conjunto.pedAnt[i] || 1)) * 100) / 100),
       },
     },
     canais: [
-      { label: 'Delivery', value: 214 },
-      { label: 'Balcão', value: 78 },
-      { label: 'Mesa', value: 42 },
-      { label: 'Retirada', value: 12 },
+      { label: 'Delivery', value: Math.max(1, Math.round(214 * proporcao)) },
+      { label: 'Balcão', value: Math.max(1, Math.round(78 * proporcao)) },
+      { label: 'Mesa', value: Math.max(1, Math.round(42 * proporcao)) },
+      { label: 'Retirada', value: Math.max(1, Math.round(12 * proporcao)) },
     ],
     formas: [
-      { label: 'Pix', value: 8210.40 },
-      { label: 'Cartão', value: 7180.90 },
-      { label: 'Dinheiro', value: 3120.20 },
-      { label: 'A receber', value: 1908.00 },
+      { label: 'Pix', value: Math.round(8210.40 * proporcao * 100) / 100 },
+      { label: 'Cartão', value: Math.round(7180.90 * proporcao * 100) / 100 },
+      { label: 'Dinheiro', value: Math.round(3120.20 * proporcao * 100) / 100 },
+      { label: 'A receber', value: Math.round(1908.00 * proporcao * 100) / 100 },
     ],
     bairros: [
-      { label: 'Centro', value: 88 },
-      { label: 'Jardim América', value: 54 },
-      { label: 'Vila Nova', value: 37 },
-      { label: 'Boa Vista', value: 21 },
-      { label: 'Industrial', value: 14 },
+      { label: 'Centro', value: Math.max(1, Math.round(88 * proporcao)) },
+      { label: 'Jardim América', value: Math.max(1, Math.round(54 * proporcao)) },
+      { label: 'Vila Nova', value: Math.max(1, Math.round(37 * proporcao)) },
+      { label: 'Boa Vista', value: Math.max(1, Math.round(21 * proporcao)) },
+      { label: 'Industrial', value: Math.max(1, Math.round(14 * proporcao)) },
     ],
   }
 }

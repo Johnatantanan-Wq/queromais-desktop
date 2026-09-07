@@ -53,7 +53,10 @@ function linha(series, labels, opts) {
   // demais abaixo, empilhados. Sem isso, valores próximos se sobrepõem e viram borrão —
   // defeito que o Elo levou um print do usuário para descobrir.
   let textos = ''
-  if (opts.rotulos !== false) {
+  // Rótulo de valor em todo ponto só cabe quando são poucos: num mês (30 dias) ou
+  // num dia hora a hora, vira poluição. Acima de 10 pontos, some sozinho.
+  const mostrarValores = opts.rotulos === true ? true : (opts.rotulos === false ? false : qtd <= 10)
+  if (mostrarValores) {
     for (let i = 0; i < qtd; i++) {
       const anchor = i === 0 ? 'start' : (i === qtd - 1 ? 'end' : 'middle')
       const tx = i === 0 ? xOf(i) + 2 : (i === qtd - 1 ? xOf(i) - 2 : xOf(i))
@@ -71,10 +74,16 @@ function linha(series, labels, opts) {
   }
 
   const baseY = yBottom + 13
+  // Com muitos pontos (um mês, um dia hora a hora), mostrar todo rótulo vira borrão:
+  // o passo espaça, mantendo sempre o primeiro e o último.
+  const passo = opts.rotulosACada || 1
+  const mostraRotulo = (i) => passo <= 1 || i === 0 || i === qtd - 1 || i % passo === 0
   const rodape = '<line x1="' + (mx / 2).toFixed(1) + '" y1="' + baseY.toFixed(1) + '" x2="' + (w - mx / 2).toFixed(1) + '" y2="' + baseY.toFixed(1) + '" stroke="#eceae4" stroke-width="1.5"></line>'
     + labels.map((lb, i) => {
       const x = xOf(i), anchor = i === 0 ? 'start' : (i === qtd - 1 ? 'end' : 'middle')
-      return '<circle cx="' + x.toFixed(1) + '" cy="' + baseY.toFixed(1) + '" r="2.5" fill="#c9c6bd"></circle>'
+      const tick = '<circle cx="' + x.toFixed(1) + '" cy="' + baseY.toFixed(1) + '" r="2.5" fill="#c9c6bd"></circle>'
+      if (!mostraRotulo(i)) return tick
+      return tick
         + '<text x="' + x.toFixed(1) + '" y="' + (baseY + 17).toFixed(1) + '" text-anchor="' + anchor + '" font-size="11.5" font-weight="700" fill="#6b7280" font-family="' + FONTE + '">' + esc(lb) + '</text>'
     }).join('')
 

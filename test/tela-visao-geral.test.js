@@ -29,9 +29,9 @@ test('os três KPIs aparecem com a variação contra o período anterior', () =>
 
 test('a métrica escolhida fica marcada e manda o gráfico', () => {
   const h = t.htmlVisaoGeral(dados, { metrica: 'pedidos', online: true, ts: Date.now() })
-  const botao = h.split('data-metrica="pedidos"')[1] || ''
   assert.ok(h.includes('data-metrica="pedidos"'))
-  assert.ok(/is-on/.test(h.split('data-metrica="pedidos"')[0].slice(-120) + botao.slice(0, 60)))
+  assert.ok(/is-on/.test(h.split('data-metrica="pedidos"')[1].slice(0, 80)), 'a métrica escolhida vem marcada')
+  assert.ok(!/is-on/.test(h.split('data-metrica="ticket"')[1].slice(0, 80)), 'as outras não')
 })
 
 test('o gráfico traz período atual e anterior', () => {
@@ -63,4 +63,44 @@ test('variação: cálculo e sinal', () => {
   assert.strictEqual(t.variacao(100, 100).texto, '0,0%')
   assert.strictEqual(t.variacao(50, 0).texto, '')
   assert.strictEqual(t.variacao(110, 100).subiu, true)
+})
+
+const dadosPeriodo = {
+  periodo: { chave: 'dia', rotulo: 'Hoje · comparado com ontem' },
+  kpis: { faturamento: { atual: 1978.2, anterior: 4210 }, pedidos: { atual: 33, anterior: 71 }, ticket: { atual: 59.9, anterior: 59.3 } },
+  series: {
+    labels: ['10h', '11h', '12h', '13h', '14h'],
+    faturamento: { atual: [120, 340, 610, 420, 488], anterior: [100, 300, 700, 500, 410] },
+    pedidos: { atual: [2, 6, 11, 7, 7], anterior: [2, 5, 12, 8, 6] },
+    ticket: { atual: [60, 56, 55, 60, 69], anterior: [50, 60, 58, 62, 68] },
+  },
+  canais: [{ label: 'Delivery', value: 20 }],
+  formas: [{ label: 'Pix', value: 900 }],
+  bairros: [],
+}
+
+test('os quatro botões de período aparecem, com o atual marcado', () => {
+  const h = t.htmlVisaoGeral(dadosPeriodo, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
+  for (const p of ['dia', 'ontem', 'semana', 'mes']) assert.ok(h.includes('data-periodo="' + p + '"'), 'falta ' + p)
+  const depois = h.split('data-periodo="dia"')[1].slice(0, 60)
+  assert.ok(/is-on/.test(depois), 'o período atual deve vir marcado: ' + depois)
+  const outro = h.split('data-periodo="mes"')[1].slice(0, 60)
+  assert.ok(!/is-on/.test(outro), 'os demais não podem vir marcados')
+})
+
+test('no dia, o eixo do gráfico é horário', () => {
+  const h = t.htmlVisaoGeral(dadosPeriodo, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
+  assert.ok(h.includes('10h') && h.includes('14h'))
+})
+
+test('o rótulo do período aparece como subtítulo do gráfico', () => {
+  const h = t.htmlVisaoGeral(dadosPeriodo, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
+  assert.ok(h.includes('Hoje · comparado com ontem'))
+})
+
+test('período sem movimento nenhum não quebra o gráfico', () => {
+  const vazio = { ...dadosPeriodo, series: { labels: [], faturamento: { atual: [], anterior: [] } } }
+  const h = t.htmlVisaoGeral(vazio, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
+  assert.ok(h.includes('<svg'))
+  assert.ok(!h.includes('NaN'))
 })

@@ -55,3 +55,16 @@ test('formata número em pt-BR', () => {
 test('escapa rótulo vindo de dado', () => {
   assert.ok(g.barras([{ label: '<script>', value: 1, color: '#000' }]).includes('&lt;script&gt;'))
 })
+
+test('com muitos pontos, os rótulos do eixo saem espaçados (não viram borrão)', () => {
+  const labels = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(2, '0') + '/09')
+  const svg = g.linha([{ values: labels.map((_, i) => i * 10), color: '#14CE6B' }], labels, { rotulosACada: 5 })
+  const textos = (svg.match(/<text/g) || []).length
+  assert.ok(textos < 30, 'esperava menos de 30 rótulos, veio ' + textos)
+  assert.ok(svg.includes('01/09') && svg.includes('30/09'), 'primeiro e último sempre aparecem')
+})
+
+test('rótulos de valor podem ser desligados', () => {
+  const svg = g.linha([{ values: [1, 2, 3], color: '#14CE6B' }], ['a', 'b', 'c'], { rotulos: false })
+  assert.ok(!svg.includes('font-weight="800"'), 'não deve haver rótulo de valor')
+})
