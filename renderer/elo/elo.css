@@ -1,0 +1,95 @@
+/* renderer/elo/elo.css — shell "elo" do Pediu! Desktop.
+   Porte fiel de OVD-VENDAS/capa/renderer/index.html:257-320; onde o Elo é amarelo
+   (#FFC107 / #fff3cc / #8a6508), aqui é o verde da marca (brands/pediu/brand.json). */
+:root{
+  --acento:#14CE6B; --acento-escuro:#0AA758; --acento-suave:#E7FAF0;
+  --acento-texto:#0A7A3E; --acento-linha:#A8E9C6;
+  --bg:#f6f6f4; --painel:#ffffff; --linha:#ebebe8; --linha-2:#e5e7eb;
+  --tinta:#111111; --tinta-2:#4b5563; --apagado:#9ca3af; --grupo:#b3b2ac;
+  --sans:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tinta);
+  font-family:var(--sans);-webkit-font-smoothing:antialiased;user-select:none}
+::-webkit-scrollbar{width:0;height:0;display:none}
+*{scrollbar-width:none}
+
+/* ── titlebar (44px, arrastável) ── */
+#titlebar{height:44px;background:var(--painel);border-bottom:1px solid var(--linha);
+  display:flex;align-items:center;justify-content:space-between;padding:0 12px;
+  -webkit-app-region:drag;position:relative;z-index:800}
+#titlebar .janela{display:flex;gap:6px;-webkit-app-region:no-drag}
+#titlebar .jb{width:28px;height:28px;border:none;background:none;border-radius:8px;
+  color:var(--tinta-2);cursor:pointer;font-size:14px;line-height:1;font-family:inherit}
+#titlebar .jb:hover{background:var(--bg)}
+#titlebar .jb.fechar:hover{background:#fdeaea;color:#b42318}
+
+/* ── sidebar 252px ⇄ 76px ── */
+#erail{position:fixed;top:44px;left:0;bottom:0;width:252px;background:var(--painel);
+  border-right:1px solid var(--linha);display:flex;flex-direction:column;
+  padding:28px 14px 20px;overflow-y:auto;overflow-x:hidden;transition:width .25s ease;z-index:700}
+#erail.recolhido{width:76px}
+.erailtop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 10px;margin-bottom:28px}
+#erail.recolhido .erailtop{flex-direction:column;align-items:center}
+.erailbrand{display:flex;flex-direction:column;gap:5px;min-width:0}
+.erailbrand img{width:136px;height:auto;display:block;transition:width .25s ease}
+#erail.recolhido .erailbrand img{width:42px}
+.eraillabel{font-size:10.5px;letter-spacing:.36em;font-weight:700;color:var(--apagado);text-transform:uppercase}
+.erailtoggle{width:30px;height:30px;border:1px solid var(--linha-2);border-radius:9px;background:var(--painel);
+  color:#6b7280;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit}
+.erailtoggle:hover{background:var(--bg);color:var(--tinta)}
+.erailnav{display:flex;flex-direction:column;gap:2px;flex:1}
+.erailgrp{font-size:10px;font-weight:800;color:var(--grupo);text-transform:uppercase;
+  letter-spacing:.12em;padding:16px 12px 6px}
+.erailgrpdiv{display:none;height:1px;background:#f0f0ee;margin:12px 8px}
+#erail.recolhido .erailgrpdiv{display:block}
+.erailitem{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--tinta-2);border-left:3px solid transparent;
+  transition:background .15s,color .15s}
+#erail.recolhido .erailitem{justify-content:center}
+.erailitem:hover{background:var(--bg)}
+.erailitem.on{background:var(--acento-suave);border-left-color:var(--acento);color:var(--acento-texto);font-weight:700}
+.erailitem.off{opacity:.45;cursor:not-allowed}
+#erail.recolhido .eraillabel,#erail.recolhido .erailgrp,#erail.recolhido .lbl,#erail.recolhido .erailuinfo{display:none}
+.eranbadge{margin-left:auto;background:var(--acento-texto);color:#fff;font-size:10px;font-weight:800;
+  line-height:1;padding:3px 7px;border-radius:20px;flex:none}
+.erailitem.on .eranbadge{background:var(--tinta)}
+#erail.recolhido .eranbadge{display:none}
+.erailfoot{border-top:1px solid #f0f0ee;padding-top:16px;display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.erailuser{display:flex;align-items:center;gap:11px;padding:0 10px}
+#erail.recolhido .erailuser{justify-content:center}
+.erailavatar{width:36px;height:36px;border-radius:10px;background:var(--acento);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.erailuinfo{min-width:0}
+.erailuname{font-size:12.5px;font-weight:700;color:var(--tinta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.erailudoc{font-size:11px;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.erailsair{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;font-size:13px;
+  font-weight:600;color:#6b7280;background:none;border:none;cursor:pointer;font-family:inherit;width:100%;text-align:left}
+.erailsair:hover{background:var(--bg);color:var(--tinta)}
+
+/* ── topbar 74px ── */
+#etopbar{position:fixed;top:44px;left:252px;right:0;height:74px;background:var(--painel);
+  border-bottom:1px solid var(--linha);display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;gap:16px;transition:left .25s ease;z-index:690}
+#erail.recolhido ~ #etopbar{left:76px}
+.etitle{font-size:17px;font-weight:800;color:var(--tinta);letter-spacing:-.01em;white-space:nowrap}
+.edate{font-size:12px;color:var(--apagado);font-weight:500;white-space:nowrap}
+.etopright{display:flex;align-items:center;gap:10px}
+.echip{font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:999px;background:#f0f0ee;
+  color:var(--tinta-2);white-space:nowrap;display:inline-flex;align-items:center;gap:6px;border:none;
+  font-family:inherit;cursor:pointer}
+.echip:hover{filter:brightness(.97)}
+.echip.on{background:var(--acento-suave);color:var(--acento-texto)}
+.echip.offline{background:#fdeaea;color:#b42318}
+.eiconbtn{width:38px;height:38px;border:1px solid var(--linha-2);border-radius:10px;background:var(--painel);
+  color:var(--tinta-2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit}
+.eiconbtn:hover{background:#fafafa}
+.eiconbtn.on{border-color:var(--acento);color:var(--acento-texto);background:var(--acento-suave)}
+
+/* ── área do conteúdo (a BrowserView fica por cima deste retângulo) ── */
+#econtent{position:fixed;top:118px;left:252px;right:0;bottom:0;background:var(--bg);
+  transition:left .25s ease;overflow:auto;padding:26px 32px 20px}
+#erail.recolhido ~ #econtent{left:76px}
+.ecard{background:var(--painel);border:1px solid var(--linha);border-radius:16px;
+  box-shadow:0 1px 2px rgba(17,17,17,.03);padding:24px}
+.evazio{padding:34px 20px;text-align:center;color:var(--apagado);font-size:13px}
