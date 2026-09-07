@@ -525,16 +525,41 @@ function listasApoio() {
       ],
     },
     cupons: {
-      ativos: 3, usosMes: 128, descontoMes: 1840.50,
       itens: [
-        { codigo: 'VOLTA10', desconto: '10%', validade: '30/09', usos: 64, situacao: 'Ativo' },
-        { codigo: 'PRIMEIRA15', desconto: '15%', validade: '31/12', usos: 41, situacao: 'Ativo' },
-        { codigo: 'FRETEGRATIS', desconto: 'Entrega grátis', validade: '15/09', usos: 23, situacao: 'Ativo' },
-        { codigo: 'AGOSTO20', desconto: '20%', validade: '31/08', usos: 156, situacao: 'Inativo' },
+        { codigo: 'VOLTA10', descricao: '10% off pra quem sumiu', desconto: '10%', validade: '30/09', usos: 64, situacao: 'Ativo', cor: '#14CE6B', primeiraCompra: false, freteGratis: false },
+        { codigo: 'PRIMEIRA15', descricao: '15% na primeira compra', desconto: '15%', validade: '31/12', usos: 41, situacao: 'Ativo', cor: '#2f7ff0', primeiraCompra: true, freteGratis: false },
+        { codigo: 'FRETEGRATIS', descricao: 'Entrega por nossa conta', desconto: 'Entrega grátis', validade: '15/09', usos: 23, situacao: 'Ativo', cor: '#ea6a20', primeiraCompra: false, freteGratis: true },
+        { codigo: 'AGOSTO20', descricao: 'Promoção de agosto', desconto: '20%', validade: '31/08', usos: 156, situacao: 'Inativo', cor: '#9b5de5', primeiraCompra: false, freteGratis: false },
       ],
     },
     fidelidade: {
-      participantes: 412, resgates: 18, pontosAbertos: 9840,
+      ativo: true, intervalo: '09/08/2026 a 07/09/2026',
+      pontosDistribuidos: 9840, pontosResgatados: 2160, emDescontos: 216.00, resgates: 18,
+      regras: { pontosPorReal: 1, valorDoPonto: 0.10, minimoResgate: 100, validade: '12 meses' },
+      porDia: [
+        { dia: '01/09', pontos: 320 }, { dia: '02/09', pontos: 410 }, { dia: '03/09', pontos: 280 },
+        { dia: '04/09', pontos: 520 }, { dia: '05/09', pontos: 890 }, { dia: '06/09', pontos: 1240 },
+        { dia: '07/09', pontos: 640 },
+      ],
+      topGanhos: [
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', pontos: 920 },
+        { nome: 'João Pereira', telefone: '(75) 98811-0002', pontos: 740 },
+        { nome: 'Carla Nunes', telefone: '(75) 98811-0003', pontos: 510 },
+      ],
+      topResgates: [
+        { nome: 'João Pereira', telefone: '(75) 98811-0002', pontos: 800 },
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', pontos: 600 },
+      ],
+      premios: [
+        { nome: 'Pizza média grátis', resgates: 9, pontos: 1080 },
+        { nome: 'Refrigerante 2L', resgates: 6, pontos: 480 },
+        { nome: 'Sobremesa', resgates: 3, pontos: 600 },
+      ],
+      atividades: [
+        { quando: '07/09 20:14', cliente: 'Maria Silva', tipo: 'Ganho', pontos: 62, pedido: '#1043' },
+        { quando: '07/09 19:02', cliente: 'João Pereira', tipo: 'Resgate', pontos: 200, pedido: '#1041' },
+        { quando: '06/09 21:30', cliente: 'Carla Nunes', tipo: 'Ganho', pontos: 48, pedido: '#1030' },
+      ],
       itens: [
         { nome: 'Maria Silva', telefone: '(75) 98811-0001', pontos: 92, pedidos: 42, proximo: 'faltam 8 pontos' },
         { nome: 'João Pereira', telefone: '(75) 98811-0002', pontos: 74, pedidos: 27, proximo: 'faltam 26 pontos' },
@@ -543,20 +568,28 @@ function listasApoio() {
       ],
     },
     parceiros: {
-      vendasMes: 14200.00, comissaoMes: 1420.00,
+      comissaoPaga: 980.00,
       itens: [
-        { nome: 'Hotel Praia Bela', codigo: 'HPB', pedidos: 62, vendas: 7800.00, comissao: 780.00 },
-        { nome: 'Pousada do Porto', codigo: 'PDP', pedidos: 41, vendas: 4200.00, comissao: 420.00 },
-        { nome: 'Academia Corpo Livre', codigo: 'ACL', pedidos: 22, vendas: 2200.00, comissao: 220.00 },
+        { nome: 'Hotel Praia Bela', tipo: 'Parceiro', codigo: 'HPB', pedidos: 62, vendas: 7800.00, comissao: 780.00, situacao: 'Ativo' },
+        { nome: 'Pousada do Porto', tipo: 'Parceiro', codigo: 'PDP', pedidos: 41, vendas: 4200.00, comissao: 420.00, situacao: 'Ativo' },
+        { nome: 'Academia Corpo Livre', tipo: 'Vendedor', codigo: 'ACL', pedidos: 22, vendas: 2200.00, comissao: 220.00, situacao: 'Ativo' },
+        { nome: 'Bia do Guaibim', tipo: 'Influencer', codigo: 'BIA10', pedidos: 14, vendas: 980.00, comissao: 98.00, situacao: 'Inativo' },
       ],
     },
     campanhas: {
-      alcance: 1840, pedidos: 96,
-      itens: [
-        { nome: 'Terça em dobro', canal: 'WhatsApp', enviada: '02/09', alcance: 820, pedidos: 44, situacao: 'Ativo' },
-        { nome: 'Volta pra gente', canal: 'Push', enviada: '04/09', alcance: 610, pedidos: 31, situacao: 'Ativo' },
-        { nome: 'Combo da família', canal: 'WhatsApp', enviada: '31/08', alcance: 410, pedidos: 21, situacao: 'Inativo' },
+      totalContatos: 412, audiencia: 128,
+      perfis: { vip: 18, leal: 46, novo: 128, risco: 61, perdido: 92, regular: 66, importado: 1 },
+      contatos: [
+        { nome: 'Maria Silva', perfil: 'VIP', gasto: 2140.00 },
+        { nome: 'João Pereira', perfil: 'Leal', gasto: 1380.50 },
+        { nome: 'Carla Nunes', perfil: 'Novo', gasto: 189.90 },
       ],
+      historico: [
+        { nome: 'Terça em dobro', perfil: 'Leal', enviada: '02/09', contatos: 820, pedidos: 44 },
+        { nome: 'Volta pra gente', perfil: 'Em risco', enviada: '04/09', contatos: 610, pedidos: 31 },
+        { nome: 'Combo da família', perfil: 'VIP', enviada: '31/08', contatos: 410, pedidos: 21 },
+      ],
+      numeroEnvio: '(75) 98811-9000', intervaloSegundos: 8, cota: 3000, cotaUsada: 1840,
     },
   }
 }
@@ -656,39 +689,155 @@ function apoioFinal() {
           linhas: [['Maria Silva', '42', 'R$ 2.140,00'], ['João Pereira', '27', 'R$ 1.380,50']] },
       },
     },
-    configuracoes: { secoes: [
-      { titulo: 'Loja', campos: [
-        { rotulo: 'Nome', valor: 'Pizzaria Demonstração' },
-        { rotulo: 'Telefone', valor: '(75) 3333-0000' },
-        { rotulo: 'Endereço', valor: 'Praia de Guaibim, s/n — Valença/BA' },
-        { rotulo: 'Modo de negócio', valor: 'Delivery + salão' },
-      ] },
-      { titulo: 'Atendimento', campos: [
-        { rotulo: 'Horário hoje', valor: '10:00 às 23:30' },
-        { rotulo: 'Tempo de preparo', valor: '35 a 50 min' },
-        { rotulo: 'Pedido mínimo', valor: 'R$ 25,00' },
-      ] },
-      { titulo: 'Entrega', campos: [
-        { rotulo: 'Taxa por bairro', valor: '5 bairros configurados' },
-        { rotulo: 'Raio de entrega', valor: '6 km' },
-        { rotulo: 'Entrega grátis a partir de', valor: 'R$ 120,00' },
-      ] },
-      { titulo: 'Pagamento', campos: [
-        { rotulo: 'Formas aceitas', valor: 'Pix, dinheiro, crédito, débito' },
-        { rotulo: 'Pix na entrega', valor: 'ativo' },
-        { rotulo: 'Taxa de cartão', valor: '2,99% crédito · 1,49% débito' },
-      ] },
-      { titulo: 'Impressão', campos: [
-        { rotulo: 'Impressora', valor: 'POS-80 (USB)' },
-        { rotulo: 'Impressão automática', valor: 'ao aceitar o pedido' },
-        { rotulo: 'Vias da comanda', valor: '2' },
-      ] },
-    ] },
+    configuracoes: {
+      abas: {
+        config: [
+          { titulo: '', colunas: 3, campos: [
+            { rotulo: 'Nome fantasia / nome da loja', valor: 'Pizzaria Demonstração' },
+            { rotulo: 'Razão social', valor: '' },
+            { rotulo: 'Responsável', valor: 'Johnatan Tanan' },
+          ] },
+          { titulo: 'Documentos e contato', colunas: 3, campos: [
+            { rotulo: 'CNPJ', valor: '' },
+            { rotulo: 'Inscrição estadual', valor: '' },
+            { rotulo: 'Telefone / WhatsApp', valor: '(75) 3333-0000' },
+            { rotulo: 'E-mail', valor: 'contato@pizzariademo.com.br' },
+            { rotulo: 'Site', valor: '' },
+            { rotulo: 'Descrição', valor: '' },
+          ] },
+          { titulo: 'Endereço', colunas: 3, campos: [
+            { rotulo: 'Rua / avenida', valor: 'Avenida Beira Mar' },
+            { rotulo: 'Número', valor: '1200' },
+            { rotulo: 'CEP', valor: '45400-000' },
+            { rotulo: 'Bairro', valor: 'Praia de Guaibim' },
+            { rotulo: 'Cidade', valor: 'Valença' },
+            { rotulo: 'UF', valor: 'BA' },
+            { rotulo: 'Complemento', valor: '' },
+            { rotulo: 'Link Google Maps', valor: '' },
+          ] },
+          { titulo: 'Como o cliente pode receber o pedido', colunas: 1, campos: [
+            { rotulo: 'Modalidades', valor: 'Entrega · Retirada na loja · Consumir no local' },
+          ] },
+          { titulo: 'Pix e tempos de atendimento', colunas: 3, campos: [
+            { rotulo: 'Chave Pix', valor: '' },
+            { rotulo: 'Nome do titular Pix', valor: '' },
+            { rotulo: 'Tempo retirada (min)', valor: '30' },
+            { rotulo: 'Tempo delivery (min)', valor: '45' },
+            { rotulo: 'Tempo consumo local (min)', valor: '20' },
+          ] },
+          { titulo: 'Numeração dos pedidos', colunas: 1, campos: [
+            { rotulo: 'Regra', valor: 'Reinicia todo dia (#1, #2, #3…)' },
+          ] },
+        ],
+        horarios: [
+          { titulo: 'Funcionamento', colunas: 2, campos: [
+            { rotulo: 'Segunda a sexta', valor: '10:00 às 23:30' },
+            { rotulo: 'Sábado e domingo', valor: '10:00 às 00:30' },
+            { rotulo: 'Fecha hoje às', valor: '23:00' },
+            { rotulo: 'Pedido mínimo', valor: 'R$ 25,00' },
+          ] },
+        ],
+        rotas: [
+          { titulo: 'Entrega por bairro', colunas: 3, campos: [
+            { rotulo: 'Praia de Guaibim', valor: 'R$ 5,00' },
+            { rotulo: 'Centro', valor: 'R$ 7,00' },
+            { rotulo: 'Bela Vista', valor: 'R$ 9,00' },
+            { rotulo: 'Raio máximo', valor: '8 km' },
+            { rotulo: 'Entrega grátis acima de', valor: 'R$ 120,00' },
+          ] },
+        ],
+        usuario: [
+          { titulo: 'Quem está usando o app', colunas: 2, campos: [
+            { rotulo: 'Nome', valor: 'Admin' },
+            { rotulo: 'E-mail', valor: 'johnatan.tanan@gmail.com' },
+            { rotulo: 'Perfil', valor: 'Dono da loja' },
+            { rotulo: 'Último acesso', valor: '07/09/2026 16:01' },
+          ] },
+        ],
+        gestor: [
+          { titulo: 'App Gestor', colunas: 2, campos: [
+            { rotulo: 'Aparelhos pareados', valor: '2' },
+            { rotulo: 'Notificações de pedido', valor: 'ligadas' },
+          ] },
+        ],
+        plano: [
+          { titulo: 'Plano da loja', colunas: 2, campos: [
+            { rotulo: 'Plano', valor: 'Completo' },
+            { rotulo: 'Renova em', valor: '30/09/2026' },
+            { rotulo: 'Mensalidade', valor: 'R$ 199,00' },
+            { rotulo: 'Situação', valor: 'em dia' },
+          ] },
+        ],
+        cardapio: [
+          { titulo: 'Vitrine', colunas: 2, campos: [
+            { rotulo: 'Endereço do cardápio', valor: 'app-pediu.com.br/pizzariademo' },
+            { rotulo: 'Layout', valor: 'Vitrine com fotos' },
+            { rotulo: 'Cor principal', valor: '#14CE6B' },
+            { rotulo: 'Mostrar produtos esgotados', valor: 'sim, marcados' },
+          ] },
+        ],
+        mesas: [
+          { titulo: 'Salão', colunas: 2, campos: [
+            { rotulo: 'Mesas cadastradas', valor: '10' },
+            { rotulo: 'Taxa de serviço', valor: '10% (opcional para o cliente)' },
+            { rotulo: 'QR por mesa', valor: 'ativo' },
+            { rotulo: 'Garçom pode fechar conta', valor: 'não' },
+          ] },
+        ],
+        pagamento: [
+          { titulo: 'Aceitas no cardápio', colunas: 3, campos: [
+            { rotulo: 'Dinheiro', valor: 'aceito' },
+            { rotulo: 'Pix', valor: 'aceito' },
+            { rotulo: 'Cartão na entrega', valor: 'aceito' },
+            { rotulo: 'Pix online (Mercado Pago)', valor: 'desligado' },
+            { rotulo: 'Troco máximo', valor: 'R$ 100,00' },
+          ] },
+        ],
+        fiscal: [
+          { titulo: 'Emissão', colunas: 2, campos: [
+            { rotulo: 'Ambiente', valor: 'Homologação' },
+            { rotulo: 'Provedor fiscal', valor: '' },
+            { rotulo: 'Regime tributário', valor: 'Simples Nacional' },
+            { rotulo: 'Emissão automática na venda', valor: 'desligada' },
+          ] },
+        ],
+        impressora: [
+          { titulo: 'Impressão', colunas: 2, campos: [
+            { rotulo: 'Impressão automática', valor: 'na cozinha e no bar' },
+            { rotulo: 'Vias da comanda', valor: '1' },
+            { rotulo: 'Largura do papel', valor: '80 mm' },
+          ] },
+        ],
+        integracoes: [
+          { titulo: 'Conectadas', colunas: 2, campos: [
+            { rotulo: 'iFood', valor: 'não conectado' },
+            { rotulo: 'Mercado Pago', valor: 'não conectado' },
+            { rotulo: 'Google Meu Negócio', valor: 'não conectado' },
+          ] },
+        ],
+        whatsapp: [
+          { titulo: 'Conexão', colunas: 2, campos: [
+            { rotulo: 'Número conectado', valor: '(75) 98811-9000' },
+            { rotulo: 'Situação', valor: 'conectado' },
+            { rotulo: 'Avisa o cliente em', valor: 'aceite, saiu para entrega e entregue' },
+          ] },
+        ],
+        backup: [
+          { titulo: 'Cópia dos dados', colunas: 2, campos: [
+            { rotulo: 'Último backup', valor: '07/09/2026 03:00' },
+            { rotulo: 'Frequência', valor: 'diária' },
+            { rotulo: 'Guardado por', valor: '30 dias' },
+          ] },
+        ],
+      },
+    },
     push: {
-      alcance: 610, pedidos: 31,
+      loja: 'Pizzaria Demonstração', dominio: 'app-pediu.com.br', inscritos: 248,
+      enviados: 6, cliques: 214, vendas: 38, faturamento: 2140.60,
       itens: [
-        { nome: 'Volta pra gente', canal: 'Push', enviada: '04/09', alcance: 610, pedidos: 31, situacao: 'Ativo' },
-        { nome: 'Chegou pizza nova', canal: 'Push', enviada: '01/09', alcance: 588, pedidos: 22, situacao: 'Inativo' },
+        { titulo: 'Volta pra gente 💚', enviada: '04/09', alcance: 610, cliques: 96, vendas: 31 },
+        { titulo: 'Chegou pizza nova', enviada: '01/09', alcance: 588, cliques: 74, vendas: 22 },
+        { titulo: 'Promoção de quinta 🔥', enviada: '28/08', alcance: 540, cliques: 44, vendas: 11 },
       ],
     },
   }

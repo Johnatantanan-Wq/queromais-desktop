@@ -37,10 +37,17 @@ const relatorios = {
       colunas: ['Entregador', 'Entregas', 'Valor'], grade: '1fr 140px 180px', direita: [1, 2], linhas: [] },
   },
 }
-const config = { secoes: [
-  { titulo: 'Loja', campos: [{ rotulo: 'Nome', valor: 'Pizzaria Demonstração' }, { rotulo: 'Telefone', valor: '(75) 3333-0000' }] },
-  { titulo: 'Entrega', campos: [{ rotulo: 'Taxa por bairro', valor: '5 bairros configurados' }] },
-] }
+const config = { abas: {
+  config: [
+    { titulo: '', colunas: 3, campos: [
+      { rotulo: 'Nome fantasia / nome da loja', valor: 'Pizzaria Demonstração' },
+      { rotulo: 'Razão social', valor: '' },
+    ] },
+    { titulo: 'Endereço', colunas: 3, campos: [{ rotulo: 'Cidade', valor: 'Valença' }] },
+  ],
+  horarios: [{ titulo: 'Funcionamento', colunas: 2, campos: [{ rotulo: 'Fecha hoje às', valor: '23:00' }] }],
+  fiscal: [{ titulo: 'Emissão', colunas: 2, campos: [{ rotulo: 'Provedor fiscal', valor: '' }] }],
+} }
 
 test('Insights: os números do topo e o bloco financeiro', () => {
   const h = F.htmlInsights(insights, {})
@@ -94,11 +101,29 @@ test('Relatórios: o período escolhido fica marcado', () => {
   assert.ok(/is-on/.test(h.split('data-periodo-rel="90dias"')[1].slice(0, 60)))
 })
 
-test('Configurações: seções com rótulo e valor, em leitura', () => {
+test('Configurações: duas fileiras de abas, como no painel', () => {
   const h = F.htmlConfiguracoes(config, {})
-  assert.ok(h.includes('Loja') && h.includes('Pizzaria Demonstração'))
-  assert.ok(h.includes('Entrega') && h.includes('5 bairros'))
+  assert.ok(h.includes('data-aba-cfg="fiscal"') && h.includes('data-aba-cfg="whatsapp"'))
+  assert.ok(h.includes('data-sub-cfg="horarios"'), 'a segunda fileira só existe dentro de Geral')
+  assert.ok(h.includes('Pizzaria Demonstração') && h.includes('Valença'))
   assert.ok(/pelo painel/i.test(h), 'precisa dizer que editar é no painel')
+})
+
+test('Configurações: campo em branco diz "Não informado", não fica vazio', () => {
+  const h = F.htmlConfiguracoes(config, {})
+  assert.ok(h.includes('Não informado'))
+})
+
+test('Configurações: trocar de assunto troca o conteúdo', () => {
+  const fiscal = F.htmlConfiguracoes(config, { abaCfg: 'fiscal' })
+  assert.ok(fiscal.includes('Provedor fiscal'))
+  assert.ok(!fiscal.includes('Pizzaria Demonstração'))
+  assert.ok(!fiscal.includes('data-sub-cfg='), 'fora de Geral não há segunda fileira')
+})
+
+test('Configurações: assunto sem dado avisa em vez de desenhar tela branca', () => {
+  const h = F.htmlConfiguracoes(config, { abaCfg: 'backup' })
+  assert.ok(/ainda não veio para o app/.test(h))
 })
 
 test('as três telas avisam quando não há dado', () => {
@@ -108,6 +133,6 @@ test('as três telas avisam quando não há dado', () => {
 })
 
 test('escapa o que vem de dado', () => {
-  const h = F.htmlConfiguracoes({ secoes: [{ titulo: '<b>x', campos: [{ rotulo: 'a', valor: '<script>' }] }] }, {})
+  const h = F.htmlConfiguracoes({ abas: { config: [{ titulo: '<b>x', campos: [{ rotulo: 'a', valor: '<script>' }] }] } }, {})
   assert.ok(h.includes('&lt;script&gt;'))
 })

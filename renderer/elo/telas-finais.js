@@ -306,16 +306,72 @@ function htmlInsights(dados, estado) {
     + canais + pareto + mixHtml + destaques + distribuicao + produtos + baixa
 }
 
-function htmlConfiguracoes(dados, estado) {
-  if (!dados) return semDados('de configuração')
-  const secoes = (dados.secoes || []).map((s, i) =>
-    bloco(s.titulo, '', (s.campos || []).map((c) =>
-      '<div style="display:grid;grid-template-columns:220px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #f0f0ee">'
-      + '<span style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc(c.rotulo) + '</span>'
-      + '<span style="font-size:13px;font-weight:600;color:#111">' + esc(c.valor) + '</span></div>').join(''), i * 0.04)
-  ).join('')
-  return '<div style="display:flex;flex-direction:column;gap:18px">' + secoes
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600">alterar qualquer configuração ainda é pelo painel</div></div>'
+// ── Configurações ───────────────────────────────────────────────────────────
+// Duas fileiras de abas, como no painel: a de cima é o assunto (Geral, Cardápio,
+// Mesas…), a de baixo é a seção dentro dele. Aqui é leitura: campo em branco sai
+// como "Não informado" em itálico — é assim que o painel avisa o que falta.
+const ABAS_CFG = [
+  { chave: 'geral', rotulo: 'Geral' }, { chave: 'cardapio', rotulo: 'Cardápio' }, { chave: 'mesas', rotulo: 'Mesas' },
+  { chave: 'pagamento', rotulo: 'Formas de pagamento' }, { chave: 'fiscal', rotulo: 'Fiscal' },
+  { chave: 'impressora', rotulo: 'Impressora' }, { chave: 'integracoes', rotulo: 'Integrações' },
+  { chave: 'whatsapp', rotulo: 'WhatsApp' }, { chave: 'backup', rotulo: 'Backup' },
+]
+const SUB_CFG_GERAL = [
+  { chave: 'config', rotulo: 'Configurações' }, { chave: 'horarios', rotulo: 'Horários' },
+  { chave: 'rotas', rotulo: 'Rotas' }, { chave: 'usuario', rotulo: 'Usuário' },
+  { chave: 'gestor', rotulo: 'App Gestor' }, { chave: 'plano', rotulo: 'Plano' },
+]
+
+function valorCfg(v) {
+  return v
+    ? '<span style="font-size:13.5px;font-weight:600;color:#111">' + esc(v) + '</span>'
+    : '<span style="font-size:13.5px;font-weight:500;color:#c9c6bd;font-style:italic">Não informado</span>'
+}
+function grupoCfg(titulo, campos, colunas) {
+  return '<div style="padding:18px 24px;border-bottom:1px solid #f0f0ee">'
+    + (titulo ? '<div style="font-size:10.5px;font-weight:800;color:#b3b2ac;text-transform:uppercase;'
+      + 'letter-spacing:.1em;margin-bottom:14px">' + esc(titulo) + '</div>' : '')
+    + '<div style="display:grid;grid-template-columns:repeat(' + (colunas || 3) + ',minmax(0,1fr));gap:16px 24px">'
+    + campos.map((c) => '<div style="min-width:0">'
+      + '<div style="font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;'
+      + 'margin-bottom:5px">' + esc(c.rotulo) + '</div>' + valorCfg(c.valor) + '</div>').join('')
+    + '</div></div>'
 }
 
-module.exports = { htmlInsights, htmlRelatorios, htmlConfiguracoes, PERIODOS_REL, ABAS_REL }
+function htmlConfiguracoes(dados, estado) {
+  estado = estado || {}
+  if (!dados) return semDados('de configuração')
+  const aba = ABAS_CFG.some((a) => a.chave === estado.abaCfg) ? estado.abaCfg : 'geral'
+  const sub = SUB_CFG_GERAL.some((x) => x.chave === estado.subCfg) ? estado.subCfg : 'config'
+
+  const barra = (lista, atual, attr, ativa) => '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+    + lista.map((x) => '<button type="button" ' + attr + '="' + esc(x.chave) + '" class="echip"'
+      + ' style="cursor:pointer;height:32px;' + (x.chave === atual
+        ? (ativa === 'cheia' ? 'background:var(--acento);color:#fff;font-weight:800'
+          : 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800')
+        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(x.rotulo) + '</button>').join('') + '</div>'
+
+  const cabecalho = barra(ABAS_CFG, aba, 'data-aba-cfg', 'suave')
+    + (aba === 'geral' ? barra(SUB_CFG_GERAL, sub, 'data-sub-cfg', 'cheia') : '')
+
+  const secoes = ((dados.abas || {})[aba === 'geral' ? sub : aba]) || []
+  const titulo = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
+    + 'flex-wrap:wrap;margin:6px 0 14px">'
+    + '<div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em">'
+    + esc(aba === 'geral' ? (SUB_CFG_GERAL.find((x) => x.chave === sub) || {}).rotulo
+      : (ABAS_CFG.find((x) => x.chave === aba) || {}).rotulo) + '</div>'
+    + '<button type="button" data-acao="config:editar" style="height:34px;padding:0 14px;border-radius:10px;'
+    + 'border:none;background:var(--acento);color:#fff;font-family:inherit;font-size:12.5px;font-weight:800;'
+    + 'cursor:pointer">✎ Editar</button></div>'
+
+  const corpo = secoes.length
+    ? '<div class="ecard" style="padding:0;overflow:hidden;animation:eloFadeUp .5s ease both">'
+      + secoes.map((s2) => grupoCfg(s2.titulo, s2.campos, s2.colunas)).join('') + '</div>'
+    : '<div class="ecard"><div class="evazio">Esta seção ainda não veio para o app — abra pelo painel.</div></div>'
+
+  return cabecalho + titulo + corpo
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
+    + 'alterar qualquer configuração ainda é pelo painel</div>'
+}
+
+module.exports = { htmlInsights, htmlRelatorios, htmlConfiguracoes, PERIODOS_REL, ABAS_REL, ABAS_CFG, SUB_CFG_GERAL }

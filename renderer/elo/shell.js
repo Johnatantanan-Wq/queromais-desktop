@@ -126,6 +126,11 @@ if (typeof document !== 'undefined') {
   let FICHA_ABERTA = null       // Gestão › Fichas técnicas: produto escolhido na lista
   let PERIODO_REL = '30dias'    // Relatórios e Insights: período escolhido
   let ABA_REL = 'vendas'        // Relatórios: aba escolhida
+  let ABA_CAMPANHA = 'nova'     // Campanhas: nova | histórico | configurações
+  let ABA_FIDELIDADE = 'visao'  // Fidelidade: visão geral | configurações | atividades
+  let PERIODO_FID = '30dias'    // Fidelidade: período da visão geral
+  let ABA_CFG = 'geral'         // Configurações: assunto escolhido
+  let SUB_CFG = 'config'        // Configurações › Geral: seção escolhida
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
@@ -250,6 +255,21 @@ if (typeof document !== 'undefined') {
     }
   }
 
+  const Mkt = require('./telas-marketing')
+  NATIVAS['/admin/cupons'] = { canal: 'cupons-carregar', desenhar: (d, e) => Mkt.htmlCupons(d, e), erro: 'Não deu para carregar os cupons agora.' }
+  NATIVAS['/admin/vendedores'] = { canal: 'parceiros-carregar', desenhar: (d, e) => Mkt.htmlParceiros(d, e), erro: 'Não deu para carregar os parceiros agora.' }
+  NATIVAS['/admin/food-marketing/campanhas'] = {
+    canal: 'campanhas-carregar',
+    desenhar: (d, e) => Mkt.htmlCampanhas(d, { ...e, abaCampanha: ABA_CAMPANHA }),
+    erro: 'Não deu para carregar as campanhas agora.',
+  }
+  NATIVAS['/admin/food-marketing/push'] = { canal: 'push-carregar', desenhar: (d, e) => Mkt.htmlPush(d, e), erro: 'Não deu para carregar o push agora.' }
+  NATIVAS['/admin/fidelidade'] = {
+    canal: 'fidelidade-carregar',
+    desenhar: (d, e) => Mkt.htmlFidelidade(d, { ...e, abaFidelidade: ABA_FIDELIDADE, periodoFid: PERIODO_FID }),
+    erro: 'Não deu para carregar a fidelidade agora.',
+  }
+
   const TelaCompras = require('./tela-compras')
   NATIVAS['/admin/compras'] = {
     canal: 'compras-carregar',
@@ -304,7 +324,11 @@ if (typeof document !== 'undefined') {
     desenhar: (d, e) => Finais.htmlRelatorios(d, { ...e, periodoRel: PERIODO_REL, abaRel: ABA_REL }),
     erro: 'Não deu para carregar os relatórios agora.',
   }
-  NATIVAS['/admin/configuracoes'] = { canal: 'configuracoes-carregar', desenhar: (d, e) => Finais.htmlConfiguracoes(d, e), erro: 'Não deu para carregar as configurações agora.' }
+  NATIVAS['/admin/configuracoes'] = {
+    canal: 'configuracoes-carregar',
+    desenhar: (d, e) => Finais.htmlConfiguracoes(d, { ...e, abaCfg: ABA_CFG, subCfg: SUB_CFG }),
+    erro: 'Não deu para carregar as configurações agora.',
+  }
 
   function telaDe(rota) {
     if (NATIVAS[rota]) return NATIVAS[rota]
@@ -439,6 +463,16 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    const btAbaCfg = e.target.closest ? e.target.closest('[data-aba-cfg]') : null
+    if (btAbaCfg) { ABA_CFG = btAbaCfg.getAttribute('data-aba-cfg'); SUB_CFG = 'config'; redesenharTelaAtual(); return }
+    const btSubCfg = e.target.closest ? e.target.closest('[data-sub-cfg]') : null
+    if (btSubCfg) { SUB_CFG = btSubCfg.getAttribute('data-sub-cfg'); redesenharTelaAtual(); return }
+    const btAbaCampanha = e.target.closest ? e.target.closest('[data-aba-campanha]') : null
+    if (btAbaCampanha) { ABA_CAMPANHA = btAbaCampanha.getAttribute('data-aba-campanha'); redesenharTelaAtual(); return }
+    const btAbaFid = e.target.closest ? e.target.closest('[data-aba-fidelidade]') : null
+    if (btAbaFid) { ABA_FIDELIDADE = btAbaFid.getAttribute('data-aba-fidelidade'); redesenharTelaAtual(); return }
+    const btPeriodoFid = e.target.closest ? e.target.closest('[data-periodo-fid]') : null
+    if (btPeriodoFid) { PERIODO_FID = btPeriodoFid.getAttribute('data-periodo-fid'); carregarTelaNativa(ROTA); return }
     const btPeriodoRel = e.target.closest ? e.target.closest('[data-periodo-rel]') : null
     if (btPeriodoRel) {
       PERIODO_REL = btPeriodoRel.getAttribute('data-periodo-rel')

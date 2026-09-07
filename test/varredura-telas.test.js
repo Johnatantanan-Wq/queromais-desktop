@@ -17,6 +17,7 @@ const TelaCardapio = require('../renderer/elo/tela-cardapio')
 const TelaVisaoGeral = require('../renderer/elo/tela-visao-geral')
 const TelaImpressao = require('../renderer/elo/tela-impressao')
 const TelaCompras = require('../renderer/elo/tela-compras')
+const Mkt = require('../renderer/elo/telas-marketing')
 
 const listas = demo.listas()
 const apoio = demo.listasApoio()
@@ -42,11 +43,11 @@ const TELAS = {
   '/admin/motoboys': () => Catalogo.htmlDaRota('/admin/motoboys', listas.entregadores, estado),
   '/admin/relatorios': () => Finais.htmlRelatorios(finais.relatorios, estado),
   '/admin/insights': () => Finais.htmlInsights(finais.insights, estado),
-  '/admin/food-marketing/campanhas': () => Catalogo.htmlDaRota('/admin/food-marketing/campanhas', apoio.campanhas, estado),
-  '/admin/food-marketing/push': () => Catalogo.htmlDaRota('/admin/food-marketing/push', finais.push, estado),
-  '/admin/cupons': () => Catalogo.htmlDaRota('/admin/cupons', apoio.cupons, estado),
-  '/admin/vendedores': () => Catalogo.htmlDaRota('/admin/vendedores', apoio.parceiros, estado),
-  '/admin/fidelidade': () => Catalogo.htmlDaRota('/admin/fidelidade', apoio.fidelidade, estado),
+  '/admin/food-marketing/campanhas': () => Mkt.htmlCampanhas(apoio.campanhas, estado),
+  '/admin/food-marketing/push': () => Mkt.htmlPush(finais.push, estado),
+  '/admin/cupons': () => Mkt.htmlCupons(apoio.cupons, estado),
+  '/admin/vendedores': () => Mkt.htmlParceiros(apoio.parceiros, estado),
+  '/admin/fidelidade': () => Mkt.htmlFidelidade(apoio.fidelidade, estado),
   '/admin/configuracoes': () => Finais.htmlConfiguracoes(finais.configuracoes, estado),
   '/app/impressao': () => TelaImpressao.htmlImpressao({
     impressoras: [{ name: 'POS-80', displayName: 'POS-80', isDefault: true }], impressoraAtual: 'POS-80',
@@ -80,6 +81,11 @@ test('nenhuma tela quebra quando o dado ainda não chegou', () => {
     '/admin/cardapio': () => TelaCardapio.htmlCardapio(null, estado),
     '/admin/cozinha': () => Operacao.htmlKds(null, estado),
     '/admin/compras': () => TelaCompras.htmlCompras(null, estado),
+    '/admin/cupons': () => Mkt.htmlCupons(null, estado),
+    '/admin/fidelidade': () => Mkt.htmlFidelidade(null, estado),
+    '/admin/vendedores': () => Mkt.htmlParceiros(null, estado),
+    '/admin/food-marketing/campanhas': () => Mkt.htmlCampanhas(null, estado),
+    '/admin/food-marketing/push': () => Mkt.htmlPush(null, estado),
     '/app/impressao': () => TelaImpressao.htmlImpressao(null, estado),
   }
   for (const rota of Object.keys(semDado)) {
