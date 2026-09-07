@@ -109,6 +109,15 @@ const TELAS = [
       valida: (r) => !!r.d && !r.d.error,
     })),
   {
+    // O Financeiro muda com o período; o painel aceita o preset por parâmetro e devolve
+    // DRE, extrato e livro caixa da MESMA conta que ele mostra.
+    canal: 'financeiro-abas-carregar', cache: 'financeiro',
+    rotas: { d: '/api/admin/desktop/financeiro' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error && Array.isArray(r.d.extrato),
+    comArgumentos: (args) => '?preset=' + encodeURIComponent((args && args.preset) || 'mes'),
+  },
+  {
     // O PDV precisa do cardápio, dos clientes (busca por telefone) e da taxa de cada
     // bairro — é ela que muda o total antes de fechar a venda.
     canal: 'venda-cardapio', cache: 'venda',
@@ -132,7 +141,6 @@ const TELAS = [
  * no código, não numa conversa.
  */
 const SEM_API = {
-  'financeiro-abas-carregar': 'o financeiro precisa do painel aceitar o período por parâmetro',
   'push-carregar': 'o histórico de push precisa de uma rota de leitura no painel',
   'insights-carregar': 'os insights precisam de uma rota de leitura no painel',
   'relatorios-carregar': 'os relatórios precisam de uma rota de leitura no painel',
