@@ -455,4 +455,69 @@ function listasApoio() {
   }
 }
 
-module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio }
+/** Insights, relatórios e configurações — leitura. */
+function apoioFinal() {
+  return {
+    insights: {
+      horarios: { labels: ['10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
+                  valores: [2, 5, 13, 11, 4, 2, 2, 3, 7, 12, 16, 14, 9, 4] },
+      abc: [
+        { label: 'Refrigerante 2L', value: 210 },
+        { label: 'Borda recheada', value: 132 },
+        { label: 'Pizza Calabresa G', value: 128 },
+        { label: 'Pizza Portuguesa G', value: 96 },
+        { label: 'Cerveja long neck', value: 88 },
+      ],
+      recorrencia: { novos: 120, voltaram: 222 },
+      ticketPorCanal: [
+        { label: 'Mesa', value: 98.20 }, { label: 'Delivery', value: 62.40 },
+        { label: 'Balcão', value: 48.10 }, { label: 'Retirada', value: 41.90 },
+      ],
+    },
+    relatorios: { itens: [
+      { chave: 'vendas', nome: 'Vendas por período', desc: 'faturamento, pedidos e ticket médio', formatos: ['PDF', 'Excel'] },
+      { chave: 'produtos', nome: 'Produtos vendidos', desc: 'quantidade e valor por item', formatos: ['PDF', 'Excel'] },
+      { chave: 'caixa', nome: 'Fechamento de caixa', desc: 'conferência por turno e operador', formatos: ['PDF'] },
+      { chave: 'clientes', nome: 'Clientes', desc: 'cadastro, frequência e gasto', formatos: ['Excel'] },
+      { chave: 'entregas', nome: 'Entregas', desc: 'tempo médio por bairro e entregador', formatos: ['PDF', 'Excel'] },
+      { chave: 'fiscal', nome: 'Documentos fiscais', desc: 'notas emitidas no período', formatos: ['ZIP'] },
+    ] },
+    configuracoes: { secoes: [
+      { titulo: 'Loja', campos: [
+        { rotulo: 'Nome', valor: 'Pizzaria Demonstração' },
+        { rotulo: 'Telefone', valor: '(75) 3333-0000' },
+        { rotulo: 'Endereço', valor: 'Praia de Guaibim, s/n — Valença/BA' },
+        { rotulo: 'Modo de negócio', valor: 'Delivery + salão' },
+      ] },
+      { titulo: 'Atendimento', campos: [
+        { rotulo: 'Horário hoje', valor: '10:00 às 23:30' },
+        { rotulo: 'Tempo de preparo', valor: '35 a 50 min' },
+        { rotulo: 'Pedido mínimo', valor: 'R$ 25,00' },
+      ] },
+      { titulo: 'Entrega', campos: [
+        { rotulo: 'Taxa por bairro', valor: '5 bairros configurados' },
+        { rotulo: 'Raio de entrega', valor: '6 km' },
+        { rotulo: 'Entrega grátis a partir de', valor: 'R$ 120,00' },
+      ] },
+      { titulo: 'Pagamento', campos: [
+        { rotulo: 'Formas aceitas', valor: 'Pix, dinheiro, crédito, débito' },
+        { rotulo: 'Pix na entrega', valor: 'ativo' },
+        { rotulo: 'Taxa de cartão', valor: '2,99% crédito · 1,49% débito' },
+      ] },
+      { titulo: 'Impressão', campos: [
+        { rotulo: 'Impressora', valor: 'POS-80 (USB)' },
+        { rotulo: 'Impressão automática', valor: 'ao aceitar o pedido' },
+        { rotulo: 'Vias da comanda', valor: '2' },
+      ] },
+    ] },
+    push: {
+      alcance: 610, pedidos: 31,
+      itens: [
+        { nome: 'Volta pra gente', canal: 'Push', enviada: '04/09', alcance: 610, pedidos: 31, situacao: 'Ativo' },
+        { nome: 'Chegou pizza nova', canal: 'Push', enviada: '01/09', alcance: 588, pedidos: 22, situacao: 'Inativo' },
+      ],
+    },
+  }
+}
+
+module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal }

@@ -17,7 +17,8 @@ function iconeSvg(interno) {
 const CATALOGO_LISTAS = require('./telas-catalogo').CATALOGO
 // Telas de operação (quadro de produção e salão) — desenho próprio, fora do formato de lista.
 const TELAS_OPERACAO = ['/admin/cozinha', '/admin/bar', '/admin/atendimento']
-const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO)
+const TELAS_FINAIS = ['/admin/insights', '/admin/relatorios', '/admin/configuracoes']
+const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO).concat(TELAS_FINAIS)
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -189,6 +190,11 @@ if (typeof document !== 'undefined') {
     desenhar: (dados, estado) => Operacao.htmlMesas(dados, estado),
     erro: 'Não deu para carregar o salão agora.',
   }
+
+  const Finais = require('./telas-finais')
+  NATIVAS['/admin/insights'] = { canal: 'insights-carregar', desenhar: (d, e) => Finais.htmlInsights(d, e), erro: 'Não deu para carregar os insights agora.' }
+  NATIVAS['/admin/relatorios'] = { canal: 'relatorios-carregar', desenhar: (d, e) => Finais.htmlRelatorios(d, e), erro: 'Não deu para carregar os relatórios agora.' }
+  NATIVAS['/admin/configuracoes'] = { canal: 'configuracoes-carregar', desenhar: (d, e) => Finais.htmlConfiguracoes(d, e), erro: 'Não deu para carregar as configurações agora.' }
 
   // As telas de lista vêm do catálogo: cada uma declara colunas, filtros e ações,
   // e o desenho é o formato único (tela-lista.js).

@@ -339,6 +339,30 @@ const CATALOGO = {
       celulas: [c.nome, c.canal, c.enviada, String(c.alcance), { texto: String(c.pedidos), forte: true, cor: '#111' }, etiqueta(c.situacao)],
     })),
   }
+,
+
+  '/admin/food-marketing/push': {
+    canal: 'push-carregar',
+    def: (d) => ({
+      titulo: 'Notificações push',
+      subtitulo: 'o que foi para o celular do cliente',
+      kpis: [
+        { rotulo: 'Envios', valor: String(d.itens.length), sub: 'no mês' },
+        { rotulo: 'Alcance', valor: String(d.alcance), sub: 'aparelhos atingidos' },
+        { rotulo: 'Pedidos gerados', valor: String(d.pedidos), sub: 'a partir dos envios', cor: '#0A7A3E' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todos' }],
+      busca: 'Buscar envio',
+      colunas: ['Mensagem', 'Enviada em', 'Alcance', 'Pedidos', 'Situação'],
+      grade: '1fr 130px 120px 110px 120px',
+      direita: [2, 3],
+      acoes: [{ chave: 'novo-push', rotulo: '+ Novo envio', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((c) => ({
+      chave: c.nome,
+      celulas: [c.nome, c.enviada, String(c.alcance), { texto: String(c.pedidos), forte: true, cor: '#111' }, etiqueta(c.situacao)],
+    })),
+  }
 }
 
 // Pedidos tem dois modos: QUADRO (kanban, o padrão — é como o balcão trabalha) e
