@@ -140,6 +140,10 @@ if (typeof document !== 'undefined') {
   let SEL_DESPACHO = []         // Despacho: pedidos marcados na caixa de seleção
   const ENTREGADOR_DE = {}      // Despacho: entregador escolhido em cada linha
   let PERFIL_CAMPANHA = null    // Campanhas: perfil de cliente escolhido
+  // Financeiro: cada aba tem os seus filtros, como no painel
+  const FIN = { busca: '', direcao: 'todas', categoria: 'todas', forma: 'todas', origem: 'todas',
+    usuario: 'todos', filtro: 'todas', modoExtrato: 'dia', pagina: 0, diasAbertos: [], dreAbertas: [],
+    mes: null, situacaoConta: 'todas', tipoConta: 'todas' }
   const AVULSO = {}             // Compras: item avulso sendo digitado
   let ABA_CFG = 'geral'         // Configurações: assunto escolhido
   let SUB_CFG = 'config'        // Configurações › Geral: seção escolhida
@@ -259,6 +263,11 @@ if (typeof document !== 'undefined') {
         }
         return ComAbas.htmlComAbas(rota, dados, {
           ...estado, aba,
+          buscaFin: FIN.busca, direcaoFin: FIN.direcao, categoriaFin: FIN.categoria,
+          formaFin: FIN.forma, origemFin: FIN.origem, usuarioFin: FIN.usuario, filtroFin: FIN.filtro,
+          modoExtrato: FIN.modoExtrato, paginaFin: FIN.pagina, diasAbertos: FIN.diasAbertos,
+          dreAbertas: FIN.dreAbertas, mesConta: FIN.mes, situacaoConta: FIN.situacaoConta,
+          tipoConta: FIN.tipoConta,
           catEstoque: CAT_ESTOQUE, blocosFechados: BLOCOS_FECHADOS, buscaBloco: BUSCA_BLOCO,
           subGestao: SUB_GESTAO[aba || 'produtos'], periodoMov: PERIODO_MOV, fichaAberta: FICHA_ABERTA,
         })
@@ -456,6 +465,13 @@ if (typeof document !== 'undefined') {
     if (f) f.remove()
   }
 
+  /** Volta os filtros do Financeiro ao neutro (mantém o mês escolhido). */
+  function zerarFiltrosFin() {
+    FIN.busca = ''; FIN.direcao = 'todas'; FIN.categoria = 'todas'; FIN.forma = 'todas'
+    FIN.origem = 'todas'; FIN.usuario = 'todos'; FIN.filtro = 'todas'
+    FIN.situacaoConta = 'todas'; FIN.tipoConta = 'todas'; FIN.pagina = 0
+  }
+
   /** Acha o registro clicado dentro do dado que a tela já tem na mão. */
   function acharNoDado(chave) {
     const d = DADOS_TELA
@@ -626,6 +642,41 @@ if (typeof document !== 'undefined') {
       if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto))
       return
     }
+    // ── Financeiro: filtros, mês, modo e linhas que abrem ──
+    const FIN_ATTRS = {
+      'data-direcao-fin': 'direcao', 'data-categoria-fin': 'categoria', 'data-forma-fin': 'forma',
+      'data-origem-fin': 'origem', 'data-usuario-fin': 'usuario', 'data-filtro-fin': 'filtro',
+      'data-modo-extrato': 'modoExtrato', 'data-situacao-conta': 'situacaoConta', 'data-tipo-conta': 'tipoConta',
+    }
+    for (const attr of Object.keys(FIN_ATTRS)) {
+      const bt = e.target.closest ? e.target.closest('[' + attr + ']') : null
+      if (bt) {
+        FIN[FIN_ATTRS[attr]] = bt.getAttribute(attr)
+        FIN.pagina = 0
+        redesenharTelaAtual()
+        return
+      }
+    }
+    const btMes = e.target.closest ? e.target.closest('[data-mes-fin]') : null
+    if (btMes) { FIN.mes = btMes.getAttribute('data-mes-fin'); redesenharTelaAtual(); return }
+    const btPag = e.target.closest ? e.target.closest('[data-pag-fin]') : null
+    if (btPag) { FIN.pagina = Number(btPag.getAttribute('data-pag-fin')) || 0; redesenharTelaAtual(); return }
+    const btDia = e.target.closest ? e.target.closest('[data-dia-extrato]') : null
+    if (btDia) {
+      const dia = btDia.getAttribute('data-dia-extrato')
+      const i = FIN.diasAbertos.indexOf(dia)
+      if (i >= 0) FIN.diasAbertos.splice(i, 1); else FIN.diasAbertos.push(dia)
+      redesenharTelaAtual()
+      return
+    }
+    const btDre = e.target.closest ? e.target.closest('[data-dre]') : null
+    if (btDre) {
+      const chave = btDre.getAttribute('data-dre')
+      const i = FIN.dreAbertas.indexOf(chave)
+      if (i >= 0) FIN.dreAbertas.splice(i, 1); else FIN.dreAbertas.push(chave)
+      redesenharTelaAtual()
+      return
+    }
     const btSubGestao = e.target.closest ? e.target.closest('[data-subgestao]') : null
     if (btSubGestao) {
       const partes = btSubGestao.getAttribute('data-subgestao').split(':')
@@ -682,6 +733,9 @@ if (typeof document !== 'undefined') {
     const btAba = e.target.closest ? e.target.closest('[data-aba]') : null
     if (btAba) {
       ABA[ROTA] = btAba.getAttribute('data-aba')
+      // Filtro é da ABA, não da tela: levar o filtro do Extrato para as Contas a pagar
+      // faria a lista abrir vazia sem explicação.
+      if (ROTA === '/admin/financeiro') zerarFiltrosFin()
       redesenharTelaAtual()
       return
     }
@@ -739,6 +793,7 @@ if (typeof document !== 'undefined') {
         return
       }
       if (destino && destino.app === 'limpar-selecao') { SEL_DESPACHO = []; redesenharTelaAtual(); return }
+      if (destino && destino.app === 'limpar-filtros-fin') { zerarFiltrosFin(); redesenharTelaAtual(); return }
       if (destino && destino.app === 'nf-limpar') { avisar('Os filtros da nota são do painel — aqui a lista vem inteira.', 'aviso'); return }
       if (destino && destino.app === 'ordenar-clientes') {
         ORDEM_CLIENTES = ORDEM_CLIENTES === 'gasto' ? 'recencia' : 'gasto'
@@ -823,6 +878,15 @@ if (typeof document !== 'undefined') {
       AVULSO[campoAvulso] = e.target.value
       return
     }
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-busca-fin')) {
+      FIN.busca = e.target.value
+      FIN.pagina = 0
+      const pos5 = e.target.selectionStart
+      redesenharTelaAtual()
+      const campo = document.querySelector('[data-busca-fin]')
+      if (campo) { campo.focus(); try { campo.setSelectionRange(pos5, pos5) } catch (x) {} }
+      return
+    }
     if (e.target && e.target.getAttribute && e.target.getAttribute('data-busca-bloco')) {
       const id = e.target.getAttribute('data-busca-bloco')
       BUSCA_BLOCO[id] = e.target.value
@@ -846,6 +910,20 @@ if (typeof document !== 'undefined') {
   // O <select> de entregador do Despacho guarda a escolha: sem isso ele voltava para
   // "— entregador —" no primeiro redesenho, e quem despacha achava que não salvou.
   document.addEventListener('change', (e) => {
+    // Os filtros do Financeiro são <select>: mudam no change, não no clique.
+    const FIN_SELECTS = {
+      'data-categoria-fin': 'categoria', 'data-forma-fin': 'forma', 'data-origem-fin': 'origem',
+      'data-usuario-fin': 'usuario', 'data-situacao-conta': 'situacaoConta', 'data-tipo-conta': 'tipoConta',
+    }
+    for (const attr of Object.keys(FIN_SELECTS)) {
+      if (e.target && e.target.hasAttribute && e.target.hasAttribute(attr)) {
+        FIN[FIN_SELECTS[attr]] = e.target.value
+        FIN.pagina = 0
+        redesenharTelaAtual()
+        return
+      }
+    }
+
     const sel = e.target && e.target.getAttribute && e.target.getAttribute('data-entregador-de')
     if (!sel) return
     ENTREGADOR_DE[sel] = e.target.value

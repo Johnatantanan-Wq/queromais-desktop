@@ -105,6 +105,16 @@ const DESTINOS = {
   'push:como-funciona': { rota: '/admin/food-marketing/push', o: 'ver como funciona' },
   'parceiro:novo': { rota: '/admin/vendedores', o: 'cadastrar parceiro' },
 
+  // ── Financeiro ──
+  'novo-lancamento': { rota: '/admin/financeiro', o: 'lançar entrada ou saída' },
+  'exportar': { app: 'pdf' },
+  'portal-contabil': { rota: '/admin/contabil', o: 'abrir o Portal do Contador' },
+  'fin:limpar-filtros': { app: 'limpar-filtros-fin' },
+  'conta:nova': { rota: '/admin/financeiro', o: 'lançar a conta' },
+  'conta:liquidar': { rota: '/admin/financeiro', o: 'liquidar a conta' },
+  'conta:receber': { rota: '/admin/financeiro', o: 'registrar o recebimento' },
+  'conta:receber-repasse': { rota: '/admin/financeiro', o: 'confirmar o repasse' },
+
   // ── Configurações ──
   'config:editar': { rota: '/admin/configuracoes', o: 'editar as configurações' },
 

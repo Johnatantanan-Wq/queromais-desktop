@@ -853,27 +853,107 @@ function apoioFinal() {
 /** Dados das telas com abas: Financeiro (7), Atendimento (7) e Gestão (6). */
 function telasComAbas() {
   const op = operacao()
-  const contas = [
-    { descricao: 'Fornecedor de queijo — NF 8821', categoria: 'Insumos', vencimento: '10/09', situacao: 'A vencer', valor: 4200.00, tipo: 'pagar' },
-    { descricao: 'Aluguel do ponto', categoria: 'Fixas', vencimento: '05/09', situacao: 'Vencido', valor: 6800.00, tipo: 'pagar' },
-    { descricao: 'Energia elétrica', categoria: 'Fixas', vencimento: '15/09', situacao: 'A vencer', valor: 1920.50, tipo: 'pagar' },
-    { descricao: 'Folha — quinzena', categoria: 'Pessoal', vencimento: '20/09', situacao: 'A vencer', valor: 8400.00, tipo: 'pagar' },
-    { descricao: 'Manutenção do forno', categoria: 'Manutenção', vencimento: '02/09', situacao: 'Vencido', valor: 4400.00, tipo: 'pagar' },
-    { descricao: 'Repasse iFood — semana 36', categoria: 'Canais', vencimento: '12/09', situacao: 'A vencer', valor: 8300.00, tipo: 'receber' },
-    { descricao: 'Cartão — antecipação', categoria: 'Cartões', vencimento: '09/09', situacao: 'A vencer', valor: 16500.00, tipo: 'receber' },
-    { descricao: 'Convênio Hotel Praia Bela', categoria: 'Parceiros', vencimento: '18/09', situacao: 'A vencer', valor: 3200.00, tipo: 'receber' },
+
+  // ── Financeiro: os dados no formato do painel ──
+  // O extrato é a lista CRONOLÓGICA de tudo que entrou e saiu, com saldo corrido e a
+  // origem de cada linha. O Livro Caixa é um recorte dele: só o que passa pela gaveta.
+  const HOJE = '2026-09-07'
+  const movimentos = [
+    { id: 'm1', data: '2026-09-07', hora: '20:14', descricao: 'Pedido #1043 — Marina Prado', categoria: 'venda', origem: 'Pedido #1043', origemTipo: 'pedido', forma: 'pix', usuario: 'Ana Paula', direcao: 'entrada', valor: 132.40 },
+    { id: 'm2', data: '2026-09-07', hora: '19:58', descricao: 'Pedido #1042 — Rafael Souza', categoria: 'venda', origem: 'Pedido #1042', origemTipo: 'pedido', forma: 'dinheiro', usuario: 'Ana Paula', direcao: 'entrada', valor: 89.90 },
+    { id: 'm3', data: '2026-09-07', hora: '19:31', descricao: 'Pedido #1041 — João Pereira', categoria: 'venda', origem: 'Pedido #1041', origemTipo: 'pedido', forma: 'credito', usuario: 'Ana Paula', direcao: 'entrada', valor: 54.00 },
+    { id: 'm4', data: '2026-09-07', hora: '18:40', descricao: 'Taxa de serviço — mesas', categoria: 'taxa_servico', origem: 'Atendimento', origemTipo: 'pedido', forma: 'dinheiro', usuario: 'Ana Paula', direcao: 'entrada', valor: 54.20 },
+    { id: 'm5', data: '2026-09-07', hora: '17:02', descricao: 'Sangria para depósito', categoria: 'sangria', origem: 'Caixa · turno da tarde', origemTipo: 'caixa', forma: 'dinheiro', usuario: 'Ana Paula', direcao: 'saida', valor: 300.00 },
+    { id: 'm6', data: '2026-09-07', hora: '12:10', descricao: 'Suprimento — troco', categoria: 'suprimento', origem: 'Caixa · abertura', origemTipo: 'caixa', forma: 'dinheiro', usuario: 'Ana Paula', direcao: 'entrada', valor: 50.00 },
+    { id: 'm7', data: '2026-09-06', hora: '21:44', descricao: 'Pedido #1036 — Pedro Henrique', categoria: 'venda', origem: 'Pedido #1036', origemTipo: 'pedido', forma: 'pix', usuario: 'Bruno Alves', direcao: 'entrada', valor: 98.70 },
+    { id: 'm8', data: '2026-09-06', hora: '20:12', descricao: 'Pedido #1030 — Carla Nunes', categoria: 'venda', origem: 'Pedido #1030', origemTipo: 'pedido', forma: 'debito', usuario: 'Bruno Alves', direcao: 'entrada', valor: 76.50 },
+    { id: 'm9', data: '2026-09-06', hora: '19:05', descricao: 'Pedido #1029 — cancelado', categoria: 'venda', origem: 'Pedido #1029', origemTipo: 'pedido', forma: 'dinheiro', usuario: 'Bruno Alves', direcao: 'entrada', valor: 62.00, estornado: true },
+    { id: 'm10', data: '2026-09-06', hora: '15:30', descricao: 'Aluguel do ponto', categoria: 'pagamento', origem: 'Conta · Fixas', origemTipo: 'conta', forma: 'transferencia', usuario: 'Johnatan', direcao: 'saida', valor: 6800.00 },
+    { id: 'm11', data: '2026-09-06', hora: '11:20', descricao: 'Repasse do cartão — semana 35', categoria: 'recebimento', origem: 'Repasse · Cartão', origemTipo: 'repasse', forma: 'transferencia', usuario: 'Sistema', direcao: 'entrada', valor: 4210.00 },
+    { id: 'm12', data: '2026-09-05', hora: '22:01', descricao: 'Pedido #1018 — Sandra Reis', categoria: 'venda', origem: 'Pedido #1018', origemTipo: 'pedido', forma: 'cartao_entrega', usuario: 'Bruno Alves', direcao: 'entrada', valor: 88.00 },
+    { id: 'm13', data: '2026-09-05', hora: '18:22', descricao: 'Gelo e descartáveis', categoria: 'pagamento', origem: 'Lançamento manual', origemTipo: 'manual', forma: 'dinheiro', usuario: 'Ana Paula', direcao: 'saida', valor: 180.40 },
+    { id: 'm14', data: '2026-09-05', hora: '14:05', descricao: 'Taxa de entrega repassada', categoria: 'taxa_entrega', origem: 'Despacho', origemTipo: 'pedido', forma: 'dinheiro', usuario: 'Sistema', direcao: 'saida', valor: 96.00 },
+    { id: 'm15', data: '2026-09-04', hora: '20:40', descricao: 'Pedido #0994 — Maria Silva', categoria: 'venda', origem: 'Pedido #0994', origemTipo: 'pedido', forma: 'pix', usuario: 'Carla Dias', direcao: 'entrada', valor: 112.40 },
+    { id: 'm16', data: '2026-09-04', hora: '16:12', descricao: 'Energia elétrica', categoria: 'pagamento', origem: 'Conta · Fixas', origemTipo: 'conta', forma: 'boleto', usuario: 'Johnatan', direcao: 'saida', valor: 1920.50 },
   ]
-  const dias = ['01/09','02/09','03/09','04/09','05/09','06/09','07/09']
+  // Saldo corrido: do mais antigo para o mais novo, e a lista sai do mais novo primeiro.
+  const cronologico = movimentos.slice().sort((a, b) =>
+    (a.data + a.hora).localeCompare(b.data + b.hora))
+  let saldoCorrido = 3200
+  cronologico.forEach((m) => {
+    if (!m.estornado) saldoCorrido += m.direcao === 'entrada' ? m.valor : -m.valor
+    m.saldo = Math.round(saldoCorrido * 100) / 100
+  })
+  const extrato = cronologico.slice().reverse()
+  // Livro Caixa = só a gaveta: dinheiro. Cartão e Pix não passam por ela.
+  const livroCaixa = extrato.filter((m) => m.forma === 'dinheiro')
+
+  const contas = [
+    { id: 'c1', direcao: 'pagar', tipo: 'parcelada', vencimento: '2026-09-10', descricao: 'Laticínios Vale Verde — NF 8821 — parcela 1/3', contraparte: 'Laticínios Vale Verde', categoria: 'Insumos', valor: 1400.00, valorPago: 0, forma: 'boleto', temNota: true, parcela: { n: 1, de: 3 } },
+    { id: 'c2', direcao: 'pagar', tipo: 'parcelada', vencimento: '2026-10-10', descricao: 'Laticínios Vale Verde — NF 8821 — parcela 2/3', contraparte: 'Laticínios Vale Verde', categoria: 'Insumos', valor: 1400.00, valorPago: 0, forma: 'boleto', temNota: true, parcela: { n: 2, de: 3 } },
+    { id: 'c3', direcao: 'pagar', tipo: 'fixa', vencimento: '2026-09-05', descricao: 'Aluguel do ponto', contraparte: 'Imobiliária Costa', categoria: 'Fixas', valor: 6800.00, valorPago: 6800.00, situacao: 'paga', forma: 'transferencia', liquidadoEm: '2026-09-06', serie: true },
+    { id: 'c4', direcao: 'pagar', tipo: 'fixa', vencimento: '2026-09-15', descricao: 'Energia elétrica', contraparte: 'Coelba', categoria: 'Fixas', valor: 1920.50, valorPago: 0, forma: 'boleto', serie: true },
+    { id: 'c5', direcao: 'pagar', tipo: 'avulsa', vencimento: '2026-09-02', descricao: 'Manutenção do forno', contraparte: 'Tec Fornos', categoria: 'Manutenção', valor: 4400.00, valorPago: 1400.00, observacao: 'entrada paga, saldo em 30 dias' },
+    { id: 'c6', direcao: 'pagar', tipo: 'imposto', vencimento: '2026-09-20', descricao: 'Simples Nacional — competência 08/2026', contraparte: 'Receita Federal', categoria: 'Impostos', valor: 2180.90, valorPago: 0 },
+    { id: 'c7', direcao: 'pagar', tipo: 'fixa', vencimento: '2026-09-20', descricao: 'Folha — quinzena', contraparte: 'Equipe', categoria: 'Pessoal', valor: 8400.00, valorPago: 0, serie: true },
+    { id: 'c13', direcao: 'pagar', tipo: 'parcelada', vencimento: '2026-08-28', descricao: 'Distribuidora Bebidas SA — NF 4410', contraparte: 'Distribuidora Bebidas SA', categoria: 'Insumos', valor: 3180.90, valorPago: 0, forma: 'boleto', temNota: true },
+    { id: 'c8', direcao: 'receber', tipo: 'repasse', vencimento: '2026-09-12', descricao: 'Repasse iFood — semana 36', contraparte: 'iFood', categoria: 'Canais', valor: 8300.00, valorLiquido: 7470.00, valorPago: 0 },
+    { id: 'c9', direcao: 'receber', tipo: 'repasse', vencimento: '2026-09-09', descricao: 'Cartão — vendas de 02/09', contraparte: 'Cielo', categoria: 'Cartões', valor: 16500.00, valorLiquido: 16005.00, valorPago: 0 },
+    { id: 'c10', direcao: 'receber', tipo: 'parcelada', vencimento: '2026-09-18', descricao: 'Convênio Hotel Praia Bela — parcela 2/6', contraparte: 'Hotel Praia Bela', categoria: 'Parceiros', valor: 3200.00, valorLiquido: 3200.00, valorPago: 0, parcela: { n: 2, de: 6 } },
+    { id: 'c11', direcao: 'receber', tipo: 'avulsa', vencimento: '2026-09-01', descricao: 'Fiado — Seu Antônio', contraparte: 'Antônio Ramos', categoria: 'Fiado', valor: 240.00, valorLiquido: 240.00, valorPago: 0 },
+    { id: 'c12', direcao: 'receber', tipo: 'fixa', vencimento: '2026-09-05', descricao: 'Locação do quiosque da praia', contraparte: 'Quiosque da Praia', categoria: 'Locação', valor: 900.00, valorLiquido: 900.00, valorPago: 900.00, situacao: 'recebida', forma: 'pix', liquidadoEm: '2026-09-05', serie: true },
+  ]
+  const repasses = [
+    { dataPrevista: '2026-09-09', origem: 'Cartão (Cielo)', vendas: 16995.00, valor: 16500.00 },
+    { dataPrevista: '2026-09-12', origem: 'iFood', vendas: 9222.00, valor: 8300.00 },
+  ]
+  const vendas = [
+    { numero: 1043, data: '2026-09-07', hora: '20:14', cliente: 'Marina Prado', canal: 'Delivery', produtos: 123.40, servico: 0, entrega: 9.00, desconto: 0, pagamento: 'pix', financeiro: 'Pago', pedido: 'entregue', total: 132.40 },
+    { numero: 1042, data: '2026-09-07', hora: '19:58', cliente: 'Rafael Souza', canal: 'Delivery', produtos: 80.90, servico: 0, entrega: 9.00, desconto: 0, pagamento: 'dinheiro', financeiro: 'Pago', pedido: 'entregue', total: 89.90 },
+    { numero: 1041, data: '2026-09-07', hora: '19:31', cliente: 'João Pereira', canal: 'Balcão', produtos: 54.00, servico: 0, entrega: 0, desconto: 0, pagamento: 'credito', financeiro: 'Pago', pedido: 'pronto', total: 54.00 },
+    { numero: 1039, data: '2026-09-07', hora: '18:40', cliente: 'Mesa 7', canal: 'Mesa', produtos: 116.80, servico: 11.68, entrega: 0, desconto: 0, pagamento: 'a_receber', financeiro: 'Pendente', pedido: 'conta aberta', total: 128.48 },
+    { numero: 1036, data: '2026-09-06', hora: '21:44', cliente: 'Pedro Henrique', canal: 'Delivery', produtos: 89.70, servico: 0, entrega: 9.00, desconto: 0, pagamento: 'pix', financeiro: 'Pago', pedido: 'entregue', total: 98.70 },
+    { numero: 1030, data: '2026-09-06', hora: '20:12', cliente: 'Carla Nunes', canal: 'Retirada', produtos: 84.50, servico: 0, entrega: 0, desconto: 8.00, pagamento: 'debito', financeiro: 'Pago', pedido: 'entregue', total: 76.50 },
+    { numero: 1018, data: '2026-09-05', hora: '22:01', cliente: 'Sandra Reis', canal: 'Delivery', produtos: 79.00, servico: 0, entrega: 9.00, desconto: 0, pagamento: 'cartao_entrega', financeiro: 'Pendente', pedido: 'em entrega', total: 88.00 },
+    { numero: 994, data: '2026-09-04', hora: '20:40', cliente: 'Maria Silva', canal: 'Delivery', produtos: 103.40, servico: 0, entrega: 9.00, desconto: 0, pagamento: 'pix', financeiro: 'Pago', pedido: 'entregue', total: 112.40 },
+  ]
+  const dre = {
+    receitaBruta: 20418.00, receitaLiquida: 18785.00, lucroBruto: 11843.00, margemBruta: 63,
+    resultadoOperacional: 7147.00, resultadoPeriodo: 6902.00, margemLiquida: 37,
+    linhas: [
+      { chave: 'receita', label: 'Receita bruta', valor: 20418, pct: 100, nivel: 'total', filhas: [
+        { label: 'Vendas de produtos', valor: 19193, pct: 94 },
+        { label: 'Taxas de entrega', valor: 1225, pct: 6 },
+      ] },
+      { chave: 'deducoes', label: 'Deduções', valor: -1633, pct: -8, nivel: 'grupo', filhas: [
+        { label: 'Taxas de cartão e Pix', valor: -1020, pct: -5 },
+        { label: 'Cupons e descontos', valor: -613, pct: -3 },
+      ] },
+      { chave: 'liquida', label: 'Receita líquida', valor: 18785, pct: 92, nivel: 'total' },
+      { chave: 'cmv', label: 'Custo dos produtos vendidos', valor: -6942, pct: -34, nivel: 'grupo', filhas: [
+        { label: 'Insumos', valor: -5120, pct: -25 },
+        { label: 'Embalagens', valor: -1822, pct: -9 },
+      ] },
+      { chave: 'bruto', label: 'Lucro bruto', valor: 11843, pct: 58, nivel: 'total' },
+      { chave: 'despesas', label: 'Despesas operacionais', valor: -4696, pct: -23, nivel: 'grupo', filhas: [
+        { label: 'Pessoal', valor: -2400, pct: -12 },
+        { label: 'Aluguel e condomínio', valor: -1360, pct: -7 },
+        { label: 'Energia, água e gás', valor: -936, pct: -4 },
+      ] },
+      { chave: 'operacional', label: 'Resultado operacional', valor: 7147, pct: 35, nivel: 'total' },
+      { chave: 'financeiras', label: 'Despesas financeiras', valor: -245, pct: -1, nivel: 'grupo' },
+      { chave: 'periodo', label: 'Resultado do período', valor: 6902, pct: 34, nivel: 'total' },
+    ],
+    porCentroCusto: [
+      { centro: 'cozinha', label: 'Cozinha', categorias: ['Insumos', 'Gás', 'Manutenção'], participacao: 52, valor: 5100.00 },
+      { centro: 'salao', label: 'Salão', categorias: ['Pessoal', 'Descartáveis'], participacao: 28, valor: 2740.00 },
+      { centro: 'entrega', label: 'Entrega', categorias: ['Combustível', 'Embalagens'], participacao: 12, valor: 1180.00 },
+      { centro: 'administrativo', label: 'Administrativo', categorias: ['Contador', 'Sistemas'], participacao: 8, valor: 790.00 },
+    ],
+  }
+  const dias = ['01/09', '02/09', '03/09', '04/09', '05/09', '06/09', '07/09']
   const entradasDia = [2110, 2680, 3010, 2450, 3980, 4210, 1978]
   const saidasDia = [1800, 900, 2400, 1100, 3100, 1500, 820]
-  let saldo = 3200
-  const extrato = []
-  dias.forEach((d, i) => {
-    saldo += entradasDia[i]
-    extrato.push({ data: d, descricao: 'Vendas do dia', tipo: 'Entrada', valor: entradasDia[i], saldo: Math.round(saldo * 100) / 100 })
-    saldo -= saidasDia[i]
-    extrato.push({ data: d, descricao: i % 2 ? 'Pagamento a fornecedor' : 'Despesas do dia', tipo: 'Saída', valor: saidasDia[i], saldo: Math.round(saldo * 100) / 100 })
-  })
 
   return {
     financeiro: {
@@ -893,24 +973,10 @@ function telasComAbas() {
         ticketMedio: { valor: 126.23, variacao: 16.4 },
         cancelamentos: { qtd: 1, valor: 62.00 },
       },
+      hoje: HOJE, rotuloPeriodo: '01/09/2026 a 07/09/2026',
       entradas: 20418, saidas: 11620, aReceber: 28000, aPagar: 25720.50,
       serie: { labels: dias, entradas: entradasDia, saidas: saidasDia },
-      vendas: dias.map((d, i) => ({ dia: d, pedidos: [38,45,52,41,66,71,33][i], total: entradasDia[i] })),
-      extrato: extrato.reverse(),
-      contas,
-      dre: [
-        { conta: 'Receita bruta', pct: 100, valor: 20418, nivel: 'grupo' },
-        { conta: 'Vendas de produtos', pct: 94, valor: 19193, nivel: 'item' },
-        { conta: 'Taxas de entrega', pct: 6, valor: 1225, nivel: 'item' },
-        { conta: 'Deduções', pct: -8, valor: -1633, nivel: 'grupo' },
-        { conta: 'Taxas de cartão', pct: -5, valor: -1020, nivel: 'item' },
-        { conta: 'Cupons e descontos', pct: -3, valor: -613, nivel: 'item' },
-        { conta: 'Custo dos produtos', pct: -34, valor: -6942, nivel: 'grupo' },
-        { conta: 'Despesas operacionais', pct: -23, valor: -4696, nivel: 'grupo' },
-        { conta: 'Pessoal', pct: -14, valor: -2858, nivel: 'item' },
-        { conta: 'Aluguel e fixas', pct: -9, valor: -1838, nivel: 'item' },
-        { conta: 'Resultado do período', pct: 35, valor: 7147, nivel: 'grupo' },
-      ],
+      extrato, livroCaixa, contas, repasses, vendas, dre,
     },
     atendimento: {
       salao: op.salao,

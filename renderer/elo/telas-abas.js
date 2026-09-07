@@ -62,57 +62,16 @@ function grade(colunas, linhas, gradeCss, direita) {
 const aviso = (t) => '<div class="ecard"><div class="evazio">' + esc(t) + '</div></div>'
 
 // ── Financeiro ──────────────────────────────────────────────────────────────
-function financeiro(d, aba) {
-  if (aba === 'visao') {
-    return faixaKpis([
-      { rotulo: 'Entradas no mês', valor: brl(d.entradas), sub: 'recebido', cor: '#0A7A3E' },
-      { rotulo: 'Saídas no mês', valor: brl(d.saidas), sub: 'pago', cor: '#b42318' },
-      { rotulo: 'Resultado', valor: brl(d.entradas - d.saidas), sub: 'entradas − saídas' },
-      { rotulo: 'Em aberto', valor: brl(d.aReceber - d.aPagar), sub: 'a receber − a pagar' },
-    ]) + cartao('Entradas e saídas', 'por dia, no mês',
-      G.linha([
-        { values: d.serie.entradas, color: '#14CE6B', labelColor: '#0A7A3E' },
-        { values: d.serie.saidas, color: '#b42318', labelColor: '#b42318' },
-      ], d.serie.labels, { w: 900, h: 200, yBottom: 150, fmt: (v) => 'R$ ' + Math.round(v / 1000) + 'k' })
-      + '<div style="display:flex;gap:16px;font-size:12px;font-weight:600;color:#6b7280;margin-top:6px">'
-      + '<span>— entradas</span><span style="color:#b42318">— saídas</span></div>')
+// As sete abas moraram aqui até 07/09 como cinco tabelas parecidas. Agora cada uma
+// tem filtro, coluna e número próprios, em `tela-financeiro.js`.
+const TelaFinanceiro = require('./tela-financeiro')
+function financeiro(d, aba, estado) {
+  // A Visão geral tem desenho próprio (telas-principais.js): é a única aba que não é
+  // lista nem extrato — são os números do período em três blocos.
+  if ((!aba || aba === 'visao') && d && d.visao) {
+    return require('./telas-principais').htmlFinanceiroVisao(d.visao, estado || {})
   }
-  if (aba === 'vendas') {
-    return cartao('Vendas por dia', 'faturamento e pedidos',
-      grade(['Dia', 'Pedidos', 'Faturamento', 'Ticket médio'],
-        d.vendas.map((v) => ({ chave: v.dia, celulas: [v.dia, String(v.pedidos), { texto: brl(v.total), forte: true, cor: '#111' }, brl(v.total / (v.pedidos || 1))] })),
-        '1fr 120px 160px 160px', [1, 2, 3]))
-  }
-  if (aba === 'extrato' || aba === 'livro') {
-    const titulo = aba === 'extrato' ? 'Extrato' : 'Livro caixa'
-    return cartao(titulo, aba === 'extrato' ? 'tudo que entrou e saiu' : 'entradas e saídas com saldo corrido',
-      grade(['Data', 'Descrição', 'Tipo', 'Valor', 'Saldo'],
-        d.extrato.map((m) => ({ chave: m.data + m.descricao, celulas: [m.data, m.descricao, et(m.tipo),
-          { texto: (m.tipo === 'Saída' ? '- ' : '') + brl(m.valor), forte: true, cor: m.tipo === 'Saída' ? '#b42318' : '#0A7A3E' },
-          { texto: brl(m.saldo), forte: true, cor: '#111' }] })),
-        '110px 1fr 120px 140px 140px', [3, 4]))
-  }
-  if (aba === 'pagar' || aba === 'receber') {
-    const itens = d.contas.filter((c) => (aba === 'pagar' ? c.tipo === 'pagar' : c.tipo === 'receber'))
-    const total = itens.reduce((s, c) => s + c.valor, 0)
-    return faixaKpis([
-      { rotulo: aba === 'pagar' ? 'Total a pagar' : 'Total a receber', valor: brl(total), sub: 'no mês', cor: aba === 'pagar' ? '#b42318' : '#0A7A3E' },
-      { rotulo: 'Contas', valor: String(itens.length), sub: 'lançamentos' },
-      { rotulo: 'Vencidas', valor: String(itens.filter((c) => c.situacao === 'Vencido').length), sub: 'atrasadas', cor: '#b42318' },
-    ]) + cartao(aba === 'pagar' ? 'Contas a pagar' : 'Contas a receber', 'por vencimento',
-      grade(['Descrição', 'Categoria', 'Vencimento', 'Situação', 'Valor'],
-        itens.map((c) => ({ chave: c.descricao, celulas: [c.descricao, c.categoria, c.vencimento, et(c.situacao), { texto: brl(c.valor), forte: true, cor: '#111' }] })),
-        '1fr 170px 130px 130px 140px', [4]))
-  }
-  if (aba === 'dre') {
-    return cartao('DRE', 'resultado do mês, linha a linha',
-      grade(['Conta', 'Participação', 'Valor'],
-        d.dre.map((l) => ({ chave: l.conta, celulas: [
-          { texto: (l.nivel === 'item' ? '   ' : '') + l.conta, forte: l.nivel !== 'item', cor: l.nivel !== 'item' ? '#111' : '#4b5563' },
-          l.pct + '%', { texto: (l.valor < 0 ? '- ' : '') + brl(Math.abs(l.valor)), forte: true, cor: l.valor < 0 ? '#b42318' : '#111' }] })),
-        '1fr 150px 170px', [1, 2]))
-  }
-  return aviso('Aba sem conteúdo.')
+  return TelaFinanceiro.htmlFinanceiro(d, { ...(estado || {}), aba }) || aviso('Aba sem conteúdo.')
 }
 
 // ── Atendimento ─────────────────────────────────────────────────────────────
@@ -638,7 +597,7 @@ function htmlComAbas(rota, dados, estado) {
   if (!abas) return null
   if (!dados) return aviso('Sem dados ainda. Quando o app falar com o painel, esta tela aparece aqui.')
   const aba = Abas.abaAtual(abas, estado && estado.aba)
-  const corpo = rota === '/admin/financeiro' ? financeiro(dados, aba)
+  const corpo = rota === '/admin/financeiro' ? financeiro(dados, aba, estado)
     : rota === '/admin/atendimento' ? atendimento(dados, aba)
     : gestao(dados, aba, estado)
   return '<div>' + Abas.barraDeAbas(abas, aba) + corpo + '</div>'

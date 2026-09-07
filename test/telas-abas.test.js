@@ -29,8 +29,9 @@ test('aba inválida cai na primeira, não em tela branca', () => {
 })
 
 test('Financeiro: contas a pagar e a receber separam os lançamentos', () => {
-  const pagar = T.htmlComAbas('/admin/financeiro', dados.financeiro, { aba: 'pagar' })
-  const receber = T.htmlComAbas('/admin/financeiro', dados.financeiro, { aba: 'receber' })
+  const est = { aba: 'pagar', mesConta: '2026-09' }
+  const pagar = T.htmlComAbas('/admin/financeiro', dados.financeiro, est)
+  const receber = T.htmlComAbas('/admin/financeiro', dados.financeiro, { ...est, aba: 'receber' })
   assert.ok(pagar.includes('Aluguel do ponto') && !pagar.includes('Repasse iFood'))
   assert.ok(receber.includes('Repasse iFood') && !receber.includes('Aluguel do ponto'))
 })

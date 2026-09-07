@@ -99,6 +99,9 @@ test('todo atributo interativo desenhado é tratado pelo shell', () => {
   const tratados = new Set([...shell.matchAll(/getAttribute\('data-([a-z-]+)'\)/g)].map((m) => m[1]))
   for (const m of shell.matchAll(/closest\('\[data-([a-z-]+)\]'\)/g)) tratados.add(m[1])
   for (const m of shell.matchAll(/getAttribute\('data-([a-z-]+)'\)/g)) tratados.add(m[1])
+  // Os filtros do Financeiro são declarados num MAPA ('data-forma-fin': 'forma') e
+  // tratados em laço — contam como tratados igual aos do closest() literal.
+  for (const m of shell.matchAll(/'data-([a-z-]+)':\s*'/g)) tratados.add(m[1])
   const soltos = [...atributos].filter(([a, t]) => !tratados.has(a) && naoClicaveis.indexOf(a) < 0)
     .map(([a, t]) => a + ' (' + t + ')')
   assert.deepStrictEqual(soltos, [], 'atributos desenhados que o shell ignora: ' + soltos.join(', '))
@@ -116,7 +119,7 @@ test('toda ação que vai para o painel aponta uma rota que existe no menu', () 
   const menu = demo.menu()
   const doMenu = new Set(menu.secoes.flatMap((s) => s.itens.map((i) => i.href)))
   // rotas do painel que não têm item de menu próprio, mas existem no CardapioPro
-  const extras = new Set(['/admin/venda', '/admin/escolher-loja', '/admin/whatsapp', '/admin/nf'])
+  const extras = new Set(['/admin/venda', '/admin/escolher-loja', '/admin/whatsapp', '/admin/nf', '/admin/contabil'])
   const ruins = Object.keys(Acoes.DESTINOS)
     .filter((k) => Acoes.DESTINOS[k].rota)
     .filter((k) => !doMenu.has(Acoes.DESTINOS[k].rota) && !extras.has(Acoes.DESTINOS[k].rota))
