@@ -118,7 +118,8 @@ if (typeof document !== 'undefined') {
   const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
   const VISAO = {}              // visão (Despacho: entregas | rotas)
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
-  let EXTRAS_PEDIDOS = false    // colunas de entrega no quadro
+  let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
+  let TERMO_PEDIDO = ''         // quadro: busca por número, cliente ou telefone
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
 
   const $ = (id) => document.getElementById(id)
@@ -204,7 +205,7 @@ if (typeof document !== 'undefined') {
       canal: CATALOGO_LISTAS[rota].canal,
       desenhar: (dados, estado) => Catalogo.htmlDaRota(rota, dados, {
         ...estado, filtro: FILTRO[rota], termo: TERMO[rota],
-        modo: MODO_PEDIDOS, extras: EXTRAS_PEDIDOS,
+        modo: MODO_PEDIDOS, filtroPedido: FILTRO_PEDIDO, termoPedido: TERMO_PEDIDO,
       }),
       erro: 'Não deu para carregar esta tela agora.',
     }
@@ -333,6 +334,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btFiltroPedido = e.target.closest ? e.target.closest('[data-filtro-pedido]') : null
+    if (btFiltroPedido) {
+      FILTRO_PEDIDO = btFiltroPedido.getAttribute('data-filtro-pedido')
+      redesenharTelaAtual()
+      return
+    }
     const btVisao = e.target.closest ? e.target.closest('[data-visao]') : null
     if (btVisao) {
       VISAO[ROTA] = btVisao.getAttribute('data-visao')
@@ -354,12 +361,6 @@ if (typeof document !== 'undefined') {
     const btModo = e.target.closest ? e.target.closest('[data-modo]') : null
     if (btModo) {
       MODO_PEDIDOS = btModo.getAttribute('data-modo')
-      redesenharTelaAtual()
-      return
-    }
-    const btExtras = e.target.closest ? e.target.closest('[data-extras]') : null
-    if (btExtras) {
-      EXTRAS_PEDIDOS = !EXTRAS_PEDIDOS
       redesenharTelaAtual()
       return
     }
@@ -459,6 +460,14 @@ if (typeof document !== 'undefined') {
   // Busca: filtra o que já está na tela, sem nova consulta. O input não é recriado
   // (recriar a cada tecla faria o cursor pular), então só a grade é redesenhada.
   document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'buscaPedidos') {
+      TERMO_PEDIDO = e.target.value
+      const pos2 = e.target.selectionStart
+      redesenharTelaAtual()
+      const novoCampo = document.getElementById('buscaPedidos')
+      if (novoCampo) { novoCampo.focus(); try { novoCampo.setSelectionRange(pos2, pos2) } catch (x) {} }
+      return
+    }
     if (!e.target || e.target.id !== 'listaBusca') return
     TERMO[ROTA] = e.target.value
     const foco = document.activeElement === e.target
