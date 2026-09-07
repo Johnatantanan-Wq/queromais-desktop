@@ -510,6 +510,26 @@ async function createWindow() {
     })
     if (!DEMO) monitorRede.iniciar()
 
+    // Impressão: da MÁQUINA, não da nuvem — vale nos dois modos e continua de pé sem
+    // internet. Estava só no bloco de demonstração, então o app conectado abria a tela
+    // de Impressão vazia e nenhum botão respondia.
+    require('./impressao-canais').registrar({
+      ipcMain, BrowserWindow,
+      impressaoService: require('./controllers/impressao.service').impressaoService,
+      getConfig, setConfig, log,
+      lojaAtual: () => {
+        if (dadosDemo) return dadosDemo.menu().loja
+        const guardado = cacheDisco.get('menu|' + (getConfig().lojaId || 'sem-loja'))
+        return (guardado && guardado.body && guardado.body.loja) || { nome: brand.nome_delivery }
+      },
+      pedidoDeExemplo: () => {
+        if (dadosDemo) return dadosDemo.listas().pedidos.itens[0]
+        // Sem demonstração não há pedido de exemplo: a tela imprime o teste, que não
+        // depende de pedido nenhum.
+        return null
+      },
+    })
+
     // "Imprimir / Salvar PDF" é do APP (não do painel): imprime o pedaço de conteúdo da
     // tela nativa numa janela oculta. Vale no modo demonstração e no app conectado.
     require('./relatorio-pdf').registrar({
@@ -591,60 +611,6 @@ async function createWindow() {
         const chave = CANAIS_FINAIS[canal]
         ipcMain.handle(canal, () => ({ dados: dadosDemo.apoioFinal()[chave], offline: false, ts: Date.now(), demo: true }))
       }
-      // ── Impressão: os únicos botões do app que FAZEM alguma coisa hoje ──────
-      // Impressora é da máquina, não da nuvem — por isso aqui não há dado de
-      // demonstração: a lista é a do sistema e o teste imprime de verdade.
-      const { impressaoService } = require('./controllers/impressao.service')
-      ipcMain.handle('impressao-info', async () => {
-        let impressoras = []
-        try { impressoras = await impressaoService.listarImpressoras() } catch (e) { impressoras = [] }
-        const cfg = getConfig()
-        let diag = {}
-        try { diag = await impressaoService.diagnostico() } catch (e) {}
-        const pedidos = dadosDemo.listas().pedidos.itens
-        return {
-          dados: {
-            impressoras,
-            impressoraAtual: cfg.impressoraNome || '',
-            ippUrl: cfg.impressoraIppUrl || '',
-            automatica: true,
-            vias: 1,
-            caminho: diag.sumatra ? 'SumatraPDF (Windows)' : (process.platform === 'darwin' ? 'impressão do macOS' : 'padrão do sistema'),
-            loja: dadosDemo.menu().loja,
-            exemplo: pedidos[0],
-          },
-          offline: false, ts: Date.now(),
-        }
-      })
-      ipcMain.handle('impressao-escolher', (e, a) => {
-        setConfig({ impressora_nome: (a && a.nome) || '' })
-        log.info('[IMPRESSAO] impressora escolhida: ' + ((a && a.nome) || 'padrão'))
-        return { ok: true }
-      })
-      ipcMain.handle('impressao-teste', async () => {
-        try {
-          const r = await impressaoService.imprimirTeste(getConfig().impressoraNome || undefined)
-          return { ok: true, resultado: r }
-        } catch (e) { return { ok: false, erro: String(e && e.message ? e.message : e) } }
-      })
-      ipcMain.handle('impressao-comanda', async (e, a) => {
-        // Monta a comanda numa janela oculta e manda pela mesma rota da impressão real.
-        const TelaImp = require('../renderer/elo/tela-impressao')
-        const pedidos = dadosDemo.listas().pedidos.itens
-        const html = '<!doctype html><html><body style="margin:0">'
-          + TelaImp.htmlComanda((a && a.pedido) || pedidos[0], dadosDemo.menu().loja) + '</body></html>'
-        const win = new BrowserWindow({ show: false, webPreferences: { offscreen: false } })
-        try {
-          await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
-          const r = await impressaoService.imprimirJanela(win, getConfig().impressoraNome || undefined, 'comanda')
-          return { ok: true, resultado: r }
-        } catch (err) {
-          return { ok: false, erro: String(err && err.message ? err.message : err) }
-        } finally {
-          try { if (!win.isDestroyed()) win.destroy() } catch (x) {}
-        }
-      })
-
       // ── Venda manual: a primeira tela do app que ESCREVE ──
       // A venda fechada aqui recebe número, entra no quadro de pedidos, no caixa e no
       // extrato. É o ensaio do modo offline: fechar venda sem depender do servidor.
