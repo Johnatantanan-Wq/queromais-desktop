@@ -282,4 +282,86 @@ function visaoGeral(periodo) {
   }
 }
 
-module.exports = { menu, caixa, visaoGeral }
+/** Listas de demonstração das telas de módulo (pedidos, carrinhos, clientes, …). */
+function listas() {
+  const pedidos = [
+    { numero: '1042', hora: '20:12', cliente: 'Maria Silva', canal: 'Delivery', status: 'Em produção', valor: 89.90, filtro: 'producao' },
+    { numero: '1041', hora: '20:05', cliente: 'João Pereira', canal: 'Balcão', status: 'Pronto', valor: 54.00, filtro: 'pronto' },
+    { numero: '1040', hora: '19:58', cliente: 'Carla Nunes', canal: 'Delivery', status: 'Em entrega', valor: 132.40, filtro: 'entrega' },
+    { numero: '1039', hora: '19:22', cliente: 'Mesa 7', canal: 'Mesa', status: 'Em produção', valor: 128.50, filtro: 'producao' },
+    { numero: '1038', hora: '19:10', cliente: 'Rafael Souza', canal: 'Delivery', status: 'Novo', valor: 76.30, filtro: 'novo' },
+    { numero: '1037', hora: '18:47', cliente: 'Ana Paula Dias', canal: 'Retirada', status: 'Pronto', valor: 45.00, filtro: 'pronto' },
+    { numero: '1036', hora: '18:30', cliente: 'Pedro Henrique', canal: 'Delivery', status: 'Entregue', valor: 98.70, filtro: 'entregue' },
+    { numero: '1035', hora: '18:05', cliente: 'Luiza Martins', canal: 'Delivery', status: 'Cancelado', valor: 62.00, filtro: 'cancelado' },
+  ]
+  const conta = (f) => pedidos.filter((p) => p.filtro === f).length
+  return {
+    pedidos: {
+      itens: pedidos,
+      contadores: { novo: conta('novo'), producao: conta('producao'), pronto: conta('pronto'), entrega: conta('entrega') },
+      faturamento: Math.round(pedidos.filter((p) => p.status !== 'Cancelado').reduce((s, p) => s + p.valor, 0) * 100) / 100,
+    },
+    carrinhos: {
+      itens: [
+        { cliente: 'Fernanda Lima', telefone: '(75) 98811-2233', itens: 3, paradoHa: '18 min', valor: 92.40 },
+        { cliente: 'Marcos Vinícius', telefone: '(75) 99123-4455', itens: 1, paradoHa: '1 h 20', valor: 38.00 },
+        { cliente: 'Beatriz Alves', telefone: '(75) 98444-9090', itens: 5, paradoHa: '3 h', valor: 187.60 },
+      ],
+      total: 318.00, maisAntigo: '3 h',
+    },
+    clientes: {
+      total: 1284, ativosMes: 342, ticket: 59.02,
+      itens: [
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro', pedidos: 42, ultimo: 'hoje', total: 2480.30 },
+        { nome: 'João Pereira', telefone: '(75) 98811-0002', bairro: 'Jardim América', pedidos: 27, ultimo: 'ontem', total: 1610.00 },
+        { nome: 'Carla Nunes', telefone: '(75) 98811-0003', bairro: 'Vila Nova', pedidos: 19, ultimo: 'há 3 dias', total: 1122.80 },
+        { nome: 'Rafael Souza', telefone: '(75) 98811-0004', bairro: 'Boa Vista', pedidos: 11, ultimo: 'há 8 dias', total: 690.50 },
+        { nome: 'Luiza Martins', telefone: '(75) 98811-0005', bairro: 'Centro', pedidos: 6, ultimo: 'há 12 dias', total: 372.10 },
+      ],
+    },
+    cardapio: {
+      total: 86, disponiveis: 79, esgotados: 7, precoMedio: 42.60,
+      itens: [
+        { nome: 'Pizza Calabresa G', categoria: 'Pizzas salgadas', preco: 59.90, vendas7d: 128, situacao: 'Disponível' },
+        { nome: 'Pizza Portuguesa G', categoria: 'Pizzas salgadas', preco: 62.90, vendas7d: 96, situacao: 'Disponível' },
+        { nome: 'Pizza Chocolate M', categoria: 'Pizzas doces', preco: 48.00, vendas7d: 41, situacao: 'Disponível' },
+        { nome: 'Refrigerante 2L', categoria: 'Bebidas', preco: 12.00, vendas7d: 210, situacao: 'Disponível' },
+        { nome: 'Cerveja long neck', categoria: 'Bebidas', preco: 9.00, vendas7d: 88, situacao: 'Esgotado' },
+        { nome: 'Borda recheada', categoria: 'Adicionais', preco: 8.00, vendas7d: 132, situacao: 'Disponível' },
+      ],
+    },
+    despacho: {
+      contadores: { aguardando: 2, rota: 3, entregue: 24 },
+      itens: [
+        { pedido: '1040', cliente: 'Carla Nunes', bairro: 'Vila Nova', entregador: 'Tiago', situacao: 'Em rota', saiu: '20:02' },
+        { pedido: '1034', cliente: 'Sandra Reis', bairro: 'Centro', entregador: 'Wesley', situacao: 'Em rota', saiu: '19:51' },
+        { pedido: '1033', cliente: 'Otávio Brito', bairro: 'Boa Vista', entregador: 'Tiago', situacao: 'Em rota', saiu: '19:40' },
+        { pedido: '1041', cliente: 'João Pereira', bairro: 'Jardim América', entregador: null, situacao: 'Aguardando', saiu: null },
+        { pedido: '1038', cliente: 'Rafael Souza', bairro: 'Industrial', entregador: null, situacao: 'Aguardando', saiu: null },
+      ],
+    },
+    financeiro: {
+      aReceber: 24800.00, aPagar: 17320.50, vencidas: 2,
+      itens: [
+        { descricao: 'Fornecedor de queijo — NF 8821', categoria: 'Insumos', vencimento: '10/09', situacao: 'A vencer', valor: 4200.00, tipo: 'pagar' },
+        { descricao: 'Aluguel do ponto', categoria: 'Fixas', vencimento: '05/09', situacao: 'Vencido', valor: 6800.00, tipo: 'pagar' },
+        { descricao: 'Energia elétrica', categoria: 'Fixas', vencimento: '15/09', situacao: 'A vencer', valor: 1920.50, tipo: 'pagar' },
+        { descricao: 'Repasse iFood — semana 36', categoria: 'Canais', vencimento: '12/09', situacao: 'A vencer', valor: 8300.00, tipo: 'receber' },
+        { descricao: 'Cartão — antecipação', categoria: 'Cartões', vencimento: '09/09', situacao: 'A vencer', valor: 16500.00, tipo: 'receber' },
+        { descricao: 'Manutenção do forno', categoria: 'Manutenção', vencimento: '02/09', situacao: 'Vencido', valor: 4400.00, tipo: 'pagar' },
+      ],
+    },
+    entregadores: {
+      contadores: { rota: 3, livre: 2 }, entregasHoje: 24,
+      itens: [
+        { nome: 'Tiago Moura', telefone: '(75) 99000-1111', situacao: 'Em rota', entregas: 11, aReceber: 88.00 },
+        { nome: 'Wesley Barros', telefone: '(75) 99000-2222', situacao: 'Em rota', entregas: 8, aReceber: 64.00 },
+        { nome: 'Diego Rocha', telefone: '(75) 99000-3333', situacao: 'Em rota', entregas: 5, aReceber: 40.00 },
+        { nome: 'Paulo Vieira', telefone: '(75) 99000-4444', situacao: 'Livre', entregas: 0, aReceber: 0 },
+        { nome: 'Igor Santana', telefone: '(75) 99000-5555', situacao: 'Livre', entregas: 0, aReceber: 0 },
+      ],
+    },
+  }
+}
+
+module.exports = { menu, caixa, visaoGeral, listas }

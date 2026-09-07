@@ -526,6 +526,17 @@ async function createWindow() {
       ipcMain.handle('menu-carregar', () => ({ dados: dadosDemo.menu(), offline: false, ts: Date.now(), demo: true }))
       ipcMain.handle('caixa-carregar', () => ({ dados: dadosDemo.caixa(), offline: false, ts: Date.now(), demo: true }))
       ipcMain.handle('visao-geral-carregar', (e, a) => ({ dados: dadosDemo.visaoGeral(a && a.periodo), offline: false, ts: Date.now(), demo: true }))
+      const listasDemo = dadosDemo.listas()
+      const CANAIS_LISTA = {
+        'pedidos-carregar': 'pedidos', 'carrinhos-carregar': 'carrinhos', 'clientes-carregar': 'clientes',
+        'cardapio-carregar': 'cardapio', 'despacho-carregar': 'despacho', 'financeiro-carregar': 'financeiro',
+        'entregadores-carregar': 'entregadores',
+      }
+      for (const canal of Object.keys(CANAIS_LISTA)) {
+        const chave = CANAIS_LISTA[canal]
+        ipcMain.handle(canal, () => ({ dados: dadosDemo.listas()[chave], offline: false, ts: Date.now(), demo: true }))
+      }
+      void listasDemo
       ipcMain.handle('rede-status', () => ({ online: true, demo: true }))
       ipcMain.handle('cache-get', () => null)
       ipcMain.handle('cache-set', () => ({ ok: true }))

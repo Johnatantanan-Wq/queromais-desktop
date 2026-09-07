@@ -14,7 +14,8 @@ function iconeSvg(interno) {
 // Telas que o app já desenha por conta própria (não dependem da BrowserView).
 // Lista explícita: um módulo só entra aqui quando tem tela nativa DE VERDADE —
 // enquanto não tiver, o item abre o painel e fica esmaecido sem internet.
-const TELAS_NATIVAS = ['/admin', '/admin/caixa']
+const CATALOGO_LISTAS = require('./telas-catalogo').CATALOGO
+const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS))
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -106,6 +107,8 @@ if (typeof document !== 'undefined') {
   let DEMO = false
   let PERIODO = 'semana'        // Visão geral: dia | ontem | semana | mes
   let METRICA = 'faturamento'   // Visão geral: faturamento | pedidos | ticket
+  const FILTRO = {}             // filtro escolhido, por rota
+  const TERMO = {}              // busca digitada, por rota
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
 
   const $ = (id) => document.getElementById(id)
@@ -166,6 +169,17 @@ if (typeof document !== 'undefined') {
     },
   }
 
+  // As telas de lista vêm do catálogo: cada uma declara colunas, filtros e ações,
+  // e o desenho é o formato único (tela-lista.js).
+  const Catalogo = require('./telas-catalogo')
+  for (const rota of Object.keys(CATALOGO_LISTAS)) {
+    NATIVAS[rota] = {
+      canal: CATALOGO_LISTAS[rota].canal,
+      desenhar: (dados, estado) => Catalogo.htmlDaRota(rota, dados, { ...estado, filtro: FILTRO[rota], termo: TERMO[rota] }),
+      erro: 'Não deu para carregar esta tela agora.',
+    }
+  }
+
   function telaDe(rota) {
     if (NATIVAS[rota]) return NATIVAS[rota]
     const base = Object.keys(NATIVAS).find((b) => b !== '/admin' && ('' + rota).indexOf(b + '/') === 0)
@@ -203,6 +217,18 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btFiltro = e.target.closest ? e.target.closest('[data-filtro]') : null
+    if (btFiltro) {
+      FILTRO[ROTA] = btFiltro.getAttribute('data-filtro')
+      redesenharTelaAtual()
+      return
+    }
+    const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
+    if (btAcao) {
+      // Ações de escrita ainda vivem no painel: em vez de fingir que fazem, dizem onde estão.
+      window.mensagemTopo && window.mensagemTopo('Esta ação ainda é feita pelo painel.')
+      return
+    }
     const btPeriodo = e.target.closest ? e.target.closest('[data-periodo]') : null
     if (btPeriodo) {
       PERIODO = btPeriodo.getAttribute('data-periodo')
@@ -241,6 +267,20 @@ if (typeof document !== 'undefined') {
   $('btnWhats').addEventListener('click', () => {
     VIEW = VIEW === 'whatsapp' ? 'cardapio' : 'whatsapp'
     ipcRenderer.send('change-view', { view: VIEW })
+  })
+
+  // Busca: filtra o que já está na tela, sem nova consulta. O input não é recriado
+  // (recriar a cada tecla faria o cursor pular), então só a grade é redesenhada.
+  document.addEventListener('input', (e) => {
+    if (!e.target || e.target.id !== 'listaBusca') return
+    TERMO[ROTA] = e.target.value
+    const foco = document.activeElement === e.target
+    const pos = e.target.selectionStart
+    redesenharTelaAtual()
+    if (foco) {
+      const novo = document.getElementById('listaBusca')
+      if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos) } catch (x) {} }
+    }
   })
 
   ipcRenderer.on('rota-mudou', (e, rota) => {

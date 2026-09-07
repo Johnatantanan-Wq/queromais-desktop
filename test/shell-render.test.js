@@ -37,8 +37,16 @@ test('badge com número aparece', () => {
   assert.ok(htmlDoMenu(menu, '/admin', true).includes('>5</span>'))
 })
 
-test('offline esmaece os itens (nenhum módulo é nativo ainda na F1)', () => {
-  assert.ok(htmlDoMenu(menu, '/admin', false).includes('erailitem off'))
+test('offline esmaece só o que depende da web', () => {
+  const comWeb = { secoes: [{ titulo: 'Principal', itens: [
+    { id: 'caixa', href: '/admin/caixa', label: 'Caixa', icone: '<path d="M1 1"/>' },
+    { id: 'cozinha', href: '/admin/cozinha', label: 'Cozinha (KDS)', icone: '<path d="M1 1"/>' },
+  ] }], badges: {} }
+  const h = htmlDoMenu(comWeb, '/admin/caixa', false)
+  const caixa = h.split('<div class="erailitem').find(p => p.includes('/admin/caixa'))
+  const cozinha = h.split('<div class="erailitem').find(p => p.includes('/admin/cozinha'))
+  assert.ok(!caixa.includes(' off'), 'tela nativa continua clicável sem internet')
+  assert.ok(cozinha.includes(' off'), 'tela que depende da web fica esmaecida')
 })
 
 test('menu vazio não quebra', () => {
