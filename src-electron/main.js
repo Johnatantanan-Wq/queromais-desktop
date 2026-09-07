@@ -488,9 +488,18 @@ async function createWindow() {
     })
     monitorRede.iniciar()
 
+    // qualquer rota de leitura do painel, pela view logada
+    const pedirTela = async (caminho) => {
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return null
+      return wc.executeJavaScript(
+        "fetch('" + caminho + "',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
+    }
+
     ponte.registrar({
       ipcMain, cache: cacheDisco, monitorRede,
       pedirAoPainel: pedirMenuAoPainel,
+      pedirTela,
       lojaIdAtual: () => getConfig().lojaId,
       abrirRota: (href) => {
         const base = getConfig().cardapioUrl.replace(/\/admin\/?$/, '')
@@ -499,6 +508,16 @@ async function createWindow() {
         global.cardapioView.webContents.loadURL(base + href)
         return { ok: true }
       },
+    })
+
+    // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
+    // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
+    // Windows (nunca add/remove em runtime) e a página do painel viva por trás.
+    ipcMain.on('esconder-view', () => {
+      try {
+        global.cardapioView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        global.whatsappView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      } catch (e) {}
     })
 
     // Recolher/expandir o menu muda a largura útil: as views acompanham.

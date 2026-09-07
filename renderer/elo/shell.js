@@ -11,6 +11,15 @@ function iconeSvg(interno) {
     + ' stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">' + interno + '</svg>'
 }
 
+// Telas que o app já desenha por conta própria (não dependem da BrowserView).
+// Lista explícita: um módulo só entra aqui quando tem tela nativa DE VERDADE —
+// enquanto não tiver, o item abre o painel e fica esmaecido sem internet.
+const TELAS_NATIVAS = ['/admin/caixa']
+
+function ehNativa(rota) {
+  return TELAS_NATIVAS.some((base) => rota === base || ('' + rota).indexOf(base + '/') === 0)
+}
+
 function ehAtivo(href, rota) {
   return href === '/admin' ? rota === '/admin' : rota.indexOf(href) === 0
 }
@@ -22,7 +31,8 @@ function htmlDoMenu(menu, rota, online) {
     const itens = secao.itens.map((it) => {
       let classes = ''
       if (ehAtivo(it.href, rota)) classes += ' on'
-      if (!online) classes += ' off'
+      // sem internet, só o que tem tela nativa continua alcançável
+      if (!online && !ehNativa(it.href)) classes += ' off'
       const n = it.badge ? Number(badges[it.badge] || 0) : 0
       const badge = n > 0 ? '<span class="eranbadge">' + n + '</span>' : ''
       return '<div class="erailitem' + classes + '" data-href="' + esc(it.href) + '" data-id="' + esc(it.id) + '"'
@@ -78,12 +88,13 @@ function tonsDoAcento(corPrimaria, fixos) {
   return Object.assign(derivado, fixos || {})
 }
 
-module.exports = { htmlDoMenu, iniciaisDe, tituloDaRota, dataPorExtenso, esc, ehAtivo, tonsDoAcento }
+module.exports = { htmlDoMenu, iniciaisDe, tituloDaRota, dataPorExtenso, esc, ehAtivo, tonsDoAcento, ehNativa, TELAS_NATIVAS }
 
 // ── daqui pra baixo, só roda dentro da janela ────────────────────────────────
 if (typeof document !== 'undefined') {
   const { ipcRenderer } = require('electron')
   const brand = require('../../src-electron/brand')
+  const TelaCaixa = require('./tela-caixa')
 
   let MENU = null
   let ROTA = '/admin'
@@ -104,6 +115,31 @@ if (typeof document !== 'undefined') {
     $('chipRede').textContent = ONLINE ? 'conectado' : 'sem internet'
   }
 
+  // Rota nativa: o app desenha em #econtent e ESCONDE a BrowserView (senão ela
+  // fica por cima, cobrindo a tela nativa). Rota web: manda a view para a URL.
+  function abrirRota(rota) {
+    if (ehNativa(rota)) {
+      ipcRenderer.send('esconder-view')
+      carregarTelaNativa(rota)
+    } else {
+      document.getElementById('econtent').innerHTML = ''
+      ipcRenderer.invoke('abrir-rota', rota)
+    }
+  }
+
+  async function carregarTelaNativa(rota) {
+    const alvo = document.getElementById('econtent')
+    if (!ehNativa(rota)) return
+    alvo.innerHTML = '<div class="ecard"><div class="evazio">Carregando…</div></div>'
+    try {
+      const r = await ipcRenderer.invoke('caixa-carregar')
+      if (ROTA !== rota) return   // o lojista já foi para outra tela
+      alvo.innerHTML = TelaCaixa.htmlDoCaixa(r && r.dados, { online: !(r && r.offline), ts: (r && r.ts) || 0 })
+    } catch (e) {
+      alvo.innerHTML = '<div class="ecard"><div class="evazio">Não deu para carregar o caixa agora.</div></div>'
+    }
+  }
+
   async function carregarMenu() {
     try {
       const r = await ipcRenderer.invoke('menu-carregar')
@@ -116,7 +152,7 @@ if (typeof document !== 'undefined') {
     if (item && !item.classList.contains('off')) {
       ROTA = item.getAttribute('data-href')
       pintar()
-      ipcRenderer.invoke('abrir-rota', ROTA)
+      abrirRota(ROTA)
     }
   })
 
@@ -141,7 +177,11 @@ if (typeof document !== 'undefined') {
   })
 
   ipcRenderer.on('rota-mudou', (e, rota) => { ROTA = rota; pintar() })
-  ipcRenderer.on('rede-mudou', (e, online) => { ONLINE = online; pintar(); if (online) carregarMenu() })
+  ipcRenderer.on('rede-mudou', (e, online) => {
+    ONLINE = online
+    pintar()
+    if (online) { carregarMenu(); if (ehNativa(ROTA)) carregarTelaNativa(ROTA) }
+  })
   ipcRenderer.on('view-changed', (e, a) => {
     VIEW = (a && a.view) || 'cardapio'
     $('chipSplit').className = 'echip' + (VIEW === 'split' ? ' on' : '')
