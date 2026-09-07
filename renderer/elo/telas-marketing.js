@@ -144,9 +144,17 @@ function htmlCampanhas(dados, estado) {
   if (!dados) return semDados('de campanhas')
   const aba = ABAS_CAMPANHA.some((a) => a.chave === estado.abaCampanha) ? estado.abaCampanha : 'nova'
   const contagens = dados.perfis || {}
-  const contatos = dados.contatos || []
-  const total = dados.totalContatos != null ? dados.totalContatos : contatos.length
-  const audiencia = dados.audiencia != null ? dados.audiencia : contatos.length
+  const total = dados.totalContatos != null ? dados.totalContatos : (dados.contatos || []).length
+  // Escolher um perfil MUDA a audiência: é a conta que o painel faz e o motivo de os
+  // cartões terem contagem. Sem perfil escolhido, vale a audiência cheia.
+  const perfil = estado.perfil && PERFIS.some((p) => p.chave === estado.perfil) ? estado.perfil : null
+  const nomePerfil = perfil ? (PERFIS.find((p) => p.chave === perfil) || {}).nome : null
+  const contatos = perfil
+    ? (dados.contatos || []).filter((c) => c.perfil === nomePerfil)
+    : (dados.contatos || [])
+  const audiencia = perfil
+    ? (Number(contagens[perfil]) || 0)
+    : (dados.audiencia != null ? dados.audiencia : (dados.contatos || []).length)
 
   const barraAbas = '<div style="display:flex;gap:18px;border-bottom:1px solid #ebebe8;margin-bottom:18px">'
     + ABAS_CAMPANHA.map((a) => '<button type="button" data-aba-campanha="' + esc(a.chave) + '"'
@@ -193,8 +201,11 @@ function htmlCampanhas(dados, estado) {
   const cartoesPerfil = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'
     + PERFIS.map((p) => {
       const n = Number(contagens[p.chave]) || 0
-      return '<div data-perfil-campanha="' + esc(p.chave) + '" style="border:1px solid #e5e7eb;border-radius:12px;'
-        + 'padding:13px 15px;cursor:pointer;min-width:0;background:#fff">'
+      const escolhido = p.chave === perfil
+      return '<div data-perfil-campanha="' + esc(p.chave) + '" style="border:'
+        + (escolhido ? '2px solid var(--acento)' : '1px solid #e5e7eb') + ';border-radius:12px;'
+        + 'padding:' + (escolhido ? '12px 14px' : '13px 15px') + ';cursor:pointer;min-width:0;background:'
+        + (escolhido ? 'var(--acento-suave)' : '#fff') + '">'
         + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
         + '<span style="font-size:13.5px;font-weight:800;color:#111">' + esc(p.nome) + '</span>'
         + '<span style="font-size:12.5px;font-weight:800;color:' + (n ? 'var(--acento-texto)' : '#c9c6bd') + '">' + n + '</span></div>'
@@ -209,7 +220,8 @@ function htmlCampanhas(dados, estado) {
     + '<div style="font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em">Audiência atual</div>'
     + '<div style="font-size:30px;font-weight:800;color:#111;letter-spacing:-.03em;line-height:1.1;margin-top:6px">'
     + audiencia + '</div>'
-    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">de ' + total + ' contatos</div></div>'
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">de ' + total + ' contatos'
+    + (nomePerfil ? ' · perfil ' + esc(nomePerfil) : '') + '</div></div>'
     + (contatos.length ? contatos.map((c) => '<div style="padding:11px 18px;border-bottom:1px solid #f6f6f4">'
       + '<div style="font-size:13px;font-weight:700;color:#111">' + esc(c.nome) + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px;margin-top:3px">'

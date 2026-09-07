@@ -64,13 +64,32 @@ function botao(acao, rotulo, primaria) {
     + esc(rotulo) + '</button>'
 }
 
+/** Há quantos dias o cliente não compra — o painel manda o número; sem ele, lê o
+ *  rótulo ("hoje", "ontem", "há 3 dias"). Quem nunca comprou vai para o fim. */
+function diasSemComprar(c) {
+  if (c.diasSemComprar != null) return Number(c.diasSemComprar)
+  const t = ('' + (c.ultimo || '')).toLowerCase()
+  if (t === 'hoje') return 0
+  if (t === 'ontem') return 1
+  const m = /há\s+(\d+)\s+dia/.exec(t)
+  if (m) return Number(m[1])
+  return 99999
+}
+
 // ── Clientes ────────────────────────────────────────────────────────────────
 const COR_SEGMENTO = { 'Novo': 'verde', 'VIP': 'amarelo', 'Em risco': 'vermelho', 'Fiel': 'azul', 'Importado': 'cinza' }
 
 function htmlClientes(dados, estado) {
   if (!dados) return semDados('de clientes')
+  estado = estado || {}
   const k = dados.kpis || {}
-  const linhas = (dados.itens || []).map((c) => ({
+  // "Maior gasto" × "Comprou recente": o botão do painel ordena de verdade — antes
+  // ele só desenhava a seta e a lista não mudava.
+  const porRecencia = estado.ordem === 'recencia'
+  const ordenados = (dados.itens || []).slice().sort((a2, b2) => porRecencia
+    ? (diasSemComprar(a2) - diasSemComprar(b2))
+    : (Number(b2.totalGasto || 0) - Number(a2.totalGasto || 0)))
+  const linhas = ordenados.map((c) => ({
     chave: c.telefone || c.nome,
     celulas: [
       { texto: c.nome, sub: c.telefone || '', forte: true, cor: '#111' },
@@ -103,7 +122,7 @@ function htmlClientes(dados, estado) {
     + '<button type="button" data-acao="segmentos" class="echip" style="height:38px;background:#fff;border:1px solid #e5e7eb;color:#111;cursor:pointer">'
     + 'Todos os segmentos (' + (k.unicos || 0) + ') ▾</button>'
     + '<button type="button" data-acao="ordenar-clientes" class="echip" style="height:38px;background:#fff;border:1px solid #e5e7eb;color:#111;cursor:pointer">'
-    + 'Maior gasto ▾</button></div>'
+    + (porRecencia ? 'Comprou recente ▾' : 'Maior gasto ▾') + '</button></div>'
     + L.apenasGrade({
       colunas: ['Cliente', 'Bairro', 'Segmento', 'Pedidos', 'Total gasto', 'Ticket médio', 'Freq./mês', 'Último', 'Dia favorito', 'Pontos'],
       grade: '1.4fr 110px 120px 90px 130px 130px 100px 120px 120px 90px', direita: [3, 4, 5, 6, 9],

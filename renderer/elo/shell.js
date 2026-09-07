@@ -104,6 +104,7 @@ if (typeof document !== 'undefined') {
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
   const TelaVisaoGeral = require('./tela-visao-geral')
+  const Acoes = require('./acoes')
 
   let MENU = null
   let ROTA = '/admin'
@@ -129,6 +130,11 @@ if (typeof document !== 'undefined') {
   let ABA_CAMPANHA = 'nova'     // Campanhas: nova | histórico | configurações
   let ABA_FIDELIDADE = 'visao'  // Fidelidade: visão geral | configurações | atividades
   let PERIODO_FID = '30dias'    // Fidelidade: período da visão geral
+  let ORDEM_CLIENTES = 'gasto'  // Clientes: por gasto | por recência
+  let SEL_DESPACHO = []         // Despacho: pedidos marcados na caixa de seleção
+  const ENTREGADOR_DE = {}      // Despacho: entregador escolhido em cada linha
+  let PERFIL_CAMPANHA = null    // Campanhas: perfil de cliente escolhido
+  const AVULSO = {}             // Compras: item avulso sendo digitado
   let ABA_CFG = 'geral'         // Configurações: assunto escolhido
   let SUB_CFG = 'config'        // Configurações › Geral: seção escolhida
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
@@ -260,7 +266,7 @@ if (typeof document !== 'undefined') {
   NATIVAS['/admin/vendedores'] = { canal: 'parceiros-carregar', desenhar: (d, e) => Mkt.htmlParceiros(d, e), erro: 'Não deu para carregar os parceiros agora.' }
   NATIVAS['/admin/food-marketing/campanhas'] = {
     canal: 'campanhas-carregar',
-    desenhar: (d, e) => Mkt.htmlCampanhas(d, { ...e, abaCampanha: ABA_CAMPANHA }),
+    desenhar: (d, e) => Mkt.htmlCampanhas(d, { ...e, abaCampanha: ABA_CAMPANHA, perfil: PERFIL_CAMPANHA }),
     erro: 'Não deu para carregar as campanhas agora.',
   }
   NATIVAS['/admin/food-marketing/push'] = { canal: 'push-carregar', desenhar: (d, e) => Mkt.htmlPush(d, e), erro: 'Não deu para carregar o push agora.' }
@@ -273,7 +279,9 @@ if (typeof document !== 'undefined') {
   const TelaCompras = require('./tela-compras')
   NATIVAS['/admin/compras'] = {
     canal: 'compras-carregar',
-    desenhar: (d, e) => TelaCompras.htmlCompras(d, e),
+    desenhar: (d, e) => TelaCompras.htmlCompras(d, {
+      ...e, avulsoNome: AVULSO.nome, avulsoQtd: AVULSO.qtd, avulsoUnidade: AVULSO.unidade,
+    }),
     erro: 'Não deu para carregar as compras agora.',
   }
 
@@ -284,7 +292,9 @@ if (typeof document !== 'undefined') {
   const Ficha = require('./ficha')
   NATIVAS['/admin/clientes'] = {
     canal: 'clientes-carregar',
-    desenhar: (d, e) => Principais.htmlClientes(d, { ...e, termo: TERMO['/admin/clientes'], abaCliente: ABA['/admin/clientes'] }),
+    desenhar: (d, e) => Principais.htmlClientes(d, {
+      ...e, termo: TERMO['/admin/clientes'], abaCliente: ABA['/admin/clientes'], ordem: ORDEM_CLIENTES,
+    }),
     erro: 'Não deu para carregar os clientes agora.',
   }
   NATIVAS['/admin/carrinhos'] = {
@@ -303,7 +313,9 @@ if (typeof document !== 'undefined') {
 
   NATIVAS['/admin/despacho'] = {
     canal: 'despacho-carregar',
-    desenhar: (dados, estado) => TelaDespacho.htmlDespacho(dados, { ...estado, visao: VISAO['/admin/despacho'] }),
+    desenhar: (dados, estado) => TelaDespacho.htmlDespacho(dados, {
+      ...estado, visao: VISAO['/admin/despacho'], selecionados: SEL_DESPACHO, entregadorDe: ENTREGADOR_DE,
+    }),
     erro: 'Não deu para carregar o despacho agora.',
   }
 
@@ -362,6 +374,68 @@ if (typeof document !== 'undefined') {
     if (ROTA === '/admin/cozinha' || ROTA === '/admin/bar') carregarTelaNativa(ROTA, true)
   }, 5000)
 
+  // ── Aviso do topo ────────────────────────────────────────────────────────
+  // Faixa curta acima do conteúdo, como no painel. Sem ela o clique não devolve
+  // NADA e o lojista fica achando que o app travou.
+  let _avisoTimer = null
+  function avisar(texto, tom) {
+    const el = document.getElementById('eaviso')
+    if (!el) return
+    el.textContent = texto
+    el.className = 'on ' + (tom || 'ok')
+    clearTimeout(_avisoTimer)
+    _avisoTimer = setTimeout(() => { el.className = '' }, 4200)
+  }
+  window.mensagemTopo = (t) => avisar(t, 'aviso')
+
+  /** Leva para a tela do painel onde a ação acontece (a BrowserView entra na frente). */
+  function irPara(rota, oQue) {
+    if (DEMO) {
+      avisar('No modo demonstração o painel não abre — no app conectado, este botão leva a '
+        + rota + (oQue ? ' para ' + oQue : '') + '.', 'aviso')
+      return
+    }
+    avisar('Abrindo o painel' + (oQue ? ' para ' + oQue : '') + '…', 'ok')
+    ipcRenderer.invoke('abrir-rota', rota).then((r) => {
+      if (!r || !r.ok) avisar('Não deu para abrir o painel agora.', 'erro')
+    }).catch(() => avisar('Não deu para abrir o painel agora.', 'erro'))
+  }
+
+  /** Impressão de comanda — é da MÁQUINA, então o app faz de verdade. */
+  function imprimirComanda(botao, pedido) {
+    const antes = botao.textContent
+    botao.textContent = 'imprimindo…'
+    ipcRenderer.invoke('impressao-comanda', pedido ? { pedido } : undefined).then((r) => {
+      const ok = !!(r && r.ok)
+      botao.textContent = ok ? '✓ enviado à impressora' : '✗ não imprimiu'
+      avisar(ok ? 'Comanda enviada à impressora.' : 'Não deu para imprimir — confira a impressora em Impressão.', ok ? 'ok' : 'erro')
+      setTimeout(() => { botao.textContent = antes }, 3500)
+    }).catch(() => {
+      botao.textContent = '✗ não imprimiu'
+      avisar('Não deu para imprimir — confira a impressora em Impressão.', 'erro')
+      setTimeout(() => { botao.textContent = antes }, 3500)
+    })
+  }
+
+  /** PDF da tela aberta — o Electron imprime a própria janela, sem passar pelo servidor. */
+  function salvarPdf(botao) {
+    const antes = botao ? botao.textContent : ''
+    if (botao) botao.textContent = 'gerando…'
+    const alvo = document.getElementById('econtent')
+    ipcRenderer.invoke('relatorio-pdf', {
+      titulo: tituloDaRota(MENU, ROTA), rota: ROTA,
+      html: alvo ? alvo.innerHTML : '',
+    }).then((r) => {
+      if (botao) botao.textContent = antes
+      if (r && r.ok) avisar('PDF salvo em ' + r.caminho, 'ok')
+      else if (r && r.cancelado) avisar('Salvamento cancelado.', 'aviso')
+      else avisar('Não deu para gerar o PDF.', 'erro')
+    }).catch(() => {
+      if (botao) botao.textContent = antes
+      avisar('Não deu para gerar o PDF.', 'erro')
+    })
+  }
+
   // ── Ficha (painel lateral) ───────────────────────────────────────────────
   // Abre ao clicar numa linha, num cartão do quadro ou numa mesa. Painel, não página:
   // no balcão se abre um pedido e se volta para a lista em seguida.
@@ -380,12 +454,26 @@ if (typeof document !== 'undefined') {
   function acharNoDado(chave) {
     const d = DADOS_TELA
     if (!d) return null
-    const listas = [d.itens, d.mesas, d.produtos, d.contas].filter(Array.isArray)
+    const listas = [d.itens, d.mesas, d.produtos, d.contas, d.prontos, d.repor, d.avulsos].filter(Array.isArray)
     for (const lista of listas) {
       const achado = lista.find((x) => String(x.numero || x.nome || x.telefone || x.codigo || x.descricao || x.pedido) === String(chave))
       if (achado) return achado
     }
     return null
+  }
+
+  /** Ficha do pedido a partir do cartão do KDS (o dado da fila tem outro formato). */
+  function abrirFichaKds(numero) {
+    const p = ((DADOS_TELA && DADOS_TELA.pedidos) || []).find((x) => String(x.numero) === String(numero))
+    if (!p) return
+    abrirFicha('Pedido #' + String(p.numero).padStart(4, '0'), Ficha.fichaPedido({
+      numero: p.numero, cliente: p.cliente, canal: p.mesa ? 'Mesa ' + p.mesa : (p.tipo || ''),
+      etapa: 'producao', valor: 0,
+      itens: (p.itens || []).map((i) => i.qtd + '× ' + i.nome
+        + ((i.sabores || []).length ? ' (' + i.sabores.map((s2) => s2.nome).join(', ') + ')' : '')
+        + (i.obs ? ' — ' + i.obs : '')),
+      obs: p.obs || '',
+    }))
   }
 
   function abrirFichaDe(chave) {
@@ -483,6 +571,48 @@ if (typeof document !== 'undefined') {
     if (btAbaRel) {
       ABA_REL = btAbaRel.getAttribute('data-aba-rel')
       redesenharTelaAtual()
+      return
+    }
+    // ── Despacho: seleção. É estado de TELA, então o app faz de verdade — sem isso
+    // a caixa marcava e desmarcava sozinha a cada redesenho.
+    const cxBairro = e.target.closest ? e.target.closest('[data-sel-bairro]') : null
+    if (cxBairro) {
+      const bairro = cxBairro.getAttribute('data-sel-bairro')
+      const doBairro = ((DADOS_TELA && DADOS_TELA.prontos) || [])
+        .filter((p) => (p.bairro || 'Sem bairro') === bairro).map((p) => String(p.pedido))
+      const todosJa = doBairro.every((n) => SEL_DESPACHO.indexOf(n) >= 0)
+      SEL_DESPACHO = todosJa
+        ? SEL_DESPACHO.filter((n) => doBairro.indexOf(n) < 0)
+        : SEL_DESPACHO.concat(doBairro.filter((n) => SEL_DESPACHO.indexOf(n) < 0))
+      redesenharTelaAtual()
+      return
+    }
+    const cxPedido = e.target.closest ? e.target.closest('[data-sel]') : null
+    if (cxPedido) {
+      const n = cxPedido.getAttribute('data-sel')
+      const i = SEL_DESPACHO.indexOf(n)
+      SEL_DESPACHO = i >= 0 ? SEL_DESPACHO.filter((x) => x !== n) : SEL_DESPACHO.concat([n])
+      redesenharTelaAtual()
+      return
+    }
+    // ── Campanhas: escolher o perfil muda a audiência (o número já vem por perfil).
+    const cartaoPerfil = e.target.closest ? e.target.closest('[data-perfil-campanha]') : null
+    if (cartaoPerfil) {
+      const chave = cartaoPerfil.getAttribute('data-perfil-campanha')
+      PERFIL_CAMPANHA = PERFIL_CAMPANHA === chave ? null : chave
+      redesenharTelaAtual()
+      return
+    }
+    // ── KDS e cardápio: clicar no cartão abre a ficha, como nas listas.
+    const cartaoKds = e.target.closest ? e.target.closest('[data-pedido-kds]') : null
+    if (cartaoKds && !e.target.closest('[data-acao]')) {
+      abrirFichaKds(cartaoKds.getAttribute('data-pedido-kds'))
+      return
+    }
+    const itemCardapio = e.target.closest ? e.target.closest('[data-item]') : null
+    if (itemCardapio && !e.target.closest('[data-acao]')) {
+      const produto = acharNoDado(itemCardapio.getAttribute('data-item'))
+      if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto))
       return
     }
     const btSubGestao = e.target.closest ? e.target.closest('[data-subgestao]') : null
@@ -598,8 +728,23 @@ if (typeof document !== 'undefined') {
       }
     }
     if (btAcao) {
-      // Ações de escrita ainda vivem no painel: em vez de fingir que fazem, dizem onde estão.
-      window.mensagemTopo && window.mensagemTopo('Esta ação ainda é feita pelo painel.')
+      // Cada ação tem um destino declarado em acoes.js. Se depende do servidor, o app
+      // ABRE a tela certa do painel — o clique leva ao lugar da ação, em vez de morrer
+      // num recado. Se é da máquina (impressora, PDF) ou só muda a tela, o app faz.
+      const destino = Acoes.destinoDe(acao)
+      if (destino && destino.app === 'comanda') { imprimirComanda(btAcao, acharNoDado(acao.split(':').pop())); return }
+      if (destino && destino.app === 'pdf') { salvarPdf(btAcao); return }
+      if (destino && destino.app === 'recarregar') { carregarTelaNativa(ROTA); return }
+      if (destino && destino.app === 'limpar-selecao') { SEL_DESPACHO = []; redesenharTelaAtual(); return }
+      if (destino && destino.app === 'nf-limpar') { avisar('Os filtros da nota são do painel — aqui a lista vem inteira.', 'aviso'); return }
+      if (destino && destino.app === 'ordenar-clientes') {
+        ORDEM_CLIENTES = ORDEM_CLIENTES === 'gasto' ? 'recencia' : 'gasto'
+        avisar(ORDEM_CLIENTES === 'gasto' ? 'Ordenado por quanto gastou.' : 'Ordenado por quem comprou mais recente.', 'ok')
+        redesenharTelaAtual()
+        return
+      }
+      if (destino && destino.rota) { irPara(destino.rota, destino.o); return }
+      avisar('Esta ação ainda é feita pelo painel.', 'aviso')
       return
     }
     const btPeriodo = e.target.closest ? e.target.closest('[data-periodo]') : null
@@ -669,6 +814,12 @@ if (typeof document !== 'undefined') {
       if (novoCampo) { novoCampo.focus(); try { novoCampo.setSelectionRange(pos2, pos2) } catch (x) {} }
       return
     }
+    // Compras: o que o lojista digita no item avulso precisa sobreviver ao redesenho.
+    const campoAvulso = e.target && e.target.getAttribute && e.target.getAttribute('data-compra-avulsa')
+    if (campoAvulso) {
+      AVULSO[campoAvulso] = e.target.value
+      return
+    }
     if (e.target && e.target.getAttribute && e.target.getAttribute('data-busca-bloco')) {
       const id = e.target.getAttribute('data-busca-bloco')
       BUSCA_BLOCO[id] = e.target.value
@@ -687,6 +838,15 @@ if (typeof document !== 'undefined') {
       const novo = document.getElementById('listaBusca')
       if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos) } catch (x) {} }
     }
+  })
+
+  // O <select> de entregador do Despacho guarda a escolha: sem isso ele voltava para
+  // "— entregador —" no primeiro redesenho, e quem despacha achava que não salvou.
+  document.addEventListener('change', (e) => {
+    const sel = e.target && e.target.getAttribute && e.target.getAttribute('data-entregador-de')
+    if (!sel) return
+    ENTREGADOR_DE[sel] = e.target.value
+    if (e.target.value) avisar('Pedido #' + sel + ' com ' + e.target.value + '. Despachar ainda é pelo painel.', 'ok')
   })
 
   document.addEventListener('keydown', (e) => {

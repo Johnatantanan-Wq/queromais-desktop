@@ -31,8 +31,8 @@ test('cada pedido tem caixa de seleção e select de entregador', () => {
 
 test('pedido pago mostra PAGO; a receber mostra o valor a cobrar', () => {
   const h = D.htmlDespacho(dados, { visao: 'bairro' })
-  const linhaPago = h.split('data-pedido-linha="7"')[1].split('data-pedido-linha=')[0]
-  const linhaReceber = h.split('data-pedido-linha="10"')[1].split('data-pedido-linha=')[0]
+  const linhaPago = h.split('data-linha="7"')[1].split('data-linha=')[0]
+  const linhaReceber = h.split('data-linha="10"')[1].split('data-linha=')[0]
   assert.ok(/PAGO/.test(linhaPago))
   assert.ok(/A RECEBER/.test(linhaReceber) && /66,97/.test(linhaReceber))
 })

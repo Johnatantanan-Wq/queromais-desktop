@@ -51,14 +51,19 @@ function selo(p) {
     + esc(brl(p.valor)) + '</span></div>'
 }
 
-function linhaPedido(p, entregadores) {
+function linhaPedido(p, entregadores, estado) {
+  estado = estado || {}
   const atrasado = p.esperaMin > LIMITE_ESPERA
-  const opcoes = ['<option value="">— entregador —</option>']
-    .concat((entregadores || []).map((e) => '<option value="' + esc(e) + '">' + esc(e) + '</option>')).join('')
-  return '<div data-pedido-linha="' + esc(p.pedido) + '" style="display:grid;'
+  const marcado = (estado.selecionados || []).indexOf(String(p.pedido)) >= 0
+  const escolhido = (estado.entregadorDe || {})[String(p.pedido)] || ''
+  const opcoes = ['<option value=""' + (escolhido ? '' : ' selected') + '>— entregador —</option>']
+    .concat((entregadores || []).map((e) => '<option value="' + esc(e) + '"'
+      + (e === escolhido ? ' selected' : '') + '>' + esc(e) + '</option>')).join('')
+  return '<div data-linha="' + esc(p.pedido) + '" style="display:grid;'
     + 'grid-template-columns:34px 16px 70px 1fr 90px 190px 120px 190px 120px;align-items:center;gap:10px;'
-    + 'padding:10px 14px;border-bottom:1px solid #f0f0ee;background:#fff">'
-    + '<input type="checkbox" data-sel="' + esc(p.pedido) + '" style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
+    + 'padding:10px 14px;border-bottom:1px solid #f0f0ee;background:' + (marcado ? 'var(--acento-suave)' : '#fff') + '">'
+    + '<input type="checkbox" data-sel="' + esc(p.pedido) + '"' + (marcado ? ' checked' : '')
+    + ' style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
     + '<span style="width:9px;height:9px;border-radius:50%;background:' + (atrasado ? '#b42318' : '#c9c6bd') + ';display:inline-block"></span>'
     + '<span style="font-size:13px;font-weight:800;color:#111">#' + esc(p.pedido) + '</span>'
     + '<span style="font-size:13px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.cliente) + '</span>'
@@ -78,6 +83,11 @@ function htmlDespacho(dados, estado) {
       + 'Quando o app falar com o painel, a fila de entregas aparece aqui.</div></div>'
   }
   const visao = estado.visao === 'lista' ? 'lista' : 'bairro'
+  const selecionados = (estado.selecionados || []).filter((n) =>
+    (dados.prontos || []).some((p) => String(p.pedido) === String(n)))
+  const totalSelecionado = (dados.prontos || [])
+    .filter((p) => selecionados.indexOf(String(p.pedido)) >= 0)
+    .reduce((s2, p) => s2 + (Number(p.valor) || 0), 0)
   const prontos = dados.prontos || []
   const transito = dados.emTransito || []
   const entregadores = dados.entregadores || []
@@ -101,8 +111,10 @@ function htmlDespacho(dados, estado) {
     fila = Object.keys(porBairro).sort().map((bairro) => {
       const lista = porBairro[bairro]
       const total = lista.reduce((s, p) => s + (Number(p.valor) || 0), 0)
+      const todosDoBairro = lista.every((p) => (estado.selecionados || []).indexOf(String(p.pedido)) >= 0)
       return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f6f6f4;border-bottom:1px solid #ebebe8">'
-        + '<input type="checkbox" data-sel-bairro="' + esc(bairro) + '" style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
+        + '<input type="checkbox" data-sel-bairro="' + esc(bairro) + '"' + (todosDoBairro ? ' checked' : '')
+        + ' style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
         + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(bairro) + '</span>'
         + '<span style="font-size:12px;color:#6b7280;font-weight:600">' + lista.length
         + (lista.length === 1 ? ' pedido' : ' pedidos') + ' · ' + esc(brl(total)) + '</span>'
@@ -110,10 +122,10 @@ function htmlDespacho(dados, estado) {
           ? '<span style="margin-left:auto">' + botao('despachar-bairro:' + bairro, 'Despachar ' + lista.length + ' deste bairro', true, true) + '</span>'
           : '')
         + '</div>'
-        + lista.map((p) => linhaPedido(p, entregadores)).join('')
+        + lista.map((p) => linhaPedido(p, entregadores, estado)).join('')
     }).join('')
   } else {
-    fila = prontos.map((p) => linhaPedido(p, entregadores)).join('')
+    fila = prontos.map((p) => linhaPedido(p, entregadores, estado)).join('')
   }
 
   // ── em trânsito: um cartão por entregador, com o acerto ──
@@ -143,6 +155,16 @@ function htmlDespacho(dados, estado) {
     + chip('data-visao', 'lista', 'Lista', visao === 'lista')
     + botao('despachar-rota', '🛵 Despachar em rota', true)
     + '</div></div>'
+    + (selecionados.length
+      ? '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:12px;'
+        + 'background:var(--acento-suave);border:1px solid var(--acento-linha);border-radius:10px">'
+        + '<span style="font-size:12.5px;font-weight:800;color:var(--acento-texto)">' + selecionados.length
+        + (selecionados.length === 1 ? ' pedido selecionado' : ' pedidos selecionados')
+        + ' · ' + esc(brl(totalSelecionado)) + '</span>'
+        + '<span style="margin-left:auto;display:flex;gap:8px">'
+        + botao('despachar-selecionados', 'Despachar selecionados', true, true)
+        + botao('limpar-selecao', 'Limpar seleção', false, true) + '</span></div>'
+      : '')
     + '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">' + fila + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
     + 'despachar e confirmar entrega ainda são pelo painel</div></div>'

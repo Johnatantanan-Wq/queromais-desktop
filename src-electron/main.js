@@ -510,6 +510,16 @@ async function createWindow() {
     })
     if (!DEMO) monitorRede.iniciar()
 
+    // "Imprimir / Salvar PDF" é do APP (não do painel): imprime o pedaço de conteúdo da
+    // tela nativa numa janela oculta. Vale no modo demonstração e no app conectado.
+    require('./relatorio-pdf').registrar({
+      ipcMain, BrowserWindow, dialog: require('electron').dialog,
+      appDir: path.join(__dirname, '..'),
+      pastaPadrao: app.getPath('downloads'),
+      nomeLoja: () => (dadosDemo ? dadosDemo.menu().loja.nome : (getConfig().lojaNome || brand.nome_delivery)),
+      log,
+    })
+
     // qualquer rota de leitura do painel, pela view logada
     const pedirTela = async (caminho) => {
       const wc = global.cardapioView?.webContents
