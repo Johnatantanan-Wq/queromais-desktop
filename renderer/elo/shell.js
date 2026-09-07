@@ -63,6 +63,7 @@ if (typeof document !== 'undefined') {
   let MENU = null
   let ROTA = '/admin'
   let ONLINE = false
+  let VIEW = 'cardapio'
 
   const $ = (id) => document.getElementById(id)
 
@@ -100,17 +101,26 @@ if (typeof document !== 'undefined') {
     ipcRenderer.send('sidebar-largura', recolhido ? 76 : 252)
   })
 
-  $('jbMin').addEventListener('click', () => ipcRenderer.send('janela-minimizar'))
-  $('jbMax').addEventListener('click', () => ipcRenderer.send('janela-maximizar'))
-  $('jbFechar').addEventListener('click', () => ipcRenderer.send('janela-fechar'))
-  $('chipSplit').addEventListener('click', () => ipcRenderer.send('trocar-view', 'split'))
-  $('btnWhats').addEventListener('click', () => ipcRenderer.send('trocar-view', 'whatsapp'))
+  // canais que o main já tem desde a v1 (main.js:628-647) — o shell novo reusa,
+  // em vez de criar um segundo jeito de fazer a mesma coisa
+  $('jbMin').addEventListener('click', () => ipcRenderer.send('window-minimize'))
+  $('jbMax').addEventListener('click', () => ipcRenderer.send('window-maximize'))
+  $('jbFechar').addEventListener('click', () => ipcRenderer.send('window-close'))
+  $('chipSplit').addEventListener('click', () => {
+    VIEW = VIEW === 'split' ? 'cardapio' : 'split'
+    ipcRenderer.send('change-view', { view: VIEW })
+  })
+  $('btnWhats').addEventListener('click', () => {
+    VIEW = VIEW === 'whatsapp' ? 'cardapio' : 'whatsapp'
+    ipcRenderer.send('change-view', { view: VIEW })
+  })
 
   ipcRenderer.on('rota-mudou', (e, rota) => { ROTA = rota; pintar() })
   ipcRenderer.on('rede-mudou', (e, online) => { ONLINE = online; pintar(); if (online) carregarMenu() })
-  ipcRenderer.on('view-mudou', (e, qual) => {
-    $('chipSplit').className = 'echip' + (qual === 'split' ? ' on' : '')
-    $('btnWhats').className = 'eiconbtn' + (qual === 'whatsapp' ? ' on' : '')
+  ipcRenderer.on('view-changed', (e, a) => {
+    VIEW = (a && a.view) || 'cardapio'
+    $('chipSplit').className = 'echip' + (VIEW === 'split' ? ' on' : '')
+    $('btnWhats').className = 'eiconbtn' + (VIEW === 'whatsapp' ? ' on' : '')
   })
 
   $('tbNome').textContent = brand.nome_app
