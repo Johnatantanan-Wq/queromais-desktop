@@ -178,7 +178,8 @@ function menu() {
   }
 }
 
-/** Um turno de caixa com venda, sangria, suprimento e uma estornada. */
+/** Um turno de caixa como o das lojas abertas: formas reais (dinheiro, pix,
+ *  cartao_entrega), contas de mesa em aberto e entregas a confirmar. */
 function caixa() {
   const hoje = new Date()
   const hora = (h, m) => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), h, m).toISOString()
@@ -189,13 +190,35 @@ function caixa() {
       vendaAReceber: 180.00, suprimentos: 50, sangrias: 300, ajustes: 0,
     },
     esperadoDinheiro: 742.50,
+    temMesas: true,
     movimentacoes: [
       { id: 'd1', tipo: 'venda', forma: 'pix', valor: 89.90, descricao: 'Pedido #1042 — Maria S.', criadoEm: hora(20, 12), estornada: false },
       { id: 'd2', tipo: 'venda', forma: 'dinheiro', valor: 54.00, descricao: 'Pedido #1041 — balcão', criadoEm: hora(20, 5), estornada: false },
       { id: 'd3', tipo: 'sangria', forma: null, valor: 300.00, descricao: 'Retirada para o cofre', criadoEm: hora(19, 40), estornada: false },
-      { id: 'd4', tipo: 'venda', forma: 'credito', valor: 128.50, descricao: 'Pedido #1039 — mesa 7', criadoEm: hora(19, 22), estornada: true },
+      { id: 'd4', tipo: 'venda', forma: 'cartao_entrega', valor: 128.50, descricao: 'Pedido #1039 — mesa 7', criadoEm: hora(19, 22), estornada: true },
       { id: 'd5', tipo: 'suprimento', forma: 'dinheiro', valor: 50.00, descricao: 'Troco do turno', criadoEm: hora(18, 0), estornada: false },
       { id: 'd6', tipo: 'venda', forma: 'dinheiro', valor: 788.50, descricao: 'Vendas do almoço (consolidado)', criadoEm: hora(14, 30), estornada: false },
+    ],
+    // contas de mesa abertas — o que precisa fechar antes de o caixa fechar
+    mesas: [
+      { mesa: '2', abertaHa: 22, consumo: 96.40, garcom: 'Ana', pedidos: 2 },
+      { mesa: '4', abertaHa: 61, consumo: 312.80, garcom: 'Bruno', pedidos: 6 },
+      { mesa: '7', abertaHa: 48, consumo: 128.50, garcom: 'Ana', pedidos: 3 },
+      { mesa: '9', abertaHa: 95, consumo: 214.90, garcom: 'Bruno', pedidos: 5 },
+      { mesa: '10', abertaHa: 15, consumo: 78.00, garcom: 'Carla', pedidos: 1 },
+    ],
+    // entregas já entregues cujo dinheiro ninguém confirmou (a checagem que o painel
+    // faz ao fechar: sem isso a venda fica fora do caixa)
+    entregas: [
+      { pedido: '1040', cliente: 'Carla Nunes', entregador: 'Tiago', forma: 'dinheiro', valor: 132.40, saiuHa: 22 },
+      { pedido: '1034', cliente: 'Sandra Reis', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88.00, saiuHa: 35 },
+      { pedido: '1033', cliente: 'Otávio Brito', entregador: 'Tiago', forma: 'dinheiro', valor: 64.90, saiuHa: 48 },
+    ],
+    historico: [
+      { id: 'h1', aberto: '06/09 08:00', fechado: '06/09 23:40', operador: 'Ana Paula', vendas: 4210.00, diferenca: -12.50 },
+      { id: 'h2', aberto: '05/09 08:10', fechado: '05/09 23:20', operador: 'Bruno Alves', vendas: 3980.70, diferenca: 0 },
+      { id: 'h3', aberto: '04/09 08:05', fechado: '04/09 22:50', operador: 'Ana Paula', vendas: 2450.30, diferenca: 8.00 },
+      { id: 'h4', aberto: '03/09 08:00', fechado: '03/09 23:10', operador: 'Carla Dias', vendas: 3010.90, diferenca: -3.20 },
     ],
   }
 }

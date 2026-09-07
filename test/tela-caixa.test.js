@@ -25,12 +25,12 @@ test('caixa fechado não inventa número: mostra o estado', () => {
 })
 
 test('movimentação estornada aparece marcada', () => {
-  const h = htmlDoCaixa(dados, { online: true, ts: Date.now() })
+  const h = htmlDoCaixa(dados, { online: true, ts: Date.now(), subaba: 'movimentacoes' })
   assert.ok(/estornad/i.test(h))
 })
 
 test('dado do cache mostra a idade, nunca se passa por atual', () => {
-  const h = htmlDoCaixa(dados, { online: false, ts: Date.now() - 2 * 60 * 60 * 1000 })
+  const h = htmlDoCaixa(dados, { online: false, ts: Date.now() - 2 * 60 * 60 * 1000, subaba: 'movimentacoes' })
   assert.ok(/h[áa] 2 h/i.test(h), 'devia dizer há 2 h: ' + h.slice(0, 300))
 })
 

@@ -1,0 +1,85 @@
+const { test } = require('node:test')
+const assert = require('node:assert')
+const C = require('../renderer/elo/tela-caixa')
+
+const base = {
+  aberto: { id: 'c1', abertoEm: '2026-09-07T08:00:00Z', abertoPor: 'Ana', fundoInicial: 150 },
+  resumo: { vendaDinheiro: 842.5, vendaPix: 1310, vendaCartao: 2145.9, vendaAReceber: 180, suprimentos: 50, sangrias: 300, ajustes: 0 },
+  esperadoDinheiro: 742.5,
+  movimentacoes: [{ id: 'm1', tipo: 'venda', forma: 'dinheiro', valor: 54, descricao: 'Pedido #1041', criadoEm: '2026-09-07T20:05:00Z', estornada: false }],
+  mesas: [
+    { mesa: '7', abertaHa: 48, consumo: 128.5, garcom: 'Ana', pedidos: 3 },
+    { mesa: '9', abertaHa: 95, consumo: 214.9, garcom: 'Bruno', pedidos: 5 },
+  ],
+  entregas: [
+    { pedido: '1040', cliente: 'Carla N.', entregador: 'Tiago', forma: 'dinheiro', valor: 132.4, saiuHa: 22 },
+    { pedido: '1034', cliente: 'Sandra R.', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88, saiuHa: 35 },
+  ],
+  historico: [
+    { id: 'h1', aberto: '06/09 08:00', fechado: '06/09 23:40', operador: 'Ana', vendas: 4210, diferenca: -12.5 },
+    { id: 'h2', aberto: '05/09 08:10', fechado: '05/09 23:20', operador: 'Bruno', vendas: 3980, diferenca: 0 },
+  ],
+  temMesas: true,
+}
+
+test('as duas abas do caixa aparecem: atual e histórico', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now() })
+  assert.ok(h.includes('data-aba="atual"') && h.includes('data-aba="historico"'))
+})
+
+test('no caixa atual, as três subabas: mesas, delivery e movimentações', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual' })
+  assert.ok(h.includes('data-subaba="mesas"'))
+  assert.ok(h.includes('data-subaba="delivery"'))
+  assert.ok(h.includes('data-subaba="movimentacoes"'))
+})
+
+test('loja sem mesa não mostra a subaba de mesas', () => {
+  const h = C.htmlDoCaixa({ ...base, temMesas: false }, { online: true, ts: Date.now(), aba: 'atual' })
+  assert.ok(!h.includes('data-subaba="mesas"'))
+  assert.ok(h.includes('data-subaba="delivery"'))
+})
+
+test('a subaba Mesas lista as contas abertas com consumo e tempo', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'mesas' })
+  assert.ok(h.includes('Mesa 9') && h.includes('214,90'))
+  assert.ok(/1 h 35/.test(h), 'mesa aberta há 95 min deve mostrar 1 h 35')
+})
+
+test('a subaba Delivery lista as entregas a confirmar, com a forma de pagamento', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  assert.ok(h.includes('#1040') && h.includes('Tiago'))
+  assert.ok(/dinheiro/i.test(h) && /cart[ãa]o na entrega/i.test(h))
+})
+
+test('caixa fechado avisa que mesas e delivery precisam do caixa aberto', () => {
+  const h = C.htmlDoCaixa({ ...base, aberto: null }, { online: true, ts: Date.now(), aba: 'atual', subaba: 'mesas' })
+  assert.ok(/caixa está fechado|abra o caixa/i.test(h))
+})
+
+test('o histórico traz os turnos com diferença, e a sobra/falta em destaque', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'historico' })
+  assert.ok(h.includes('06/09') && h.includes('Ana'))
+  assert.ok(/b42318/.test(h), 'diferença negativa precisa aparecer em vermelho')
+})
+
+test('o dinheiro que está na rua aparece no caixa atual', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual' })
+  assert.ok(/na rua|em rota/i.test(h))
+})
+
+test('o alerta de dinheiro na rua explica a consequência de fechar assim', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual' })
+  assert.ok(/na rua, a confirmar/i.test(h))
+  assert.ok(/deixa essa venda de fora/i.test(h), 'precisa dizer o que acontece se fechar assim')
+})
+
+test('sem entrega pendente, o alerta não aparece', () => {
+  const h = C.htmlDoCaixa({ ...base, entregas: [] }, { online: true, ts: Date.now(), aba: 'atual' })
+  assert.ok(!/na rua, a confirmar/i.test(h))
+})
+
+test('os quatro KPIs de conferência continuam lá', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual' })
+  for (const t of ['Esperado em dinheiro', 'Vendas em dinheiro', 'Pix', 'Cartão']) assert.ok(h.includes(t), 'falta o KPI ' + t)
+})

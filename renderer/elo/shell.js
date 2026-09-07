@@ -115,6 +115,7 @@ if (typeof document !== 'undefined') {
   const FILTRO = {}             // filtro escolhido, por rota
   const TERMO = {}              // busca digitada, por rota
   const ABA = {}                // aba escolhida, por rota
+  const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let EXTRAS_PEDIDOS = false    // colunas de entrega no quadro
   let DADOS_TELA = null         // último dado da tela nativa aberta (troca de métrica não refaz consulta)
@@ -172,7 +173,7 @@ if (typeof document !== 'undefined') {
     },
     '/admin/caixa': {
       canal: 'caixa-carregar',
-      desenhar: (dados, estado) => TelaCaixa.htmlDoCaixa(dados, estado),
+      desenhar: (dados, estado) => TelaCaixa.htmlDoCaixa(dados, { ...estado, aba: ABA['/admin/caixa'], subaba: SUBABA['/admin/caixa'] }),
       erro: 'Não deu para carregar o caixa agora.',
     },
   }
@@ -324,6 +325,12 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btSubaba = e.target.closest ? e.target.closest('[data-subaba]') : null
+    if (btSubaba) {
+      SUBABA[ROTA] = btSubaba.getAttribute('data-subaba')
+      redesenharTelaAtual()
+      return
+    }
     const btAba = e.target.closest ? e.target.closest('[data-aba]') : null
     if (btAba) {
       ABA[ROTA] = btAba.getAttribute('data-aba')
