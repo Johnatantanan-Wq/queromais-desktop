@@ -450,17 +450,36 @@ function listas() {
 /** Telas de operação: produção (cozinha/bar) e salão. */
 function operacao() {
   return {
-    cozinha: { itens: [
-      { pedido: '1043', item: '1x Pizza Portuguesa G', obs: 'sem azeitona', estado: 'fazer', esperaMin: 2, canal: 'Delivery' },
-      { pedido: '1038', item: '1x Pizza Calabresa M', obs: '', estado: 'fazer', esperaMin: 12, canal: 'Delivery' },
-      { pedido: '1042', item: '1x Pizza Calabresa G', obs: 'bem passada', estado: 'fazendo', esperaMin: 8, canal: 'Delivery' },
-      { pedido: '1039', item: '2x Pizza Portuguesa G', obs: 'uma sem cebola', estado: 'fazendo', esperaMin: 22, canal: 'Mesa 7' },
-      { pedido: '1041', item: '1x Pizza Chocolate M', obs: '', estado: 'pronto', esperaMin: 4, canal: 'Balcão' },
+    cozinha: { acessoTv: { definido: true, dispositivos: 1 }, pedidos: [
+      { numero: 1043, tipo: 'entrega', mesa: null, cliente: 'Marina Prado', esperaMin: 2, obs: null, itens: [
+        { id: 'c1', qtd: 1, nome: 'Pizza Grande - 8 fatias', sabores: [{ nome: 'Portuguesa' }, { nome: 'Calabresa' }], obs: 'sem azeitona', estado: 'pendente' },
+        { id: 'c2', qtd: 1, nome: 'Batata Frita (300g)', sabores: [], obs: null, estado: 'pendente' },
+      ] },
+      { numero: 1042, tipo: 'entrega', mesa: null, cliente: 'Rafael Souza', esperaMin: 8, obs: 'entregar na portaria', itens: [
+        { id: 'c3', qtd: 1, nome: 'Pizza Média - 6 fatias', sabores: [{ nome: 'Calabresa' }, { grupo: 'Borda', nome: 'Catupiry' }], obs: 'bem passada', estado: 'preparando' },
+      ] },
+      { numero: 1039, tipo: 'consumo_local', mesa: '7', cliente: 'Mesa 7', esperaMin: 22, obs: null, itens: [
+        { id: 'c4', qtd: 2, nome: 'Pizza Grande - 8 fatias', sabores: [{ nome: 'Portuguesa' }], obs: 'uma sem cebola', estado: 'preparando' },
+        { id: 'c5', qtd: 1, nome: 'Moqueca de Peixe', sabores: [], obs: null, estado: 'pronto' },
+      ] },
+      { numero: 1041, tipo: 'retirada', mesa: null, cliente: 'Johnatan', esperaMin: 4, obs: null, itens: [
+        { id: 'c6', qtd: 1, nome: 'Pizza Média - 6 fatias', sabores: [{ nome: 'Chocolate com morango' }], obs: null, estado: 'pronto' },
+      ] },
+      { numero: 1037, tipo: 'consumo_local', mesa: '14', cliente: 'Mesa 14', esperaMin: 61, obs: null, itens: [
+        { id: 'c7', qtd: 1, nome: 'X Egg Bacon', sabores: [{ grupo: 'Carne', nome: '75g' }], obs: null, estado: 'pendente' },
+      ] },
     ] },
-    bar: { itens: [
-      { pedido: '1043', item: '1x Refrigerante 2L', obs: 'gelado', estado: 'fazer', esperaMin: 2, canal: 'Delivery' },
-      { pedido: '1040', item: '1x Cerveja long neck', obs: '', estado: 'fazendo', esperaMin: 5, canal: 'Delivery' },
-      { pedido: '1039', item: '2x Suco de laranja', obs: 'sem açúcar', estado: 'pronto', esperaMin: 3, canal: 'Mesa 7' },
+    bar: { acessoTv: { definido: false, dispositivos: 0 }, pedidos: [
+      { numero: 1043, tipo: 'entrega', mesa: null, cliente: 'Marina Prado', esperaMin: 2, obs: null, itens: [
+        { id: 'b1', qtd: 1, nome: 'Refrigerante (2 L)', sabores: [{ nome: 'Guaraná' }], obs: 'gelado', estado: 'pendente' },
+      ] },
+      { numero: 1040, tipo: 'entrega', mesa: null, cliente: 'Camila Dias', esperaMin: 5, obs: null, itens: [
+        { id: 'b2', qtd: 1, nome: 'Cerveja (600 ml)', sabores: [{ nome: 'Skol' }], obs: null, estado: 'preparando' },
+      ] },
+      { numero: 1039, tipo: 'consumo_local', mesa: '7', cliente: 'Mesa 7', esperaMin: 22, obs: null, itens: [
+        { id: 'b3', qtd: 2, nome: 'Suco de laranja', sabores: [], obs: 'sem açúcar', estado: 'pronto' },
+        { id: 'b4', qtd: 1, nome: 'Água de Coco', sabores: [], obs: null, estado: 'pronto' },
+      ] },
     ] },
     salao: { mesas: [
       { numero: '1', lugares: 4, situacao: 'Livre', desdeMin: 0, consumo: 0, garcom: null },

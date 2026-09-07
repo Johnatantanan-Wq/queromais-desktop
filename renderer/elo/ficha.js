@@ -112,4 +112,27 @@ function fichaProduto(p) {
     + '</div>'
 }
 
-module.exports = { painel, fichaPedido, fichaCliente, fichaProduto, brl }
+/**
+ * Acesso pela TV (KDS) — o painel gera um código de 6 dígitos que pareia a TV da cozinha
+ * com a fila SEM login. O código em claro só aparece na hora de gerar (depois só o hash
+ * fica guardado), então gerar é ação de escrita: aqui a ficha explica e manda ao painel.
+ */
+function fichaAcessoTv(estado) {
+  estado = estado || {}
+  const link = (estado.dominioCardapio || '') + '/kds'
+  return '<p style="font-size:12.5px;color:#6b7280;font-weight:500;line-height:1.6;margin:0 0 18px">'
+    + 'Deixe a fila de produção ligada sozinha numa TV ou tablet da cozinha, sem precisar logar. '
+    + 'Abra <strong style="color:#111">' + esc(link) + '</strong> na tela e digite o código de 6 dígitos.</p>'
+    + bloco('Como está agora',
+      linha('Código de pareamento', estado.definido ? 'já existe' : 'ainda não gerado', true)
+      + linha('Telas conectadas', String(estado.dispositivos != null ? estado.dispositivos : '—')))
+    + bloco('Atenção',
+      '<div style="font-size:12.5px;font-weight:700;color:#8a6508;background:#fff9e8;border-radius:8px;padding:10px 12px;line-height:1.5">'
+      + 'O código aparece uma única vez, no momento em que é gerado. Se ele se perder, o jeito é gerar outro.</div>')
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:4px">'
+    + botao('kds:gerar-codigo', 'Gerar código novo', true)
+    + botao('kds:revogar-telas', 'Desconectar todas as telas')
+    + '</div>'
+}
+
+module.exports = { painel, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

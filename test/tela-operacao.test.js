@@ -2,10 +2,16 @@ const { test } = require('node:test')
 const assert = require('node:assert')
 const O = require('../renderer/elo/tela-operacao')
 
-const kds = { itens: [
-  { pedido: '1042', item: '1x Pizza Calabresa G', obs: 'sem cebola', estado: 'fazer', esperaMin: 4, canal: 'Delivery' },
-  { pedido: '1039', item: '2x Pizza Portuguesa G', obs: '', estado: 'fazendo', esperaMin: 22, canal: 'Mesa 7' },
-  { pedido: '1041', item: '1x Pizza Chocolate M', obs: '', estado: 'pronto', esperaMin: 9, canal: 'Balcão' },
+const kds = { acessoTv: { definido: true, dispositivos: 2 }, pedidos: [
+  { numero: 1042, tipo: 'entrega', mesa: null, cliente: 'Rafael Souza', esperaMin: 4, obs: 'portaria', itens: [
+    { id: 'k1', qtd: 1, nome: 'Pizza Calabresa G', sabores: [{ nome: 'Calabresa' }], obs: 'sem cebola', estado: 'pendente' },
+  ] },
+  { numero: 1039, tipo: 'consumo_local', mesa: '7', cliente: 'Mesa 7', esperaMin: 82, obs: null, itens: [
+    { id: 'k2', qtd: 2, nome: 'Pizza Portuguesa G', sabores: [], obs: null, estado: 'preparando' },
+  ] },
+  { numero: 1041, tipo: 'retirada', mesa: null, cliente: 'Johnatan', esperaMin: 9, obs: null, itens: [
+    { id: 'k3', qtd: 1, nome: 'Pizza Chocolate M', sabores: [], obs: null, estado: 'pronto' },
+  ] },
 ] }
 
 const mesas = { mesas: [
@@ -14,24 +20,59 @@ const mesas = { mesas: [
   { numero: '9', lugares: 2, situacao: 'Conta pedida', desdeMin: 95, consumo: 214.9, garcom: 'Bruno' },
 ] }
 
-test('KDS: três colunas de produção com contagem', () => {
-  const h = O.htmlKds(kds, { titulo: 'Cozinha' })
-  assert.ok(h.includes('A fazer') && h.includes('Fazendo') && h.includes('Pronto'))
-  assert.ok(h.includes('Pizza Calabresa'))
+test('KDS: um cartão por PEDIDO, com o número no formato do painel', () => {
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  assert.ok(h.includes('#1042'), 'o número do pedido é o que a cozinha canta em voz alta')
+  assert.ok(h.includes('data-pedido-kds="1039"'))
+  assert.ok(h.includes('Pizza Calabresa G'))
 })
 
-test('KDS: item esperando demais fica em destaque', () => {
-  const h = O.htmlKds(kds, { titulo: 'Cozinha' })
-  const card = h.split('data-item="1039"')[1].slice(0, 500)
-  assert.ok(/b42318/.test(card), 'item parado há 22 min precisa gritar')
+test('KDS: a etiqueta do canal diz de onde veio o pedido', () => {
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  assert.ok(h.includes('DELIVERY') && h.includes('MESA 7') && h.includes('RETIRADA'))
+})
+
+test('KDS: cada item tem o botão do seu estado, e o pedido tem o "Pedido pronto"', () => {
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  assert.ok(h.includes('data-acao="kds:iniciar:k1"'), 'item pendente começa com Iniciar')
+  assert.ok(h.includes('data-acao="kds:pronto:k2"'), 'item em preparo vira Pronto')
+  assert.ok(/PRONTO<\/span>/.test(h), 'item já pronto não oferece botão')
+  assert.ok(h.includes('data-acao="kds:pedido-pronto:1042"'))
+})
+
+test('KDS: pedido todo pronto avisa e sai da frente', () => {
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  const cartao = h.split('data-pedido-kds="1041"')[1]
+  assert.ok(/Tudo pronto neste departamento/.test(cartao))
+  assert.ok(/opacity:\.6/.test(cartao.slice(0, 300)), 'cartão pronto fica apagado')
+})
+
+test('KDS: cozinha e bar são a mesma tela em cores diferentes', () => {
+  assert.ok(O.htmlKds(kds, { departamento: 'cozinha' }).includes('Fila de Produção — COZINHA'))
+  const bar = O.htmlKds(kds, { departamento: 'bar' })
+  assert.ok(bar.includes('Fila de Produção — BAR') && bar.includes('#7C3AED'))
+})
+
+test('KDS: contagem de pedidos e o acesso pela TV ficam no topo', () => {
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  assert.ok(h.includes('3 pedidos · atualiza a cada 5s'))
+  assert.ok(h.includes('data-acao="kds:tv"'))
 })
 
 test('KDS: observação do cliente aparece (é o que erra o pedido)', () => {
-  assert.ok(O.htmlKds(kds, { titulo: 'Cozinha' }).includes('sem cebola'))
+  const h = O.htmlKds(kds, { departamento: 'cozinha' })
+  assert.ok(h.includes('sem cebola'), 'observação do item')
+  assert.ok(h.includes('Obs. do pedido: portaria'), 'observação do pedido')
+})
+
+test('KDS: o tempo é o do painel — agora / 38min / 1h', () => {
+  assert.strictEqual(O.tempoCurto(0), 'agora')
+  assert.strictEqual(O.tempoCurto(38), '38min')
+  assert.strictEqual(O.tempoCurto(82), '1h')
 })
 
 test('KDS vazio avisa que a cozinha está em dia', () => {
-  assert.ok(/em dia|nada/i.test(O.htmlKds({ itens: [] }, { titulo: 'Cozinha' })))
+  assert.ok(/em dia/i.test(O.htmlKds({ pedidos: [] }, { departamento: 'cozinha' })))
 })
 
 test('Mesas: mostra situação, tempo e consumo', () => {

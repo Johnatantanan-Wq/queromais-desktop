@@ -185,12 +185,12 @@ if (typeof document !== 'undefined') {
   const Operacao = require('./tela-operacao')
   NATIVAS['/admin/cozinha'] = {
     canal: 'cozinha-carregar',
-    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, titulo: 'Cozinha' }),
+    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, departamento: 'cozinha' }),
     erro: 'Não deu para carregar a produção agora.',
   }
   NATIVAS['/admin/bar'] = {
     canal: 'bar-carregar',
-    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, titulo: 'Bar' }),
+    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, departamento: 'bar' }),
     erro: 'Não deu para carregar o bar agora.',
   }
   NATIVAS['/admin/atendimento'] = {
@@ -285,20 +285,31 @@ if (typeof document !== 'undefined') {
     return base ? NATIVAS[base] : null
   }
 
-  async function carregarTelaNativa(rota) {
+  async function carregarTelaNativa(rota, silencioso) {
     const alvo = document.getElementById('econtent')
     const tela = telaDe(rota)
     if (!tela) return
-    alvo.innerHTML = '<div class="ecard"><div class="evazio">Carregando…</div></div>'
+    // No recarregamento automático do KDS não pode piscar "Carregando…" nem perder a
+    // rolagem: na TV da cozinha a fila fica aberta o tempo todo.
+    const rolagem = alvo.scrollTop
+    if (!silencioso) alvo.innerHTML = '<div class="ecard"><div class="evazio">Carregando…</div></div>'
     try {
       const r = await ipcRenderer.invoke(tela.canal, tela.argumentos ? tela.argumentos() : undefined)
       if (ROTA !== rota) return   // o lojista já foi para outra tela
       DADOS_TELA = r && r.dados
       alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
+      if (silencioso) alvo.scrollTop = rolagem
     } catch (e) {
+      if (silencioso) return      // falhou a atualização automática: mantém o que está na tela
       alvo.innerHTML = '<div class="ecard"><div class="evazio">' + tela.erro + '</div></div>'
     }
   }
+
+  // A fila de produção se atualiza sozinha a cada 5s, como no painel — é o que a própria
+  // tela promete embaixo do título.
+  setInterval(() => {
+    if (ROTA === '/admin/cozinha' || ROTA === '/admin/bar') carregarTelaNativa(ROTA, true)
+  }, 5000)
 
   // ── Ficha (painel lateral) ───────────────────────────────────────────────
   // Abre ao clicar numa linha, num cartão do quadro ou numa mesa. Painel, não página:
@@ -449,6 +460,13 @@ if (typeof document !== 'undefined') {
       const acao = btAcao.getAttribute('data-acao')
       // As ações de impressão FAZEM (o resto ainda é pelo painel).
       if (acao === 'impressao:procurar') { carregarTelaNativa(ROTA); return }
+      if (acao === 'kds:tv') {
+        const kds = (DADOS_TELA && DADOS_TELA.acessoTv) || {}
+        abrirFicha('Acesso pela TV', Ficha.fichaAcessoTv({
+          ...kds, dominioCardapio: require('../../src-electron/brand').dominio_cardapio,
+        }))
+        return
+      }
       if (acao.indexOf('ficha:imprimir:') === 0) {
         const pedido = acharNoDado(acao.split(':')[2])
         const antes = btAcao.textContent
