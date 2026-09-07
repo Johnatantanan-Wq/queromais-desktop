@@ -210,9 +210,16 @@ function caixa() {
     // entregas já entregues cujo dinheiro ninguém confirmou (a checagem que o painel
     // faz ao fechar: sem isso a venda fica fora do caixa)
     entregas: [
-      { pedido: '1040', cliente: 'Carla Nunes', entregador: 'Tiago', forma: 'dinheiro', valor: 132.40, saiuHa: 22 },
-      { pedido: '1034', cliente: 'Sandra Reis', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88.00, saiuHa: 35 },
-      { pedido: '1033', cliente: 'Otávio Brito', entregador: 'Tiago', forma: 'dinheiro', valor: 64.90, saiuHa: 48 },
+      { pedido: '1040', cliente: 'Carla Nunes', entregador: 'Tiago', forma: 'dinheiro', valor: 132.40,
+        saiuHa: 22, tipo: 'entrega', estado: 'transito', trocoPara: 150.00 },
+      { pedido: '1034', cliente: 'Sandra Reis', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88.00,
+        saiuHa: 35, tipo: 'entrega', estado: 'transito', trocoPara: 0 },
+      { pedido: '1033', cliente: 'Otávio Brito', entregador: 'Tiago', forma: 'dinheiro', valor: 64.90,
+        saiuHa: 48, tipo: 'entrega', estado: 'fechamento', trocoPara: 0 },
+      { pedido: '1044', cliente: 'Marina Prado', entregador: null, forma: 'pix', valor: 96.00,
+        saiuHa: 0, tipo: 'entrega', estado: 'preparo', trocoPara: 0 },
+      { pedido: '1045', cliente: 'Johnatan', entregador: null, forma: 'dinheiro', valor: 48.50,
+        saiuHa: 0, tipo: 'retirada', estado: 'pronto', trocoPara: 60.00 },
     ],
     historico: [
       { id: 'h1', aberto: '06/09 08:00', fechado: '06/09 23:40', operador: 'Ana Paula', vendas: 4210.00, diferenca: -12.50 },

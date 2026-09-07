@@ -112,19 +112,97 @@ function subabaMesas(dados) {
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">fechar conta de mesa ainda é pelo painel</div>')
 }
 
-/** Entregas já entregues cujo dinheiro ninguém confirmou — se o caixa fechar assim,
- *  a venda fica fora do caixa (a mesma checagem que o painel faz ao fechar). */
+// Cores por estado da entrega — as MESMAS do painel (EntregasPendentes.tsx). A cor não
+// é enfeite: ela diz de quem é a vez. Laranja é o único que pede ação do caixa agora
+// ("Fechamento pedido": o dinheiro voltou e ninguém lançou); roxo é o pedido que saiu
+// mas ainda não foi finalizado — por isso não pode parecer verde.
+const COR_ENTREGA = {
+  fechamento: { bg: '#FFF7ED', borda: '#FDBA74', texto: '#C2410C', rotulo: 'Fechamento pedido' },
+  preparo: { bg: '#EFF6FF', borda: '#93C5FD', texto: '#1D4ED8', rotulo: 'Em preparo' },
+  pronto: { bg: '#F0FDF4', borda: '#86EFAC', texto: '#166534', rotulo: 'Pronto' },
+  transito: { bg: '#F5F3FF', borda: '#C4B5FD', texto: '#7B2FF7', rotulo: 'Em trânsito' },
+  fechado: { bg: '#f6f6f4', borda: '#d5d3cc', texto: '#6b7280', rotulo: 'Fechado' },
+}
+
+/**
+ * Guia de dinheiro do pedido, fase a fase — só existe para DINHEIRO, porque troco não
+ * existe em cartão nem em Pix. Antes de sair: quanto troco separar. Depois de sair:
+ * quanto o entregador precisa trazer de volta. É o número que o caixa confere na mão.
+ */
+function guiaDinheiro(e) {
+  if (e.forma !== 'dinheiro') return null
+  const troco = Number(e.trocoPara) || 0
+  const total = Number(e.valor) || 0
+  if (e.estado === 'fechamento') return 'entregador deve trazer R$ ' + fmtBRL(total)
+  if (e.estado === 'transito') {
+    return troco > total
+      ? 'precisa trazer R$ ' + fmtBRL(total) + ' · saiu com troco pra R$ ' + fmtBRL(troco)
+      : 'precisa trazer R$ ' + fmtBRL(total)
+  }
+  if (troco > total) return 'levar troco de R$ ' + fmtBRL(troco - total)
+  return null
+}
+
+function botaoDaEntrega(e) {
+  if (e.estado === 'fechamento') {
+    return '<button type="button" data-acao="entrega:confirmar:' + esc(e.pedido) + '" style="height:30px;padding:0 12px;'
+      + 'border:none;border-radius:9px;background:var(--acento);color:#fff;font-family:inherit;font-size:12px;'
+      + 'font-weight:800;cursor:pointer">Confirmar recebimento</button>'
+  }
+  if (e.estado === 'transito') {
+    return '<button type="button" data-acao="entrega:concluir:' + esc(e.pedido) + '" style="height:30px;padding:0 12px;'
+      + 'border:none;border-radius:9px;background:var(--acento);color:#fff;font-family:inherit;font-size:12px;'
+      + 'font-weight:800;cursor:pointer">Concluir ✓</button>'
+  }
+  if (e.estado === 'pronto' && e.tipo === 'retirada') {
+    return '<button type="button" data-acao="entrega:entregue:' + esc(e.pedido) + '" style="height:30px;padding:0 12px;'
+      + 'border:none;border-radius:9px;background:var(--acento);color:#fff;font-family:inherit;font-size:12px;'
+      + 'font-weight:800;cursor:pointer">Entregue ✓</button>'
+  }
+  return ''
+}
+
+/**
+ * Aba Delivery do Caixa — CARTÕES, do mesmo tamanho e com o mesmo tratamento dos de
+ * mesa. A tabela que havia aqui antes escondia justamente o que o caixa precisa achar
+ * de longe: qual pedido está esperando o fechamento dele.
+ */
 function subabaDelivery(dados) {
   const entregas = dados.entregas || []
-  const total = entregas.reduce((s, e) => s + (Number(e.valor) || 0), 0)
-  return cartaoBloco('Entregas a confirmar', entregas.length + ' entrega(s) · ' + fmtBRL(total) + ' na rua',
-    grade(['Pedido', 'Cliente', 'Entregador', 'Forma', 'Saiu há', 'Valor'],
-      entregas.map((e) => ({ chave: e.pedido, celulas: [
-        { texto: '#' + e.pedido, forte: true, cor: '#111' }, e.cliente, e.entregador || '—',
-        rotuloForma(e.forma), { texto: tempoLongo(e.saiuHa), cor: e.saiuHa > 40 ? '#b42318' : '#4b5563' },
-        { texto: 'R$ ' + fmtBRL(e.valor), forte: true, cor: '#111' },
-      ] })), '100px 1fr 150px 160px 120px 140px', [4, 5])
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
+  if (!entregas.length) {
+    return cartaoBloco('Delivery e retirada', 'nada em andamento',
+      '<div class="evazio">Nenhuma entrega em andamento no momento.</div>')
+  }
+  const aConfirmar = entregas.filter((e) => e.estado === 'fechamento')
+  const naRua = entregas.filter((e) => e.estado === 'transito')
+  const totalConfirmar = aConfirmar.reduce((s, e) => s + (Number(e.valor) || 0), 0)
+
+  const cartoes = entregas.map((e) => {
+    const cor = COR_ENTREGA[e.estado] || COR_ENTREGA.fechado
+    const guia = guiaDinheiro(e)
+    const acao = botaoDaEntrega(e)
+    return '<div data-pedido="' + esc(e.pedido) + '" style="background:' + cor.bg + ';border:2px solid ' + cor.borda
+      + ';border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;min-height:128px;min-width:0;cursor:pointer">'
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">'
+      + '<span style="font-size:15px;font-weight:800;color:#111">#' + esc(String(e.pedido).padStart(4, '0')) + '</span>'
+      + '<span style="font-size:15px;font-weight:800;color:#111">R$ ' + fmtBRL(e.valor) + '</span></div>'
+      + '<div style="font-size:11px;font-weight:800;color:' + cor.texto + ';margin-top:3px">' + esc(cor.rotulo)
+      + (guia ? ' · ' + esc(guia) : '') + '</div>'
+      + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin:3px 0 8px;overflow:hidden;'
+      + 'text-overflow:ellipsis;white-space:nowrap">'
+      + esc(e.cliente || 'Sem identificação') + ' · ' + esc(rotuloForma(e.forma))
+      + (e.entregador ? ' · ' + esc(e.entregador) : '')
+      + (e.estado === 'transito' && e.saiuHa ? ' · saiu há ' + esc(tempoLongo(e.saiuHa)) : '') + '</div>'
+      + '<div style="margin-top:auto">' + acao + '</div></div>'
+  }).join('')
+
+  const sub = aConfirmar.length
+    ? aConfirmar.length + ' esperando fechamento · R$ ' + fmtBRL(totalConfirmar) + ' fora do caixa'
+    : naRua.length + ' na rua · nada esperando fechamento'
+
+  return cartaoBloco('Delivery e retirada', sub,
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">' + cartoes + '</div>'
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
     + 'confirmar o recebimento ainda é pelo painel — enquanto não confirma, o dinheiro não entra no caixa</div>')
 }
 

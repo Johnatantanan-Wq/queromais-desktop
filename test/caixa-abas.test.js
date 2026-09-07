@@ -12,8 +12,12 @@ const base = {
     { mesa: '9', abertaHa: 95, consumo: 214.9, garcom: 'Bruno', pedidos: 5 },
   ],
   entregas: [
-    { pedido: '1040', cliente: 'Carla N.', entregador: 'Tiago', forma: 'dinheiro', valor: 132.4, saiuHa: 22 },
-    { pedido: '1034', cliente: 'Sandra R.', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88, saiuHa: 35 },
+    { pedido: '1040', cliente: 'Carla N.', entregador: 'Tiago', forma: 'dinheiro', valor: 132.4, saiuHa: 22,
+      tipo: 'entrega', estado: 'transito', trocoPara: 150 },
+    { pedido: '1034', cliente: 'Sandra R.', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88, saiuHa: 35,
+      tipo: 'entrega', estado: 'fechamento', trocoPara: 0 },
+    { pedido: '1045', cliente: 'Johnatan', entregador: null, forma: 'dinheiro', valor: 48.5, saiuHa: 0,
+      tipo: 'retirada', estado: 'pronto', trocoPara: 60 },
   ],
   historico: [
     { id: 'h1', aberto: '06/09 08:00', fechado: '06/09 23:40', operador: 'Ana', vendas: 4210, diferenca: -12.5 },
@@ -46,10 +50,45 @@ test('a subaba Mesas lista as contas abertas com consumo e tempo', () => {
   assert.ok(/1 h 35/.test(h), 'mesa aberta há 95 min deve mostrar 1 h 35')
 })
 
-test('a subaba Delivery lista as entregas a confirmar, com a forma de pagamento', () => {
+test('a subaba Delivery vem em CARTÕES, como a de mesas — não em tabela', () => {
   const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
   assert.ok(h.includes('#1040') && h.includes('Tiago'))
   assert.ok(/dinheiro/i.test(h) && /cart[ãa]o na entrega/i.test(h))
+  assert.ok(h.includes('data-pedido="1040"'), 'cada entrega é um cartão')
+  assert.ok(h.includes('minmax(230px,1fr)'), 'a grade é a mesma do painel')
+})
+
+test('a cor do cartão diz de quem é a vez', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  const cartao = (n) => h.split('data-pedido="' + n + '"')[1].split('data-pedido=')[0]
+  assert.ok(/Em trânsito/.test(cartao('1040')) && /7B2FF7/.test(cartao('1040')), 'quem saiu é roxo, não verde')
+  assert.ok(/Fechamento pedido/.test(cartao('1034')) && /C2410C/.test(cartao('1034')), 'esperando o caixa é laranja')
+  assert.ok(/Pronto/.test(cartao('1045')))
+})
+
+test('o guia de dinheiro só aparece em dinheiro, e muda conforme a fase', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  const cartao = (n) => h.split('data-pedido="' + n + '"')[1].split('data-pedido=')[0]
+  assert.ok(/precisa trazer R\$ 132,40 · saiu com troco pra R\$ 150,00/.test(cartao('1040')))
+  assert.ok(/levar troco de R\$ 11,50/.test(cartao('1045')), 'antes de sair, o troco a separar')
+  assert.ok(!/trazer|troco/.test(cartao('1034')), 'cartão na entrega não tem troco')
+})
+
+test('cada cartão traz a ação da sua fase', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  assert.ok(h.includes('data-acao="entrega:concluir:1040"'))
+  assert.ok(h.includes('data-acao="entrega:confirmar:1034"'))
+  assert.ok(h.includes('data-acao="entrega:entregue:1045"'), 'retirada pronta já pode ser entregue no balcão')
+})
+
+test('o cabeçalho da subaba conta o que está fora do caixa', () => {
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  assert.ok(/1 esperando fechamento · R\$ 88,00 fora do caixa/.test(h))
+})
+
+test('sem entrega nenhuma, a subaba Delivery avisa', () => {
+  const h = C.htmlDoCaixa({ ...base, entregas: [] }, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  assert.ok(/Nenhuma entrega em andamento/.test(h))
 })
 
 test('caixa fechado avisa que mesas e delivery precisam do caixa aberto', () => {
