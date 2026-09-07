@@ -16,10 +16,14 @@ if (brand.user_data_name && brand.user_data_name !== app.getName()) {
 }
 
 const { initConfig, getConfig, setConfig } = require('./config')
-const { calcularBounds } = require('./layout-views')
-const { makeStore } = require('./cache-store')
-const { criarMonitor } = require('./rede')
-const ponte = require('./ponte')
+// Shell "elo": só a marca que declara `"shell": "elo"` (hoje só os apps beta).
+// Os módulos do shell novo nem sequer são CARREGADOS nas marcas atuais — o boot
+// delas continua exatamente como era.
+const SHELL_ELO = require('./brand').shell === 'elo'
+const { calcularBounds } = SHELL_ELO ? require('./layout-views') : {}
+const { makeStore } = SHELL_ELO ? require('./cache-store') : {}
+const { criarMonitor } = SHELL_ELO ? require('./rede') : {}
+const ponte = SHELL_ELO ? require('./ponte') : null
 initConfig()
 
 // ── Status da loja (aberta/fechada) ──────────────────────────────────────────
@@ -255,30 +259,60 @@ app.on('second-instance', () => {
 
 // ─── Posicionamento das BrowserViews ─────────────────────────────────────────
 
-// Marca Pediu! usa o shell "elo" (sidebar 252px + topbar 74px sob a titlebar de 44px).
-// As demais marcas seguem com a barrinha de ícones de 56px e só a titlebar.
-const EH_PEDIU = brand.plataforma_slug === 'pediu'
-global.sidebarW   = EH_PEDIU ? 252 : 56
+// Shell "elo" (sidebar 252px + topbar 74px sob a titlebar de 44px): só a marca que
+// declara `"shell": "elo"` no brand.json — hoje apenas `pediu-beta`, um app SEPARADO
+// (appId/userData/instalador próprios). Quero Mais, Pediu! e Jasson não passam por
+// nenhuma linha nova: nem shell, nem ponte, nem monitor de rede.
+global.sidebarW   = SHELL_ELO ? 252 : 56
 global.splitRatio = 0.7
 const HANDLE_W    = 6
-const HEADER      = EH_PEDIU ? 118 : 44   // 44 titlebar + 74 topbar
+const HEADER      = SHELL_ELO ? 118 : 44   // 44 titlebar + 74 topbar
 
 function posicionarViews() {
   const win = global.mainWindow
   if (!win || !global.cardapioView || !global.whatsappView) return
   const b = win.getContentBounds()
-  const modo = global.activeView === 'split' ? 'split' : 'cardapio'
-  // O cálculo mora em layout-views.js (puro, testado): a view cobrindo a barra
-  // lateral congelava os controles HTML, e isso é conta, não Electron.
-  const bounds = calcularBounds({
-    largura: b.width, altura: b.height,
-    sidebarW: global.sidebarW, topoH: HEADER,
-    modo, splitRatio: global.splitRatio, handleW: HANDLE_W,
-  })
-  global.cardapioView.setBounds(bounds.cardapio)
-  global.whatsappView.setBounds(bounds.whatsapp)
-  if (modo !== 'split') {
-    win.setTopBrowserView(global.activeView === 'whatsapp' ? global.whatsappView : global.cardapioView)
+  const w = b.width, h = b.height
+  const SB = global.sidebarW
+  const CW = w - SB
+  const CH = h - HEADER
+
+  // Shell novo: o cálculo vem de layout-views.js (puro, testado). O caminho de baixo
+  // é o dos apps que já existem, INTOCADO de propósito — test/layout-views.test.js
+  // prova que os dois dão o mesmo resultado, então trocar depois é seguro.
+  if (SHELL_ELO) {
+    const modo = global.activeView === 'split' ? 'split' : 'cardapio'
+    const bounds = calcularBounds({
+      largura: w, altura: h, sidebarW: SB, topoH: HEADER,
+      modo, splitRatio: global.splitRatio, handleW: HANDLE_W,
+    })
+    global.cardapioView.setBounds(bounds.cardapio)
+    global.whatsappView.setBounds(bounds.whatsapp)
+    if (modo !== 'split') {
+      win.setTopBrowserView(global.activeView === 'whatsapp' ? global.whatsappView : global.cardapioView)
+    }
+    return
+  }
+
+  // Ambas as views ficam sempre na janela e a troca usa setTopBrowserView (evita
+  // add/remove de BrowserView em runtime, que causava congelamento no Windows).
+  // O bounds nunca invade sidebar/titlebar, evitando congelamento dos controles HTML.
+  if (global.activeView === 'split') {
+    // Lado a lado: bounds não se sobrepõem, as duas ficam visíveis.
+    // Nunca add/remove — só setBounds, mantendo o padrão que não congela.
+    const CARD_W = Math.max(200, Math.floor(CW * global.splitRatio) - HANDLE_W)
+    const WA_X   = SB + CARD_W + HANDLE_W
+    const WA_W   = Math.max(200, w - WA_X)
+    global.cardapioView.setBounds({ x: SB,   y: HEADER, width: CARD_W, height: CH })
+    global.whatsappView.setBounds({ x: WA_X, y: HEADER, width: WA_W,   height: CH })
+  } else if (global.activeView === 'whatsapp') {
+    global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    win.setTopBrowserView(global.whatsappView)
+  } else {
+    global.cardapioView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    global.whatsappView.setBounds({ x: SB, y: HEADER, width: CW, height: CH })
+    win.setTopBrowserView(global.cardapioView)
   }
 }
 global.posicionarViews = posicionarViews
@@ -304,7 +338,7 @@ async function createWindow() {
   })
 
   await global.mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, EH_PEDIU ? '../renderer/elo/index.html' : '../renderer/index.html'),
+    pathname: path.join(__dirname, SHELL_ELO ? '../renderer/elo/index.html' : '../renderer/index.html'),
     protocol: 'file:',
     slashes: true,
   }))
@@ -417,64 +451,70 @@ async function createWindow() {
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
   global.whatsappView.webContents.loadURL(WA_URL)
 
-  // ── Ponte do shell nativo (só faz diferença na marca Pediu!, que usa o shell
-  // elo; nas demais fica inerte porque o renderer antigo não chama estes canais).
-  // O renderer NUNCA fala com a rede: pede aqui, e aqui se decide entre servidor
-  // e cache. É essa separação que faz o modo offline caber na F3 sem reescrever tela.
-  const cacheDisco = makeStore(path.join(app.getPath('userData'), 'cache'), {
-    available: () => safeStorage.isEncryptionAvailable(),
-    encrypt: (texto) => safeStorage.encryptString(texto),
-    decrypt: (buf) => safeStorage.decryptString(Buffer.from(buf)),
-  })
+  // ── Ponte do shell nativo — SÓ no app beta (brand.shell === 'elo') ───────────
+  // Os apps que já existem não passam por nada disto: sem cache novo em disco, sem
+  // monitor de rede, sem canal IPC novo. É o que mantém Quero Mais, Pediu! e Jasson
+  // byte a byte com o comportamento de hoje enquanto o beta evolui em paralelo.
+  if (SHELL_ELO) {
+    // ── Ponte do shell nativo (só faz diferença na marca Pediu!, que usa o shell
+    // elo; nas demais fica inerte porque o renderer antigo não chama estes canais).
+    // O renderer NUNCA fala com a rede: pede aqui, e aqui se decide entre servidor
+    // e cache. É essa separação que faz o modo offline caber na F3 sem reescrever tela.
+    const cacheDisco = makeStore(path.join(app.getPath('userData'), 'cache'), {
+      available: () => safeStorage.isEncryptionAvailable(),
+      encrypt: (texto) => safeStorage.encryptString(texto),
+      decrypt: (buf) => safeStorage.decryptString(Buffer.from(buf)),
+    })
 
-  // vai POR DENTRO da view logada — mesmo caminho do ping de presença, sem token novo
-  const pedirMenuAoPainel = async () => {
-    const wc = global.cardapioView?.webContents
-    if (!wc || wc.isDestroyed()) return null
-    return wc.executeJavaScript(
-      "fetch('/api/admin/menu',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
-  }
-
-  const monitorRede = criarMonitor({
-    pingar: async () => {
+    // vai POR DENTRO da view logada — mesmo caminho do ping de presença, sem token novo
+    const pedirMenuAoPainel = async () => {
       const wc = global.cardapioView?.webContents
-      if (!wc || wc.isDestroyed()) return false
+      if (!wc || wc.isDestroyed()) return null
       return wc.executeJavaScript(
-        "fetch('/api/admin/menu',{method:'HEAD',credentials:'include'}).then(r=>r.status<500).catch(()=>false)", true)
-    },
-    aoMudar: (online) => {
-      try { global.mainWindow?.webContents.send('rede-mudou', online) } catch (e) {}
-      log.info('[REDE] ' + (online ? 'conectado' : 'sem internet'))
-    },
-  })
-  monitorRede.iniciar()
+        "fetch('/api/admin/menu',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
+    }
 
-  ponte.registrar({
-    ipcMain, cache: cacheDisco, monitorRede,
-    pedirAoPainel: pedirMenuAoPainel,
-    lojaIdAtual: () => getConfig().lojaId,
-    abrirRota: (href) => {
-      const base = getConfig().cardapioUrl.replace(/\/admin\/?$/, '')
-      global.activeView = 'cardapio'
+    const monitorRede = criarMonitor({
+      pingar: async () => {
+        const wc = global.cardapioView?.webContents
+        if (!wc || wc.isDestroyed()) return false
+        return wc.executeJavaScript(
+          "fetch('/api/admin/menu',{method:'HEAD',credentials:'include'}).then(r=>r.status<500).catch(()=>false)", true)
+      },
+      aoMudar: (online) => {
+        try { global.mainWindow?.webContents.send('rede-mudou', online) } catch (e) {}
+        log.info('[REDE] ' + (online ? 'conectado' : 'sem internet'))
+      },
+    })
+    monitorRede.iniciar()
+
+    ponte.registrar({
+      ipcMain, cache: cacheDisco, monitorRede,
+      pedirAoPainel: pedirMenuAoPainel,
+      lojaIdAtual: () => getConfig().lojaId,
+      abrirRota: (href) => {
+        const base = getConfig().cardapioUrl.replace(/\/admin\/?$/, '')
+        global.activeView = 'cardapio'
+        posicionarViews()
+        global.cardapioView.webContents.loadURL(base + href)
+        return { ok: true }
+      },
+    })
+
+    // Recolher/expandir o menu muda a largura útil: as views acompanham.
+    ipcMain.on('sidebar-largura', (e, largura) => {
+      global.sidebarW = Number(largura) || global.sidebarW
       posicionarViews()
-      global.cardapioView.webContents.loadURL(base + href)
-      return { ok: true }
-    },
-  })
+    })
 
-  // Recolher/expandir o menu muda a largura útil: as views acompanham.
-  ipcMain.on('sidebar-largura', (e, largura) => {
-    global.sidebarW = Number(largura) || global.sidebarW
-    posicionarViews()
-  })
-
-  // Navegou por dentro do painel (link interno, redirecionamento): o menu acompanha,
-  // senão o item pintado mente sobre onde o lojista está.
-  const avisarRota = (urlAtual) => {
-    try { global.mainWindow?.webContents.send('rota-mudou', new URL(urlAtual).pathname) } catch (e) {}
+    // Navegou por dentro do painel (link interno, redirecionamento): o menu acompanha,
+    // senão o item pintado mente sobre onde o lojista está.
+    const avisarRota = (urlAtual) => {
+      try { global.mainWindow?.webContents.send('rota-mudou', new URL(urlAtual).pathname) } catch (e) {}
+    }
+    global.cardapioView.webContents.on('did-navigate', (e, u) => avisarRota(u))
+    global.cardapioView.webContents.on('did-navigate-in-page', (e, u) => avisarRota(u))
   }
-  global.cardapioView.webContents.on('did-navigate', (e, u) => avisarRota(u))
-  global.cardapioView.webContents.on('did-navigate-in-page', (e, u) => avisarRota(u))
 
   // Captura console do WhatsApp para o log do Electron
   global.whatsappView.webContents.on('console-message', (e, level, msg) => {

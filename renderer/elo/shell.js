@@ -53,7 +53,32 @@ function dataPorExtenso(d) {
   } catch (e) { return '' }
 }
 
-module.exports = { htmlDoMenu, iniciaisDe, tituloDaRota, dataPorExtenso, esc, ehAtivo }
+// ── cor do acento por marca ─────────────────────────────────────────────────
+// O shell é o mesmo para todas as marcas; o que muda é a cor. Onde o Elo usa o
+// amarelo #FFC107 (e seus tons), aqui entra a cor_primaria da marca — verde no
+// Pediu!, laranja no Quero Mais. O brand.json pode fixar tons prontos; sem eles,
+// derivam da cor base.
+function _hex(n) { return '#' + [16, 8, 0].map((d) => ('0' + ((n >> d) & 255).toString(16)).slice(-2)).join('') }
+function _num(hex) { return parseInt(('' + hex).replace('#', ''), 16) }
+function _mistura(hex, alvo, peso) {
+  const c = _num(hex), a = _num(alvo)
+  const canal = (d) => Math.round((((c >> d) & 255) * (1 - peso)) + (((a >> d) & 255) * peso))
+  return _hex((canal(16) << 16) | (canal(8) << 8) | canal(0))
+}
+
+function tonsDoAcento(corPrimaria, fixos) {
+  const base = /^#?[0-9a-f]{6}$/i.test('' + (corPrimaria || '')) ? ('#' + ('' + corPrimaria).replace('#', '')) : '#14CE6B'
+  const derivado = {
+    base,
+    escuro: _mistura(base, '#000000', 0.22),  // hover / degradê
+    suave:  _mistura(base, '#ffffff', 0.90),  // fundo do item ativo
+    texto:  _mistura(base, '#000000', 0.42),  // texto sobre o fundo suave
+    linha:  _mistura(base, '#ffffff', 0.62),  // bordas discretas
+  }
+  return Object.assign(derivado, fixos || {})
+}
+
+module.exports = { htmlDoMenu, iniciaisDe, tituloDaRota, dataPorExtenso, esc, ehAtivo, tonsDoAcento }
 
 // ── daqui pra baixo, só roda dentro da janela ────────────────────────────────
 if (typeof document !== 'undefined') {
@@ -122,6 +147,15 @@ if (typeof document !== 'undefined') {
     $('chipSplit').className = 'echip' + (VIEW === 'split' ? ' on' : '')
     $('btnWhats').className = 'eiconbtn' + (VIEW === 'whatsapp' ? ' on' : '')
   })
+
+  // pinta o acento da marca antes do primeiro desenho
+  const tons = tonsDoAcento(brand.cor_primaria, brand.acento)
+  const raiz = document.documentElement.style
+  raiz.setProperty('--acento', tons.base)
+  raiz.setProperty('--acento-escuro', tons.escuro)
+  raiz.setProperty('--acento-suave', tons.suave)
+  raiz.setProperty('--acento-texto', tons.texto)
+  raiz.setProperty('--acento-linha', tons.linha)
 
   $('tbNome').textContent = brand.nome_app
   document.title = brand.nome_app
