@@ -239,3 +239,18 @@ conexão mudando ao desligar o Wi-Fi.
 
 **Estado do repo:** a marca aplicada é a `pediu` (`npm run apply-brand pediu`). Para voltar ao
 Quero Mais: `npm run apply-brand queromais`.
+
+## F2 — resultado (07/09/2026)
+
+Primeira tela nativa: o **Caixa**.
+
+| item | prova |
+|---|---|
+| `GET /api/admin/caixa/resumo` (aditiva) | 5 testes; usa `resumoFormas`/`esperadoDinheiro` do painel |
+| `renderer/elo/tela-caixa.js` | 9 testes (KPIs, caixa fechado, estornada marcada, idade do dado) |
+| roteamento nativo × web | 5 testes; sem rede só as nativas ficam clicáveis |
+| canal `caixa-carregar` | mesma queda para o cache do menu |
+| visual | `~/Desktop/prit/beta-caixa-nativo.png` |
+
+Escopo desta fase: **leitura**. Abrir caixa, sangria e fechamento seguem no painel, e a tela diz
+isso no rodapé em vez de esconder. A escrita entra na F3, junto com a fila offline.
