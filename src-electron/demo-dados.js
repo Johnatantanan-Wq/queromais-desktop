@@ -344,21 +344,29 @@ function listas() {
       faturamento: Math.round(pedidos.filter((p) => p.status !== 'Cancelado').reduce((s, p) => s + p.valor, 0) * 100) / 100,
     },
     carrinhos: {
-      itens: [
-        { cliente: 'Fernanda Lima', telefone: '(75) 98811-2233', itens: 3, paradoHa: '18 min', valor: 92.40 },
-        { cliente: 'Marcos Vinícius', telefone: '(75) 99123-4455', itens: 1, paradoHa: '1 h 20', valor: 38.00 },
-        { cliente: 'Beatriz Alves', telefone: '(75) 98444-9090', itens: 5, paradoHa: '3 h', valor: 187.60 },
-      ],
+      kpis: { abertos: 3, identificados: 2, abandonados: 3, totalEmAberto: 318.00 },
       total: 318.00, maisAntigo: '3 h',
+      itens: [
+        { cliente: 'Fernanda Lima', telefone: '(75) 98811-2233', itens: 3, paradoMin: 18, total: 92.40 },
+        { cliente: 'Marcos Vinícius', telefone: '(75) 99123-4455', itens: 1, paradoMin: 80, total: 38.00 },
+        { cliente: null, telefone: null, itens: 5, paradoMin: 187, total: 187.60 },
+      ],
     },
     clientes: {
-      total: 1284, ativosMes: 342, ticket: 59.02,
+      kpis: { unicos: 1284, vips: 38, emRisco: 96, ticketGeral: 56.20 },
+      total: 1284, ativosMes: 342, ticket: 56.20,
       itens: [
-        { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro', pedidos: 42, ultimo: 'hoje', total: 2480.30, ultimos: [{ numero: '1042', data: 'hoje', valor: 89.90 }, { numero: '0994', data: '02/09', valor: 112.40 }, { numero: '0961', data: '28/08', valor: 74.00 }] },
-        { nome: 'João Pereira', telefone: '(75) 98811-0002', bairro: 'Jardim América', pedidos: 27, ultimo: 'ontem', total: 1610.00 },
-        { nome: 'Carla Nunes', telefone: '(75) 98811-0003', bairro: 'Vila Nova', pedidos: 19, ultimo: 'há 3 dias', total: 1122.80 },
-        { nome: 'Rafael Souza', telefone: '(75) 98811-0004', bairro: 'Boa Vista', pedidos: 11, ultimo: 'há 8 dias', total: 690.50 },
-        { nome: 'Luiza Martins', telefone: '(75) 98811-0005', bairro: 'Centro', pedidos: 6, ultimo: 'há 12 dias', total: 372.10 },
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro', segmento: 'VIP', pedidos: 42,
+          totalGasto: 2480.30, ticket: 59.05, freqMes: 4.2, ultimo: 'hoje', diaFavorito: 'Sexta', pontos: 92,
+          ultimos: [{ numero: '1042', data: 'hoje', valor: 89.90 }, { numero: '0994', data: '02/09', valor: 112.40 }] },
+        { nome: 'João Pereira', telefone: '(75) 98811-0002', bairro: 'Jardim América', segmento: 'Fiel', pedidos: 27,
+          totalGasto: 1610.00, ticket: 59.63, freqMes: 2.7, ultimo: 'ontem', diaFavorito: 'Quarta', pontos: 74 },
+        { nome: 'Carla Nunes', telefone: '(75) 98811-0003', bairro: 'Vila Nova', segmento: 'Novo', pedidos: 3,
+          totalGasto: 322.80, ticket: 107.60, freqMes: 1.5, ultimo: 'há 3 dias', diaFavorito: 'Sábado', pontos: 12 },
+        { nome: 'Rafael Souza', telefone: '(75) 98811-0004', bairro: 'Boa Vista', segmento: 'Em risco', pedidos: 11,
+          totalGasto: 690.50, ticket: 62.77, freqMes: 0.3, ultimo: 'há 62 dias', diaFavorito: 'Domingo', pontos: 30 },
+        { nome: 'Fabricios', telefone: '(75) 98280-4132', bairro: null, segmento: 'Importado', pedidos: 0,
+          totalGasto: 0, ticket: 0, freqMes: 0, ultimo: 'Sem pedido', diaFavorito: null, pontos: 0 },
       ],
     },
     cardapio: {
@@ -621,6 +629,22 @@ function telasComAbas() {
 
   return {
     financeiro: {
+      // a visão geral do painel: separa o que o cliente pagou do que CAI NA CONTA
+      visao: {
+        periodo: 'hoje',
+        faturamento: { valor: 883.61, variacao: -88.2, vendas: 7 },
+        recebido: { valor: 883.61, pctDoFaturado: 100 },
+        aReceberDaVenda: 0,
+        contasAReceber: { valor: 8300.00, emAberto: 3 },
+        contasAPagar: { valor: 4200.00, emAberto: 2 },
+        vendaBruta: 883.61, taxasPixCartao: 17.15, pctTaxas: 1.9, vendaLiquida: 866.46,
+        pixLiquido: { liquido: 320.05, bruto: 323.28, taxa: 3.23 },
+        cartaoLiquido: { liquido: 426.93, bruto: 440.85, taxa: 13.92 },
+        produtos: 829.41, taxaServico: 54.20, taxaEntrega: 0, descontos: 0,
+        receitaLiquida: { valor: 812.26, variacao: -88.1 },
+        ticketMedio: { valor: 126.23, variacao: 16.4 },
+        cancelamentos: { qtd: 1, valor: 62.00 },
+      },
       entradas: 20418, saidas: 11620, aReceber: 28000, aPagar: 25720.50,
       serie: { labels: dias, entradas: entradasDia, saidas: saidasDia },
       vendas: dias.map((d, i) => ({ dia: d, pedidos: [38,45,52,41,66,71,33][i], total: entradasDia[i] })),
@@ -642,6 +666,13 @@ function telasComAbas() {
     },
     atendimento: {
       salao: op.salao,
+      // o salão como o painel mostra: ocupação por LUGARES, não só por mesa
+      salaoDetalhado: {
+        kpis: { mesas: 6, mesasTotal: 40, ocupacaoPct: 15, lugaresOcupados: 24, lugaresTotal: 162,
+          consumoAberto: 766.10, ticketAtual: 127.68, contasSolicitadas: 1, pedidosProntos: 2 },
+        qrAbreMesa: false,
+        mesas: op.salao.mesas.map((m) => ({ ...m, desdeMin: m.desdeMin })),
+      },
       solicitacoes: [
         { mesa: '4', tipo: 'Chamou o garçom', hora: '20:14', situacao: 'Aberta' },
         { mesa: '9', tipo: 'Pediu a conta', hora: '20:09', situacao: 'Aberta' },

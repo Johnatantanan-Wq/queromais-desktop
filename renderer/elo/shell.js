@@ -118,6 +118,7 @@ if (typeof document !== 'undefined') {
   const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
   const VISAO = {}              // visão (Despacho: por bairro | lista)
   let CATEGORIAS_ABERTAS = []   // Cardápio: categorias expandidas
+  let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
   let TERMO_PEDIDO = ''         // quadro: busca por número, cliente ou telefone
@@ -219,7 +220,20 @@ if (typeof document !== 'undefined') {
   for (const rota of Object.keys(ComAbas.ABAS)) {
     NATIVAS[rota] = {
       canal: CANAL_ABAS[rota],
-      desenhar: (dados, estado) => ComAbas.htmlComAbas(rota, dados, { ...estado, aba: ABA[rota] }),
+      desenhar: (dados, estado) => {
+        // Financeiro › Visão geral e Atendimento › Salão têm versão própria, feita
+        // conforme o painel; as demais abas seguem pelo módulo de abas.
+        const aba = ABA[rota]
+        if (rota === '/admin/financeiro' && (!aba || aba === 'visao') && dados && dados.visao) {
+          return require('./abas').barraDeAbas(ComAbas.ABAS[rota], 'visao')
+            + Principais.htmlFinanceiroVisao(dados.visao, { ...estado, periodoFin: PERIODO_FIN })
+        }
+        if (rota === '/admin/atendimento' && (!aba || aba === 'salao') && dados && dados.salaoDetalhado) {
+          return require('./abas').barraDeAbas(ComAbas.ABAS[rota], 'salao')
+            + Principais.htmlSalao(dados.salaoDetalhado, estado)
+        }
+        return ComAbas.htmlComAbas(rota, dados, { ...estado, aba })
+      },
       erro: 'Não deu para carregar esta tela agora.',
     }
   }
@@ -227,7 +241,19 @@ if (typeof document !== 'undefined') {
   const TelaImpressao = require('./tela-impressao')
   const TelaDespacho = require('./tela-despacho')
   const TelaCardapio = require('./tela-cardapio')
+  const Principais = require('./telas-principais')
   const Ficha = require('./ficha')
+  NATIVAS['/admin/clientes'] = {
+    canal: 'clientes-carregar',
+    desenhar: (d, e) => Principais.htmlClientes(d, { ...e, termo: TERMO['/admin/clientes'], abaCliente: ABA['/admin/clientes'] }),
+    erro: 'Não deu para carregar os clientes agora.',
+  }
+  NATIVAS['/admin/carrinhos'] = {
+    canal: 'carrinhos-carregar',
+    desenhar: (d, e) => Principais.htmlCarrinhos(d, { ...e, filtroCarrinho: FILTRO['/admin/carrinhos'], abaCarrinho: ABA['/admin/carrinhos'] }),
+    erro: 'Não deu para carregar os carrinhos agora.',
+  }
+
   NATIVAS['/admin/cardapio'] = {
     canal: 'cardapio-carregar',
     desenhar: (dados, estado) => TelaCardapio.htmlCardapio(dados, {
@@ -344,6 +370,22 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btPerFin = e.target.closest ? e.target.closest('[data-periodo-fin]') : null
+    if (btPerFin) {
+      PERIODO_FIN = btPerFin.getAttribute('data-periodo-fin')
+      carregarTelaNativa(ROTA)
+      return
+    }
+    const btFiltroCar = e.target.closest ? e.target.closest('[data-filtro-carrinho]') : null
+    if (btFiltroCar) {
+      FILTRO['/admin/carrinhos'] = btFiltroCar.getAttribute('data-filtro-carrinho')
+      redesenharTelaAtual()
+      return
+    }
+    const btAbaCli = e.target.closest ? e.target.closest('[data-aba-cliente]') : null
+    if (btAbaCli) { ABA['/admin/clientes'] = btAbaCli.getAttribute('data-aba-cliente'); redesenharTelaAtual(); return }
+    const btAbaCar = e.target.closest ? e.target.closest('[data-aba-carrinho]') : null
+    if (btAbaCar) { ABA['/admin/carrinhos'] = btAbaCar.getAttribute('data-aba-carrinho'); redesenharTelaAtual(); return }
     const btAbaCard = e.target.closest ? e.target.closest('[data-aba-cardapio]') : null
     if (btAbaCard) {
       ABA['/admin/cardapio'] = btAbaCard.getAttribute('data-aba-cardapio')
