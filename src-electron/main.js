@@ -552,6 +552,60 @@ async function createWindow() {
         const chave = CANAIS_FINAIS[canal]
         ipcMain.handle(canal, () => ({ dados: dadosDemo.apoioFinal()[chave], offline: false, ts: Date.now(), demo: true }))
       }
+      // ── Impressão: os únicos botões do app que FAZEM alguma coisa hoje ──────
+      // Impressora é da máquina, não da nuvem — por isso aqui não há dado de
+      // demonstração: a lista é a do sistema e o teste imprime de verdade.
+      const { impressaoService } = require('./controllers/impressao.service')
+      ipcMain.handle('impressao-info', async () => {
+        let impressoras = []
+        try { impressoras = await impressaoService.listarImpressoras() } catch (e) { impressoras = [] }
+        const cfg = getConfig()
+        let diag = {}
+        try { diag = await impressaoService.diagnostico() } catch (e) {}
+        const pedidos = dadosDemo.listas().pedidos.itens
+        return {
+          dados: {
+            impressoras,
+            impressoraAtual: cfg.impressoraNome || '',
+            ippUrl: cfg.impressoraIppUrl || '',
+            automatica: true,
+            vias: 1,
+            caminho: diag.sumatra ? 'SumatraPDF (Windows)' : (process.platform === 'darwin' ? 'impressão do macOS' : 'padrão do sistema'),
+            loja: dadosDemo.menu().loja,
+            exemplo: pedidos[0],
+          },
+          offline: false, ts: Date.now(),
+        }
+      })
+      ipcMain.handle('impressao-escolher', (e, a) => {
+        setConfig({ impressora_nome: (a && a.nome) || '' })
+        log.info('[IMPRESSAO] impressora escolhida: ' + ((a && a.nome) || 'padrão'))
+        return { ok: true }
+      })
+      ipcMain.handle('impressao-teste', async () => {
+        try {
+          const r = await impressaoService.imprimirTeste(getConfig().impressoraNome || undefined)
+          return { ok: true, resultado: r }
+        } catch (e) { return { ok: false, erro: String(e && e.message ? e.message : e) } }
+      })
+      ipcMain.handle('impressao-comanda', async (e, a) => {
+        // Monta a comanda numa janela oculta e manda pela mesma rota da impressão real.
+        const TelaImp = require('../renderer/elo/tela-impressao')
+        const pedidos = dadosDemo.listas().pedidos.itens
+        const html = '<!doctype html><html><body style="margin:0">'
+          + TelaImp.htmlComanda((a && a.pedido) || pedidos[0], dadosDemo.menu().loja) + '</body></html>'
+        const win = new BrowserWindow({ show: false, webPreferences: { offscreen: false } })
+        try {
+          await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+          const r = await impressaoService.imprimirJanela(win, getConfig().impressoraNome || undefined, 'comanda')
+          return { ok: true, resultado: r }
+        } catch (err) {
+          return { ok: false, erro: String(err && err.message ? err.message : err) }
+        } finally {
+          try { if (!win.isDestroyed()) win.destroy() } catch (x) {}
+        }
+      })
+
       const CANAIS_ABAS = {
         'financeiro-abas-carregar': 'financeiro', 'atendimento-abas-carregar': 'atendimento',
         'estoque-abas-carregar': 'estoque',

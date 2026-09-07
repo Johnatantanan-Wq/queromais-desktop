@@ -18,7 +18,9 @@ const CATALOGO_LISTAS = require('./telas-catalogo').CATALOGO
 // Telas de operação (quadro de produção e salão) — desenho próprio, fora do formato de lista.
 const TELAS_OPERACAO = ['/admin/cozinha', '/admin/bar', '/admin/atendimento']
 const TELAS_FINAIS = ['/admin/insights', '/admin/relatorios', '/admin/configuracoes']
-const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO).concat(TELAS_FINAIS)
+// Telas do APP, que não existem no painel: impressora é da máquina, não da nuvem.
+const TELAS_DO_APP = ['/app/impressao']
+const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_DO_APP)
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -218,6 +220,13 @@ if (typeof document !== 'undefined') {
     }
   }
 
+  const TelaImpressao = require('./tela-impressao')
+  NATIVAS['/app/impressao'] = {
+    canal: 'impressao-info',
+    desenhar: (dados, estado) => TelaImpressao.htmlImpressao(dados, estado),
+    erro: 'Não deu para ler as impressoras deste computador.',
+  }
+
   const Finais = require('./telas-finais')
   NATIVAS['/admin/insights'] = { canal: 'insights-carregar', desenhar: (d, e) => Finais.htmlInsights(d, e), erro: 'Não deu para carregar os insights agora.' }
   NATIVAS['/admin/relatorios'] = { canal: 'relatorios-carregar', desenhar: (d, e) => Finais.htmlRelatorios(d, e), erro: 'Não deu para carregar os relatórios agora.' }
@@ -252,10 +261,26 @@ if (typeof document !== 'undefined') {
     document.getElementById('econtent').innerHTML = tela.desenhar(DADOS_TELA, { online: ONLINE, ts: Date.now(), demo: DEMO })
   }
 
+  // O menu vem do servidor, mas o app acrescenta o que é dele: impressão só existe
+  // aqui. Entra no grupo Sistema, junto de Configurações.
+  function comTelasDoApp(menu) {
+    if (!menu || !menu.secoes) return menu
+    const copia = { ...menu, secoes: menu.secoes.map((s) => ({ ...s, itens: s.itens.slice() })) }
+    let sistema = copia.secoes.find((s) => /sistema/i.test(s.titulo))
+    if (!sistema) { sistema = { titulo: 'Sistema', itens: [] }; copia.secoes.push(sistema) }
+    if (!sistema.itens.some((i) => i.href === '/app/impressao')) {
+      sistema.itens.push({
+        id: 'impressao', href: '/app/impressao', label: 'Impressão',
+        icone: '<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+      })
+    }
+    return copia
+  }
+
   async function carregarMenu() {
     try {
       const r = await ipcRenderer.invoke('menu-carregar')
-      if (r && r.dados) { MENU = r.dados; pintar() }
+      if (r && r.dados) { MENU = comTelasDoApp(r.dados); pintar() }
     } catch (e) { /* boot antes da ponte: o próximo ciclo pega */ }
   }
 
@@ -284,7 +309,29 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    const btImpressora = e.target.closest ? e.target.closest('[data-impressora]') : null
+    if (btImpressora) {
+      ipcRenderer.invoke('impressao-escolher', { nome: btImpressora.getAttribute('data-impressora') })
+        .then(() => carregarTelaNativa(ROTA))
+      return
+    }
     const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
+    if (btAcao) {
+      const acao = btAcao.getAttribute('data-acao')
+      // As ações de impressão FAZEM (o resto ainda é pelo painel).
+      if (acao === 'impressao:procurar') { carregarTelaNativa(ROTA); return }
+      if (acao === 'impressao:teste' || acao === 'impressao:comanda') {
+        const canal = acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda'
+        const antes = btAcao.textContent
+        btAcao.textContent = 'imprimindo…'
+        ipcRenderer.invoke(canal).then((r) => {
+          btAcao.textContent = (r && r.ok) ? '✓ enviado à impressora' : '✗ não imprimiu'
+          if (r && !r.ok) console.error('[impressao]', r.erro)
+          setTimeout(() => { btAcao.textContent = antes }, 3500)
+        }).catch(() => { btAcao.textContent = '✗ não imprimiu'; setTimeout(() => { btAcao.textContent = antes }, 3500) })
+        return
+      }
+    }
     if (btAcao) {
       // Ações de escrita ainda vivem no painel: em vez de fingir que fazem, dizem onde estão.
       window.mensagemTopo && window.mensagemTopo('Esta ação ainda é feita pelo painel.')
