@@ -116,7 +116,8 @@ if (typeof document !== 'undefined') {
   const TERMO = {}              // busca digitada, por rota
   const ABA = {}                // aba escolhida, por rota
   const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
-  const VISAO = {}              // visão (Despacho: entregas | rotas)
+  const VISAO = {}              // visão (Despacho: por bairro | lista)
+  let CATEGORIAS_ABERTAS = []   // Cardápio: categorias expandidas
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
   let TERMO_PEDIDO = ''         // quadro: busca por número, cliente ou telefone
@@ -225,7 +226,16 @@ if (typeof document !== 'undefined') {
 
   const TelaImpressao = require('./tela-impressao')
   const TelaDespacho = require('./tela-despacho')
+  const TelaCardapio = require('./tela-cardapio')
   const Ficha = require('./ficha')
+  NATIVAS['/admin/cardapio'] = {
+    canal: 'cardapio-carregar',
+    desenhar: (dados, estado) => TelaCardapio.htmlCardapio(dados, {
+      ...estado, aba: ABA['/admin/cardapio'], abertas: CATEGORIAS_ABERTAS, termo: TERMO['/admin/cardapio'],
+    }),
+    erro: 'Não deu para carregar o cardápio agora.',
+  }
+
   NATIVAS['/admin/despacho'] = {
     canal: 'despacho-carregar',
     desenhar: (dados, estado) => TelaDespacho.htmlDespacho(dados, { ...estado, visao: VISAO['/admin/despacho'] }),
@@ -334,6 +344,21 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    const btAbaCard = e.target.closest ? e.target.closest('[data-aba-cardapio]') : null
+    if (btAbaCard) {
+      ABA['/admin/cardapio'] = btAbaCard.getAttribute('data-aba-cardapio')
+      redesenharTelaAtual()
+      return
+    }
+    const btCategoria = e.target.closest ? e.target.closest('[data-categoria]') : null
+    if (btCategoria && !e.target.closest('[data-acao]')) {
+      const nome = btCategoria.getAttribute('data-categoria')
+      const i = CATEGORIAS_ABERTAS.indexOf(nome)
+      if (i >= 0) CATEGORIAS_ABERTAS.splice(i, 1)
+      else CATEGORIAS_ABERTAS = CATEGORIAS_ABERTAS.concat([nome])
+      redesenharTelaAtual()
+      return
+    }
     const btFiltroPedido = e.target.closest ? e.target.closest('[data-filtro-pedido]') : null
     if (btFiltroPedido) {
       FILTRO_PEDIDO = btFiltroPedido.getAttribute('data-filtro-pedido')
@@ -460,6 +485,14 @@ if (typeof document !== 'undefined') {
   // Busca: filtra o que já está na tela, sem nova consulta. O input não é recriado
   // (recriar a cada tecla faria o cursor pular), então só a grade é redesenhada.
   document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'buscaCardapio') {
+      TERMO['/admin/cardapio'] = e.target.value
+      const pos3 = e.target.selectionStart
+      redesenharTelaAtual()
+      const c = document.getElementById('buscaCardapio')
+      if (c) { c.focus(); try { c.setSelectionRange(pos3, pos3) } catch (x) {} }
+      return
+    }
     if (e.target && e.target.id === 'buscaPedidos') {
       TERMO_PEDIDO = e.target.value
       const pos2 = e.target.selectionStart

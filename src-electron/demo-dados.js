@@ -362,14 +362,40 @@ function listas() {
       ],
     },
     cardapio: {
-      total: 86, disponiveis: 79, esgotados: 7, precoMedio: 42.60,
+      qualidade: { pontuacao: 63, promocionais: 1, comFotos: 71, comDescricoes: 79, promocoesCategorias: 0 },
+      categorias: [
+        { nome: 'Promoção do dia! 🔥', etiquetas: ['Promocional', 'OCULTA', 'Destaque pop-up'], esgotada: false, itens: [
+          { nome: 'Combo casal — 2 pizzas G', preco: 99.90, esgotado: false, foto: true, descricao: 'Duas pizzas grandes + refrigerante 2L' },
+        ] },
+        { nome: 'Pizzas salgadas', etiquetas: ['Pizza', 'Itens principais'], esgotada: false, itens: [
+          { nome: 'Calabresa', preco: 44.90, esgotado: false, foto: true, descricao: 'Molho, muçarela, calabresa e cebola' },
+          { nome: 'Portuguesa', preco: 47.90, esgotado: false, foto: true, descricao: 'Presunto, ovo, ervilha, cebola e azeitona' },
+          { nome: 'Frango com catupiry', preco: 49.90, esgotado: false, foto: false },
+          { nome: 'Marguerita', preco: 42.90, esgotado: true, foto: true, descricao: 'Manjericão fresco' },
+        ] },
+        { nome: 'Pizzas doces', etiquetas: ['Pizza'], esgotada: false, itens: [
+          { nome: 'Chocolate', preco: 39.90, esgotado: false, foto: true },
+          { nome: 'Romeu e Julieta', preco: 41.90, esgotado: false, foto: false },
+        ] },
+        { nome: 'Bebidas', etiquetas: ['Itens principais'], esgotada: false, itens: [
+          { nome: 'Refrigerante 2L', preco: 12.00, esgotado: false, foto: true },
+          { nome: 'Refrigerante lata', preco: 6.00, esgotado: false, foto: true },
+          { nome: 'Cerveja long neck', preco: 9.00, esgotado: true, foto: false, descricao: 'Preço sob consulta — confirmar com a loja antes de ativar a venda.' },
+          { nome: 'Suco de laranja 500ml', preco: 11.00, esgotado: false, foto: false },
+        ] },
+        { nome: 'Adicionais', etiquetas: [], esgotada: false, itens: [
+          { nome: 'Borda recheada', preco: 8.00, esgotado: false, foto: false },
+          { nome: 'Bacon extra', preco: 6.00, esgotado: false, foto: false },
+        ] },
+      ],
+      // continua servindo a lista simples (a tela antiga usava isto)
+      total: 13, disponiveis: 11, esgotados: 2, precoMedio: 33.60,
       itens: [
-        { nome: 'Pizza Calabresa G', categoria: 'Pizzas salgadas', preco: 59.90, vendas7d: 128, situacao: 'Disponível', custo: 18.40, insumos: ['Massa 350g', 'Muçarela 250g', 'Calabresa 120g', 'Molho 80g', 'Orégano'] },
-        { nome: 'Pizza Portuguesa G', categoria: 'Pizzas salgadas', preco: 62.90, vendas7d: 96, situacao: 'Disponível' },
-        { nome: 'Pizza Chocolate M', categoria: 'Pizzas doces', preco: 48.00, vendas7d: 41, situacao: 'Disponível' },
+        { nome: 'Calabresa', categoria: 'Pizzas salgadas', preco: 44.90, vendas7d: 128, situacao: 'Disponível', custo: 18.40,
+          insumos: ['Massa 350g', 'Muçarela 250g', 'Calabresa 120g', 'Molho 80g'] },
+        { nome: 'Portuguesa', categoria: 'Pizzas salgadas', preco: 47.90, vendas7d: 96, situacao: 'Disponível' },
         { nome: 'Refrigerante 2L', categoria: 'Bebidas', preco: 12.00, vendas7d: 210, situacao: 'Disponível' },
         { nome: 'Cerveja long neck', categoria: 'Bebidas', preco: 9.00, vendas7d: 88, situacao: 'Esgotado' },
-        { nome: 'Borda recheada', categoria: 'Adicionais', preco: 8.00, vendas7d: 132, situacao: 'Disponível' },
       ],
     },
     despacho: {
