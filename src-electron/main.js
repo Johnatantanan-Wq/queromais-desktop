@@ -536,6 +536,19 @@ async function createWindow() {
         const chave = CANAIS_LISTA[canal]
         ipcMain.handle(canal, () => ({ dados: dadosDemo.listas()[chave], offline: false, ts: Date.now(), demo: true }))
       }
+      const CANAIS_APOIO = {
+        'compras-carregar': 'compras', 'estoque-carregar': 'estoque', 'cupons-carregar': 'cupons',
+        'fidelidade-carregar': 'fidelidade', 'parceiros-carregar': 'parceiros', 'campanhas-carregar': 'campanhas',
+      }
+      for (const canal of Object.keys(CANAIS_APOIO)) {
+        const chave = CANAIS_APOIO[canal]
+        ipcMain.handle(canal, () => ({ dados: dadosDemo.listasApoio()[chave], offline: false, ts: Date.now(), demo: true }))
+      }
+      const CANAIS_OPERACAO = { 'cozinha-carregar': 'cozinha', 'bar-carregar': 'bar', 'salao-carregar': 'salao' }
+      for (const canal of Object.keys(CANAIS_OPERACAO)) {
+        const chave = CANAIS_OPERACAO[canal]
+        ipcMain.handle(canal, () => ({ dados: dadosDemo.operacao()[chave], offline: false, ts: Date.now(), demo: true }))
+      }
       void listasDemo
       ipcMain.handle('rede-status', () => ({ online: true, demo: true }))
       ipcMain.handle('cache-get', () => null)

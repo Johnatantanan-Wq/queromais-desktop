@@ -365,4 +365,94 @@ function listas() {
   }
 }
 
-module.exports = { menu, caixa, visaoGeral, listas }
+/** Telas de operação: produção (cozinha/bar) e salão. */
+function operacao() {
+  return {
+    cozinha: { itens: [
+      { pedido: '1043', item: '1x Pizza Portuguesa G', obs: 'sem azeitona', estado: 'fazer', esperaMin: 2, canal: 'Delivery' },
+      { pedido: '1038', item: '1x Pizza Calabresa M', obs: '', estado: 'fazer', esperaMin: 12, canal: 'Delivery' },
+      { pedido: '1042', item: '1x Pizza Calabresa G', obs: 'bem passada', estado: 'fazendo', esperaMin: 8, canal: 'Delivery' },
+      { pedido: '1039', item: '2x Pizza Portuguesa G', obs: 'uma sem cebola', estado: 'fazendo', esperaMin: 22, canal: 'Mesa 7' },
+      { pedido: '1041', item: '1x Pizza Chocolate M', obs: '', estado: 'pronto', esperaMin: 4, canal: 'Balcão' },
+    ] },
+    bar: { itens: [
+      { pedido: '1043', item: '1x Refrigerante 2L', obs: 'gelado', estado: 'fazer', esperaMin: 2, canal: 'Delivery' },
+      { pedido: '1040', item: '1x Cerveja long neck', obs: '', estado: 'fazendo', esperaMin: 5, canal: 'Delivery' },
+      { pedido: '1039', item: '2x Suco de laranja', obs: 'sem açúcar', estado: 'pronto', esperaMin: 3, canal: 'Mesa 7' },
+    ] },
+    salao: { mesas: [
+      { numero: '1', lugares: 4, situacao: 'Livre', desdeMin: 0, consumo: 0, garcom: null },
+      { numero: '2', lugares: 4, situacao: 'Ocupada', desdeMin: 22, consumo: 96.40, garcom: 'Ana' },
+      { numero: '3', lugares: 2, situacao: 'Livre', desdeMin: 0, consumo: 0, garcom: null },
+      { numero: '4', lugares: 6, situacao: 'Ocupada', desdeMin: 61, consumo: 312.80, garcom: 'Bruno' },
+      { numero: '5', lugares: 4, situacao: 'Reservada', desdeMin: 0, consumo: 0, garcom: null },
+      { numero: '6', lugares: 2, situacao: 'Livre', desdeMin: 0, consumo: 0, garcom: null },
+      { numero: '7', lugares: 6, situacao: 'Ocupada', desdeMin: 48, consumo: 128.50, garcom: 'Ana' },
+      { numero: '8', lugares: 4, situacao: 'Livre', desdeMin: 0, consumo: 0, garcom: null },
+      { numero: '9', lugares: 2, situacao: 'Conta pedida', desdeMin: 95, consumo: 214.90, garcom: 'Bruno' },
+      { numero: '10', lugares: 8, situacao: 'Ocupada', desdeMin: 15, consumo: 78.00, garcom: 'Carla' },
+    ] },
+  }
+}
+
+/** Listas dos módulos de apoio (compras, estoque, cupons, fidelidade, parceiros, campanhas). */
+function listasApoio() {
+  return {
+    compras: {
+      totalMes: 21840.60, fornecedores: 12,
+      itens: [
+        { fornecedor: 'Laticínios Vale Verde', nota: '8821', entrada: '05/09', itens: 6, situacao: 'Pago', valor: 4200.00 },
+        { fornecedor: 'Distribuidora Bebidas SA', nota: '4410', entrada: '04/09', itens: 14, situacao: 'Pendente', valor: 3180.90 },
+        { fornecedor: 'Hortifruti do Porto', nota: '992', entrada: '03/09', itens: 22, situacao: 'Pago', valor: 1290.40 },
+        { fornecedor: 'Embalagens Norte', nota: '1571', entrada: '02/09', itens: 4, situacao: 'Pendente', valor: 880.00 },
+      ],
+    },
+    estoque: {
+      abaixoMinimo: 3, valorTotal: 18420.00,
+      itens: [
+        { nome: 'Muçarela', unidade: 'kg', saldo: 42, minimo: 30, custo: 38.90 },
+        { nome: 'Farinha de trigo', unidade: 'kg', saldo: 18, minimo: 40, custo: 4.20 },
+        { nome: 'Molho de tomate', unidade: 'lata', saldo: 61, minimo: 24, custo: 12.50 },
+        { nome: 'Calabresa', unidade: 'kg', saldo: 9, minimo: 15, custo: 29.80 },
+        { nome: 'Refrigerante 2L', unidade: 'un', saldo: 8, minimo: 24, custo: 6.90 },
+        { nome: 'Caixa de pizza G', unidade: 'un', saldo: 340, minimo: 200, custo: 1.80 },
+      ],
+    },
+    cupons: {
+      ativos: 3, usosMes: 128, descontoMes: 1840.50,
+      itens: [
+        { codigo: 'VOLTA10', desconto: '10%', validade: '30/09', usos: 64, situacao: 'Ativo' },
+        { codigo: 'PRIMEIRA15', desconto: '15%', validade: '31/12', usos: 41, situacao: 'Ativo' },
+        { codigo: 'FRETEGRATIS', desconto: 'Entrega grátis', validade: '15/09', usos: 23, situacao: 'Ativo' },
+        { codigo: 'AGOSTO20', desconto: '20%', validade: '31/08', usos: 156, situacao: 'Inativo' },
+      ],
+    },
+    fidelidade: {
+      participantes: 412, resgates: 18, pontosAbertos: 9840,
+      itens: [
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', pontos: 92, pedidos: 42, proximo: 'faltam 8 pontos' },
+        { nome: 'João Pereira', telefone: '(75) 98811-0002', pontos: 74, pedidos: 27, proximo: 'faltam 26 pontos' },
+        { nome: 'Carla Nunes', telefone: '(75) 98811-0003', pontos: 51, pedidos: 19, proximo: 'faltam 49 pontos' },
+        { nome: 'Rafael Souza', telefone: '(75) 98811-0004', pontos: 30, pedidos: 11, proximo: 'faltam 70 pontos' },
+      ],
+    },
+    parceiros: {
+      vendasMes: 14200.00, comissaoMes: 1420.00,
+      itens: [
+        { nome: 'Hotel Praia Bela', codigo: 'HPB', pedidos: 62, vendas: 7800.00, comissao: 780.00 },
+        { nome: 'Pousada do Porto', codigo: 'PDP', pedidos: 41, vendas: 4200.00, comissao: 420.00 },
+        { nome: 'Academia Corpo Livre', codigo: 'ACL', pedidos: 22, vendas: 2200.00, comissao: 220.00 },
+      ],
+    },
+    campanhas: {
+      alcance: 1840, pedidos: 96,
+      itens: [
+        { nome: 'Terça em dobro', canal: 'WhatsApp', enviada: '02/09', alcance: 820, pedidos: 44, situacao: 'Ativo' },
+        { nome: 'Volta pra gente', canal: 'Push', enviada: '04/09', alcance: 610, pedidos: 31, situacao: 'Ativo' },
+        { nome: 'Combo da família', canal: 'WhatsApp', enviada: '31/08', alcance: 410, pedidos: 21, situacao: 'Inativo' },
+      ],
+    },
+  }
+}
+
+module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio }

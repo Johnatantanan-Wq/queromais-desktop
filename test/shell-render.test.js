@@ -40,11 +40,11 @@ test('badge com número aparece', () => {
 test('offline esmaece só o que depende da web', () => {
   const comWeb = { secoes: [{ titulo: 'Principal', itens: [
     { id: 'caixa', href: '/admin/caixa', label: 'Caixa', icone: '<path d="M1 1"/>' },
-    { id: 'cozinha', href: '/admin/cozinha', label: 'Cozinha (KDS)', icone: '<path d="M1 1"/>' },
+    { id: 'config', href: '/admin/configuracoes', label: 'Configurações', icone: '<path d="M1 1"/>' },
   ] }], badges: {} }
   const h = htmlDoMenu(comWeb, '/admin/caixa', false)
   const caixa = h.split('<div class="erailitem').find(p => p.includes('/admin/caixa'))
-  const cozinha = h.split('<div class="erailitem').find(p => p.includes('/admin/cozinha'))
+  const cozinha = h.split('<div class="erailitem').find(p => p.includes('/admin/configuracoes'))
   assert.ok(!caixa.includes(' off'), 'tela nativa continua clicável sem internet')
   assert.ok(cozinha.includes(' off'), 'tela que depende da web fica esmaecida')
 })

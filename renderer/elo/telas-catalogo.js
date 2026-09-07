@@ -201,6 +201,144 @@ const CATALOGO = {
       celulas: [m.nome, m.telefone, etiqueta(m.situacao), String(m.entregas), { texto: brl(m.aReceber), forte: true, cor: '#111' }],
     })),
   },
+
+  '/admin/compras': {
+    canal: 'compras-carregar',
+    def: (d) => ({
+      titulo: 'Compras',
+      subtitulo: 'entradas de insumo e fornecedores',
+      kpis: [
+        { rotulo: 'Compras no mês', valor: brl(d.totalMes), sub: 'em insumos' },
+        { rotulo: 'Notas lançadas', valor: String(d.itens.length), sub: 'no período' },
+        { rotulo: 'Fornecedores', valor: String(d.fornecedores), sub: 'ativos' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todas' }, { chave: 'pendente', rotulo: 'A conferir' }],
+      busca: 'Buscar fornecedor ou nota',
+      colunas: ['Fornecedor', 'Nota', 'Entrada', 'Itens', 'Situação', 'Valor'],
+      grade: '1fr 120px 110px 90px 130px 130px',
+      direita: [5],
+      acoes: [{ chave: 'nova-compra', rotulo: '+ Lançar compra', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((c) => ({
+      chave: c.nota,
+      celulas: [c.fornecedor, c.nota, c.entrada, String(c.itens), etiqueta(c.situacao), { texto: brl(c.valor), forte: true, cor: '#111' }],
+    })),
+  },
+
+  '/admin/estoque': {
+    canal: 'estoque-carregar',
+    def: (d) => ({
+      titulo: 'Gestão de estoque',
+      subtitulo: 'o que tem, o que está acabando',
+      kpis: [
+        { rotulo: 'Itens', valor: String(d.itens.length), sub: 'controlados' },
+        { rotulo: 'Abaixo do mínimo', valor: String(d.abaixoMinimo), sub: 'repor', cor: '#b42318' },
+        { rotulo: 'Valor em estoque', valor: brl(d.valorTotal), sub: 'a preço de compra' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todos' }, { chave: 'repor', rotulo: 'Repor' }],
+      busca: 'Buscar insumo',
+      colunas: ['Insumo', 'Unidade', 'Saldo', 'Mínimo', 'Situação', 'Custo médio'],
+      grade: '1fr 110px 100px 100px 130px 130px',
+      direita: [2, 3, 5],
+      acoes: [{ chave: 'ajuste', rotulo: '± Ajuste de estoque', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((i) => ({
+      chave: i.nome,
+      celulas: [i.nome, i.unidade, { texto: String(i.saldo), forte: true, cor: i.saldo <= i.minimo ? '#b42318' : '#111' },
+        String(i.minimo), etiqueta(i.saldo <= i.minimo ? 'Repor' : 'Disponível'), brl(i.custo)],
+    })),
+  },
+
+  '/admin/cupons': {
+    canal: 'cupons-carregar',
+    def: (d) => ({
+      titulo: 'Cupons',
+      subtitulo: 'descontos ativos e uso',
+      kpis: [
+        { rotulo: 'Ativos', valor: String(d.ativos), sub: 'valendo agora', cor: '#0A7A3E' },
+        { rotulo: 'Usos no mês', valor: String(d.usosMes), sub: 'pedidos com cupom' },
+        { rotulo: 'Desconto dado', valor: brl(d.descontoMes), sub: 'no mês' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todos' }, { chave: 'ativo', rotulo: 'Ativos' }, { chave: 'expirado', rotulo: 'Expirados' }],
+      busca: 'Buscar cupom',
+      colunas: ['Código', 'Desconto', 'Válido até', 'Usos', 'Situação'],
+      grade: '1fr 140px 130px 100px 130px',
+      direita: [3],
+      acoes: [{ chave: 'novo-cupom', rotulo: '+ Novo cupom', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((c) => ({
+      chave: c.codigo,
+      celulas: [{ texto: c.codigo, forte: true, cor: '#111' }, c.desconto, c.validade, String(c.usos), etiqueta(c.situacao)],
+    })),
+  },
+
+  '/admin/fidelidade': {
+    canal: 'fidelidade-carregar',
+    def: (d) => ({
+      titulo: 'Fidelidade',
+      subtitulo: 'clientes que voltam',
+      kpis: [
+        { rotulo: 'Participantes', valor: String(d.participantes), sub: 'no programa' },
+        { rotulo: 'Prêmios resgatados', valor: String(d.resgates), sub: 'no mês', cor: '#0A7A3E' },
+        { rotulo: 'Pontos em aberto', valor: String(d.pontosAbertos), sub: 'a resgatar' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todos' }, { chave: 'perto', rotulo: 'Perto do prêmio' }],
+      busca: 'Buscar cliente',
+      colunas: ['Cliente', 'Telefone', 'Pontos', 'Pedidos', 'Próximo prêmio'],
+      grade: '1fr 150px 100px 100px 180px',
+      direita: [2, 3],
+    }),
+    linhas: (d) => d.itens.map((c) => ({
+      chave: c.telefone,
+      celulas: [c.nome, c.telefone, { texto: String(c.pontos), forte: true, cor: '#111' }, String(c.pedidos), c.proximo],
+    })),
+  },
+
+  '/admin/vendedores': {
+    canal: 'parceiros-carregar',
+    def: (d) => ({
+      titulo: 'Parceiros',
+      subtitulo: 'quem indica e quanto rende',
+      kpis: [
+        { rotulo: 'Parceiros', valor: String(d.itens.length), sub: 'cadastrados' },
+        { rotulo: 'Vendas indicadas', valor: brl(d.vendasMes), sub: 'no mês' },
+        { rotulo: 'Comissão', valor: brl(d.comissaoMes), sub: 'a pagar', cor: '#b42318' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todos' }],
+      busca: 'Buscar parceiro',
+      colunas: ['Parceiro', 'Código', 'Pedidos', 'Vendas', 'Comissão'],
+      grade: '1fr 140px 100px 140px 140px',
+      direita: [2, 3, 4],
+      acoes: [{ chave: 'novo-parceiro', rotulo: '+ Novo parceiro', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((p) => ({
+      chave: p.codigo,
+      celulas: [p.nome, p.codigo, String(p.pedidos), brl(p.vendas), { texto: brl(p.comissao), forte: true, cor: '#111' }],
+    })),
+  },
+
+  '/admin/food-marketing/campanhas': {
+    canal: 'campanhas-carregar',
+    def: (d) => ({
+      titulo: 'Campanhas',
+      subtitulo: 'o que foi disparado e o que voltou',
+      kpis: [
+        { rotulo: 'Campanhas', valor: String(d.itens.length), sub: 'no mês' },
+        { rotulo: 'Alcance', valor: String(d.alcance), sub: 'clientes atingidos' },
+        { rotulo: 'Pedidos gerados', valor: String(d.pedidos), sub: 'a partir delas', cor: '#0A7A3E' },
+      ],
+      filtros: [{ chave: 'todos', rotulo: 'Todas' }, { chave: 'ativa', rotulo: 'No ar' }],
+      busca: 'Buscar campanha',
+      colunas: ['Campanha', 'Canal', 'Enviada em', 'Alcance', 'Pedidos', 'Situação'],
+      grade: '1fr 130px 130px 110px 110px 120px',
+      direita: [3, 4],
+      acoes: [{ chave: 'nova-campanha', rotulo: '+ Nova campanha', primaria: true }],
+    }),
+    linhas: (d) => d.itens.map((c) => ({
+      chave: c.nome,
+      celulas: [c.nome, c.canal, c.enviada, String(c.alcance), { texto: String(c.pedidos), forte: true, cor: '#111' }, etiqueta(c.situacao)],
+    })),
+  }
 }
 
 // Pedidos tem dois modos: QUADRO (kanban, o padrão — é como o balcão trabalha) e

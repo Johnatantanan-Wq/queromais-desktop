@@ -15,7 +15,9 @@ function iconeSvg(interno) {
 // Lista explícita: um módulo só entra aqui quando tem tela nativa DE VERDADE —
 // enquanto não tiver, o item abre o painel e fica esmaecido sem internet.
 const CATALOGO_LISTAS = require('./telas-catalogo').CATALOGO
-const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS))
+// Telas de operação (quadro de produção e salão) — desenho próprio, fora do formato de lista.
+const TELAS_OPERACAO = ['/admin/cozinha', '/admin/bar', '/admin/atendimento']
+const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS)).concat(TELAS_OPERACAO)
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -169,6 +171,23 @@ if (typeof document !== 'undefined') {
       desenhar: (dados, estado) => TelaCaixa.htmlDoCaixa(dados, estado),
       erro: 'Não deu para carregar o caixa agora.',
     },
+  }
+
+  const Operacao = require('./tela-operacao')
+  NATIVAS['/admin/cozinha'] = {
+    canal: 'cozinha-carregar',
+    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, titulo: 'Cozinha' }),
+    erro: 'Não deu para carregar a produção agora.',
+  }
+  NATIVAS['/admin/bar'] = {
+    canal: 'bar-carregar',
+    desenhar: (dados, estado) => Operacao.htmlKds(dados, { ...estado, titulo: 'Bar' }),
+    erro: 'Não deu para carregar o bar agora.',
+  }
+  NATIVAS['/admin/atendimento'] = {
+    canal: 'salao-carregar',
+    desenhar: (dados, estado) => Operacao.htmlMesas(dados, estado),
+    erro: 'Não deu para carregar o salão agora.',
   }
 
   // As telas de lista vêm do catálogo: cada uma declara colunas, filtros e ações,
