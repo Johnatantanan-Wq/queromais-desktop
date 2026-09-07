@@ -14,6 +14,7 @@ const { JSDOM } = require('jsdom')
 
 const raiz = path.join(__dirname, '..')
 const demo = require('../src-electron/demo-dados')
+const registroDeTeste = require('../src-electron/vendas-locais').criarRegistro({ proximoNumero: 1044 })
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 const chamadas = []
@@ -51,6 +52,14 @@ function responder(canal, args) {
       impressoraAtual: 'POS-80', loja: demo.menu().loja, exemplo: demo.listas().pedidos.itens[0],
       automatica: true, vias: 1, caminho: 'x' })
   }
+  if (canal === 'venda-cardapio') {
+    return ok({
+      categorias: demo.listas().cardapio.categorias,
+      clientes: demo.listas().clientes.itens,
+      taxasBairro: { Centro: 7.00, 'Praia de Guaibim': 5.00 },
+    })
+  }
+  if (canal === 'venda-registrar') return registroDeTeste.registrar(args)
   if (canal === 'abrir-rota') return { ok: false, demo: true }
   if (canal === 'impressao-comanda' || canal === 'impressao-teste') return { ok: true }
   if (canal === 'relatorio-pdf') return { ok: true, caminho: '/tmp/x.pdf' }
@@ -114,6 +123,14 @@ const aviso = () => doc.getElementById('eaviso')
 async function irPara(href) {
   clicar($('[data-href="' + href + '"]'))
   await esperar(40)
+}
+
+/** A venda manual não tem item de menu (no painel também não): chega-se por ela pelo
+ *  botão "+ Venda manual" da Gestão de pedido. */
+async function irParaVenda() {
+  await irPara('/admin/pedidos')
+  clicar($('[data-acao="venda-manual"]'))
+  await esperar(60)
 }
 
 beforeEach(async () => { chamadas.length = 0 })
@@ -352,6 +369,87 @@ test('os botões DENTRO da ficha também respondem', async () => {
   clicar(botao)
   await esperar(60)
   assert.ok(aviso().className.includes('on'), 'clicar dentro da ficha responde: ' + botao.getAttribute('data-acao'))
+})
+
+test('venda manual: dá para fechar uma venda inteira só clicando', async () => {
+  await abrirApp()
+  await irParaVenda()
+  assert.ok(/Venda manual/.test(conteudo()), 'a tela do PDV abre')
+
+  // 1. cliente — retirada, para não depender de bairro e endereço
+  clicar($('[data-venda-tipo="retirada"]'))
+  await esperar(40)
+  const nome = doc.querySelector('[data-venda-campo="nome"]')
+  nome.value = 'Seu Antônio'
+  nome.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(40)
+  assert.strictEqual(doc.querySelector('[data-venda-campo="nome"]').value, 'Seu Antônio')
+
+  // 2. produtos — dois cliques no mesmo produto viram quantidade 2
+  clicar($('[data-acao="venda:etapa:produtos"]'))
+  await esperar(40)
+  const produto = doc.querySelector('#econtent [data-venda-add]')
+  const nomeProduto = produto.getAttribute('data-venda-add')
+  clicar(produto)
+  await esperar(40)
+  clicar(doc.querySelector('[data-venda-add="' + nomeProduto + '"]'))
+  await esperar(40)
+  assert.ok(/1 item\(ns\)/.test(conteudo()), 'um produto, duas unidades')
+  assert.ok(doc.querySelector('[data-venda-menos]'), 'o carrinho aparece')
+
+  // 3. pagamento — dinheiro com troco
+  clicar($('[data-acao="venda:etapa:pagamento"]'))
+  await esperar(40)
+  clicar($('[data-venda-forma="dinheiro"]'))
+  await esperar(40)
+  const troco = doc.querySelector('[data-venda-campo="trocoPara"]')
+  troco.value = '500'
+  troco.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(40)
+  assert.ok(/Troco a separar/.test(conteudo()))
+
+  // fecha
+  const antes = registroDeTeste.listar().length
+  clicar($('[data-acao="venda:fechar"]'))
+  await esperar(80)
+  assert.strictEqual(registroDeTeste.listar().length, antes + 1, 'a venda foi gravada de verdade')
+  assert.ok(/registrada/.test(conteudo()), 'a tela vira recibo: ' + conteudo().slice(0, 200))
+  assert.ok(/Seu Antônio/.test(conteudo()))
+})
+
+test('venda manual: o app barra a venda incompleta em vez de gravar torto', async () => {
+  await abrirApp()
+  await irParaVenda()
+  clicar($('[data-acao="venda:etapa:produtos"]'))
+  await esperar(40)
+  clicar($('[data-acao="venda:etapa:pagamento"]'))
+  await esperar(40)
+  assert.ok(/Adicione ao menos um item/.test(conteudo()), 'sem item, a tela diz o que falta')
+  assert.ok(!$('[data-acao="venda:fechar"]'), 'e o botão de fechar nem existe')
+})
+
+test('venda manual: "Venda manual" da Gestão de pedido abre o PDV', async () => {
+  await abrirApp()
+  await irPara('/admin/pedidos')
+  const bt = $('[data-acao="venda-manual"]')
+  assert.ok(bt, 'o botão existe no quadro de pedidos')
+  clicar(bt)
+  await esperar(60)
+  assert.ok(/Venda manual/.test(conteudo()) && /1\. cliente/.test(conteudo()),
+    'clicar leva para o PDV do app, não para o painel')
+})
+
+test('venda manual: cancelar limpa o pedido montado', async () => {
+  await abrirApp()
+  await irParaVenda()
+  clicar($('[data-acao="venda:etapa:produtos"]'))
+  await esperar(40)
+  clicar(doc.querySelector('#econtent [data-venda-add]'))
+  await esperar(40)
+  assert.ok(/1 item\(ns\)/.test(conteudo()))
+  clicar($('[data-acao="venda:cancelar"]'))
+  await esperar(40)
+  assert.ok(/0 item\(ns\)/.test(conteudo()) && /1\. cliente/.test(conteudo()))
 })
 
 test('todo botão de toda tela do menu responde ao clique', async () => {

@@ -25,8 +25,10 @@ const TELAS_MARKETING = ['/admin/cupons', '/admin/vendedores', '/admin/fidelidad
   '/admin/food-marketing/campanhas', '/admin/food-marketing/push', '/admin/compras']
 // Telas do APP, que não existem no painel: impressora é da máquina, não da nuvem.
 const TELAS_DO_APP = ['/app/impressao']
+// Venda manual: existe no painel (/admin/venda) e agora TAMBÉM no app, fechando de verdade.
+const TELA_VENDA = ['/admin/venda']
 const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS))
-  .concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_MARKETING).concat(TELAS_DO_APP)
+  .concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_MARKETING).concat(TELA_VENDA).concat(TELAS_DO_APP)
 
 function ehNativa(rota) {
   // '/admin' é prefixo de TODAS as rotas do painel — para ele vale só a igualdade,
@@ -145,6 +147,8 @@ if (typeof document !== 'undefined') {
     usuario: 'todos', filtro: 'todas', modoExtrato: 'dia', pagina: 0, diasAbertos: [], dreAbertas: [],
     mes: null, situacaoConta: 'todas', tipoConta: 'todas' }
   const AVULSO = {}             // Compras: item avulso sendo digitado
+  const TelaVenda = require('./tela-venda')
+  let VENDA = TelaVenda.vendaVazia()   // Venda manual: o pedido sendo montado agora
   let ABA_CFG = 'geral'         // Configurações: assunto escolhido
   let SUB_CFG = 'config'        // Configurações › Geral: seção escolhida
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
@@ -289,6 +293,12 @@ if (typeof document !== 'undefined') {
     canal: 'fidelidade-carregar',
     desenhar: (d, e) => Mkt.htmlFidelidade(d, { ...e, abaFidelidade: ABA_FIDELIDADE, periodoFid: PERIODO_FID }),
     erro: 'Não deu para carregar a fidelidade agora.',
+  }
+
+  NATIVAS['/admin/venda'] = {
+    canal: 'venda-cardapio',
+    desenhar: (d, e) => TelaVenda.htmlVenda(d, { ...e, venda: VENDA }),
+    erro: 'Não deu para abrir a venda manual agora.',
   }
 
   const TelaCompras = require('./tela-compras')
@@ -464,6 +474,45 @@ if (typeof document !== 'undefined') {
     const f = document.getElementById('eloFicha')
     if (f) f.remove()
   }
+
+  /** Põe ou tira uma unidade do item no pedido que está sendo montado. */
+  function mexerNoItem(nome, delta) {
+    const catalogo = (DADOS_TELA && DADOS_TELA.categorias) || []
+    const produto = catalogo.reduce((achado, c) => achado
+      || (c.itens || []).find((i) => i.nome === nome), null)
+    const atual = VENDA.itens.find((i) => i.nome === nome)
+    if (atual) {
+      atual.qtd += delta
+      if (atual.qtd <= 0) VENDA.itens = VENDA.itens.filter((i) => i !== atual)
+    } else if (delta > 0 && produto) {
+      VENDA.itens = VENDA.itens.concat([{ nome, preco: Number(produto.preco) || 0, qtd: 1 }])
+    }
+    redesenharTelaAtual()
+  }
+
+  /** Fecha a venda: manda para o main gravar e mostra o recibo com o número. */
+  function fecharVenda() {
+    const dados = DADOS_TELA || {}
+    const falta = TelaVenda.oQueFalta(VENDA, dados.taxasBairro)
+    if (falta) { avisar(falta, 'aviso'); return }
+    const t = TelaVenda.totais(VENDA, dados.taxasBairro)
+    avisar('Fechando a venda…', 'ok')
+    ipcRenderer.invoke('venda-registrar', {
+      tipo: VENDA.tipo, cliente: VENDA.nome, telefone: VENDA.telefone, bairro: VENDA.bairro,
+      endereco: VENDA.endereco, observacao: VENDA.observacao, forma: VENDA.forma,
+      trocoPara: Number(VENDA.trocoPara) || 0, itens: VENDA.itens,
+      produtos: t.produtos, entrega: t.entrega, total: t.total,
+    }).then((r) => {
+      if (r && r.ok) {
+        VENDA.numero = r.numero
+        avisar('Venda #' + String(r.numero).padStart(4, '0') + ' registrada · ' + fmtBRLSimples(t.total), 'ok')
+        redesenharTelaAtual()
+      } else {
+        avisar((r && r.erro) || 'Não deu para fechar a venda agora.', 'erro')
+      }
+    }).catch(() => avisar('Não deu para fechar a venda agora.', 'erro'))
+  }
+  const fmtBRLSimples = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   /** Volta os filtros do Financeiro ao neutro (mantém o mês escolhido). */
   function zerarFiltrosFin() {
@@ -642,6 +691,26 @@ if (typeof document !== 'undefined') {
       if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto))
       return
     }
+    // ── Venda manual: o PDV é a única tela do app que escreve ──
+    const btTipoVenda = e.target.closest ? e.target.closest('[data-venda-tipo]') : null
+    if (btTipoVenda) { VENDA.tipo = btTipoVenda.getAttribute('data-venda-tipo'); redesenharTelaAtual(); return }
+    const btBairro = e.target.closest ? e.target.closest('[data-venda-bairro]') : null
+    if (btBairro) { VENDA.bairro = btBairro.getAttribute('data-venda-bairro'); redesenharTelaAtual(); return }
+    const btForma = e.target.closest ? e.target.closest('[data-venda-forma]') : null
+    if (btForma) { VENDA.forma = btForma.getAttribute('data-venda-forma'); redesenharTelaAtual(); return }
+    const btCliente = e.target.closest ? e.target.closest('[data-venda-cliente]') : null
+    if (btCliente) {
+      const chave = btCliente.getAttribute('data-venda-cliente')
+      const c2 = ((DADOS_TELA && DADOS_TELA.clientes) || []).find((x) => (x.telefone || x.nome) === chave)
+      if (c2) { VENDA.nome = c2.nome || ''; VENDA.telefone = c2.telefone || ''; VENDA.bairro = c2.bairro || VENDA.bairro }
+      redesenharTelaAtual()
+      return
+    }
+    const btAdd = e.target.closest ? e.target.closest('[data-venda-add]') : null
+    if (btAdd) { mexerNoItem(btAdd.getAttribute('data-venda-add'), +1); return }
+    const btMenos = e.target.closest ? e.target.closest('[data-venda-menos]') : null
+    if (btMenos) { mexerNoItem(btMenos.getAttribute('data-venda-menos'), -1); return }
+
     // ── Financeiro: filtros, mês, modo e linhas que abrem ──
     const FIN_ATTRS = {
       'data-direcao-fin': 'direcao', 'data-categoria-fin': 'categoria', 'data-forma-fin': 'forma',
@@ -784,7 +853,15 @@ if (typeof document !== 'undefined') {
       // ABRE a tela certa do painel — o clique leva ao lugar da ação, em vez de morrer
       // num recado. Se é da máquina (impressora, PDF) ou só muda a tela, o app faz.
       const destino = Acoes.destinoDe(acao)
-      if (destino && destino.app === 'comanda') { imprimirComanda(btAcao, acharNoDado(acao.split(':').pop())); return }
+      if (destino && destino.app === 'comanda') {
+        const pedido = acao.indexOf('venda:imprimir:') === 0
+          ? { numero: VENDA.numero, cliente: VENDA.nome || 'Consumidor',
+            valor: TelaVenda.totais(VENDA, (DADOS_TELA || {}).taxasBairro).total,
+            itens: VENDA.itens.map((i) => i.qtd + '× ' + i.nome) }
+          : acharNoDado(acao.split(':').pop())
+        imprimirComanda(btAcao, pedido)
+        return
+      }
       if (destino && destino.app === 'comanda-ficha') { imprimirComanda(btAcao, acharNoDado(acao.split(':')[2])); return }
       if (destino && destino.app === 'pdf') { salvarPdf(btAcao); return }
       if (destino && destino.app === 'recarregar') {
@@ -794,6 +871,30 @@ if (typeof document !== 'undefined') {
       }
       if (destino && destino.app === 'limpar-selecao') { SEL_DESPACHO = []; redesenharTelaAtual(); return }
       if (destino && destino.app === 'limpar-filtros-fin') { zerarFiltrosFin(); redesenharTelaAtual(); return }
+      // Abrir a venda manual: é tela do APP, não do painel.
+      if (destino && destino.app === 'venda') {
+        if (ROTA !== '/admin/venda') { ROTA = '/admin/venda'; pintar(); abrirRota(ROTA) }
+        return
+      }
+      if (destino && destino.app === 'venda-cliente') {
+        const c3 = acharNoDado(acao.split(':')[2])
+        VENDA = TelaVenda.vendaVazia()
+        if (c3) { VENDA.nome = c3.nome || ''; VENDA.telefone = c3.telefone || ''; VENDA.bairro = c3.bairro || '' }
+        fecharFicha()
+        ROTA = '/admin/venda'
+        pintar()
+        abrirRota(ROTA)
+        return
+      }
+      if (destino && destino.app === 'venda-etapa') { VENDA.etapa = acao.split(':')[2]; redesenharTelaAtual(); return }
+      if (destino && destino.app === 'venda-fechar') { fecharVenda(); return }
+      if (destino && destino.app === 'venda-nova') {
+        const tinha = VENDA.itens.length && !VENDA.numero
+        VENDA = TelaVenda.vendaVazia()
+        if (tinha) avisar('Venda cancelada.', 'aviso')
+        redesenharTelaAtual()
+        return
+      }
       if (destino && destino.app === 'nf-limpar') { avisar('Os filtros da nota são do painel — aqui a lista vem inteira.', 'aviso'); return }
       if (destino && destino.app === 'ordenar-clientes') {
         ORDEM_CLIENTES = ORDEM_CLIENTES === 'gasto' ? 'recencia' : 'gasto'
@@ -870,6 +971,19 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       const novoCampo = document.getElementById('buscaPedidos')
       if (novoCampo) { novoCampo.focus(); try { novoCampo.setSelectionRange(pos2, pos2) } catch (x) {} }
+      return
+    }
+    // Venda manual: cada campo digitado entra no pedido que está sendo montado.
+    const campoVenda = e.target && e.target.getAttribute && e.target.getAttribute('data-venda-campo')
+    if (campoVenda) {
+      VENDA[campoVenda] = campoVenda === 'trocoPara'
+        ? Number(('' + e.target.value).replace(/[^0-9,.]/g, '').replace(',', '.')) || 0
+        : e.target.value
+      // Busca e troco mexem no que está na tela; nome e telefone também (as sugestões).
+      const pos6 = e.target.selectionStart
+      redesenharTelaAtual()
+      const campo = document.querySelector('[data-venda-campo="' + campoVenda + '"]')
+      if (campo) { campo.focus(); try { campo.setSelectionRange(pos6, pos6) } catch (x) {} }
       return
     }
     // Compras: o que o lojista digita no item avulso precisa sobreviver ao redesenho.

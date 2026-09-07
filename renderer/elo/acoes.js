@@ -26,8 +26,8 @@ const DESTINOS = {
 
   // ── Pedidos e despacho ──
   'avancar': { rota: '/admin/pedidos', o: 'avançar o pedido de etapa' },
-  'novo-pedido': { rota: '/admin/venda', o: 'lançar um pedido' },
-  'venda-manual': { rota: '/admin/venda', o: 'lançar uma venda manual' },
+  'novo-pedido': { app: 'venda' },
+  'venda-manual': { app: 'venda' },
   'imprimir': { app: 'comanda' },
   'aceite-automatico': { rota: '/admin/configuracoes', o: 'ligar o aceite automático' },
   'editar-tempos': { rota: '/admin/configuracoes', o: 'editar os tempos de preparo' },
@@ -122,13 +122,20 @@ const DESTINOS = {
   'ficha:imprimir': { app: 'comanda-ficha' },
   'ficha:whatsapp': { rota: '/admin/whatsapp', o: 'falar com o cliente' },
   'ficha:whatsapp-cliente': { rota: '/admin/whatsapp', o: 'falar com o cliente' },
-  'ficha:novo-pedido': { rota: '/admin/venda', o: 'lançar um pedido para o cliente' },
+  'ficha:novo-pedido': { app: 'venda-cliente' },
   'ficha:esgotar': { rota: '/admin/cardapio', o: 'marcar esgotado' },
 
   // ── Impressão (do app, não do painel) ──
   'impressao:procurar': { app: 'impressao' },
   'impressao:teste': { app: 'impressao' },
   'impressao:comanda': { app: 'impressao' },
+
+  // ── Venda manual: o app FECHA a venda, não manda para o painel ──
+  'venda:etapa': { app: 'venda-etapa' },
+  'venda:fechar': { app: 'venda-fechar' },
+  'venda:nova': { app: 'venda-nova' },
+  'venda:cancelar': { app: 'venda-nova' },
+  'venda:imprimir': { app: 'comanda' },
 
   // ── KDS: acesso pela TV (abre a ficha, não escreve nada) ──
   'kds:tv': { app: 'ficha-tv' },

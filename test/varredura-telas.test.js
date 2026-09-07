@@ -18,6 +18,7 @@ const TelaVisaoGeral = require('../renderer/elo/tela-visao-geral')
 const TelaImpressao = require('../renderer/elo/tela-impressao')
 const TelaCompras = require('../renderer/elo/tela-compras')
 const Mkt = require('../renderer/elo/telas-marketing')
+const TelaVenda = require('../renderer/elo/tela-venda')
 
 const listas = demo.listas()
 const apoio = demo.listasApoio()
@@ -39,6 +40,10 @@ const TELAS = {
   '/admin/atendimento': () => Principais.htmlSalao(comAbas.atendimento.salaoDetalhado, estado),
   '/admin/estoque': () => ComAbas.htmlComAbas('/admin/estoque', comAbas.estoque, { aba: 'produtos' }),
   '/admin/compras': () => TelaCompras.htmlCompras(apoio.compras, estado),
+  '/admin/venda': () => TelaVenda.htmlVenda({
+    categorias: listas.cardapio.categorias, clientes: listas.clientes.itens,
+    taxasBairro: { Centro: 7 },
+  }, estado),
   '/admin/financeiro': () => Principais.htmlFinanceiroVisao(comAbas.financeiro.visao, estado),
   '/admin/motoboys': () => Catalogo.htmlDaRota('/admin/motoboys', listas.entregadores, estado),
   '/admin/relatorios': () => Finais.htmlRelatorios(finais.relatorios, estado),
@@ -81,6 +86,7 @@ test('nenhuma tela quebra quando o dado ainda não chegou', () => {
     '/admin/cardapio': () => TelaCardapio.htmlCardapio(null, estado),
     '/admin/cozinha': () => Operacao.htmlKds(null, estado),
     '/admin/compras': () => TelaCompras.htmlCompras(null, estado),
+    '/admin/venda': () => TelaVenda.htmlVenda(null, estado),
     '/admin/cupons': () => Mkt.htmlCupons(null, estado),
     '/admin/fidelidade': () => Mkt.htmlFidelidade(null, estado),
     '/admin/vendedores': () => Mkt.htmlParceiros(null, estado),
@@ -90,7 +96,7 @@ test('nenhuma tela quebra quando o dado ainda não chegou', () => {
   }
   for (const rota of Object.keys(semDado)) {
     const h = semDado[rota]()
-    assert.ok(h && /sem dados|carregando|lendo as impressoras/i.test(h), rota + ' precisa avisar que não tem dado: ' + h.slice(0, 120))
+    assert.ok(h && /sem dados|sem o card[áa]pio|carregando|lendo as impressoras/i.test(h), rota + ' precisa avisar que não tem dado: ' + h.slice(0, 120))
   }
 })
 

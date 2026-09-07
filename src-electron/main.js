@@ -534,7 +534,28 @@ async function createWindow() {
       // Demonstração: nada de rede. Os mesmos canais, com dados fictícios.
       log.info('[DEMO] modo demonstração ligado — dados fictícios, sem servidor')
       ipcMain.handle('menu-carregar', () => ({ dados: dadosDemo.menu(), offline: false, ts: Date.now(), demo: true }))
-      ipcMain.handle('caixa-carregar', () => ({ dados: dadosDemo.caixa(), offline: false, ts: Date.now(), demo: true }))
+      ipcMain.handle('caixa-carregar', () => {
+        const caixa = dadosDemo.caixa()
+        const manuais = registroVendas.listar()
+        if (manuais.length) {
+          // O que foi vendido no app entra no resumo e nas movimentações do turno.
+          const dinheiro = manuais.filter((v) => v.forma === 'dinheiro').reduce((s2, v) => s2 + v.total, 0)
+          const pix = manuais.filter((v) => v.forma === 'pix').reduce((s2, v) => s2 + v.total, 0)
+          const cartao = manuais.filter((v) => v.forma === 'credito' || v.forma === 'debito')
+            .reduce((s2, v) => s2 + v.total, 0)
+          caixa.resumo = { ...caixa.resumo,
+            vendaDinheiro: caixa.resumo.vendaDinheiro + dinheiro,
+            vendaPix: caixa.resumo.vendaPix + pix,
+            vendaCartao: caixa.resumo.vendaCartao + cartao }
+          caixa.esperadoDinheiro = (caixa.esperadoDinheiro || 0) + dinheiro
+          caixa.movimentacoes = manuais.map((v) => ({
+            id: 'vm' + v.numero, tipo: 'venda', forma: v.forma, valor: v.total,
+            descricao: 'Venda manual #' + String(v.numero).padStart(4, '0'),
+            criadoEm: v.criadoEm, estornada: false,
+          })).concat(caixa.movimentacoes)
+        }
+        return { dados: caixa, offline: false, ts: Date.now(), demo: true }
+      })
       ipcMain.handle('visao-geral-carregar', (e, a) => ({ dados: dadosDemo.visaoGeral(a && a.periodo), offline: false, ts: Date.now(), demo: true }))
       const listasDemo = dadosDemo.listas()
       const CANAIS_LISTA = {
@@ -544,7 +565,15 @@ async function createWindow() {
       }
       for (const canal of Object.keys(CANAIS_LISTA)) {
         const chave = CANAIS_LISTA[canal]
-        ipcMain.handle(canal, () => ({ dados: dadosDemo.listas()[chave], offline: false, ts: Date.now(), demo: true }))
+        ipcMain.handle(canal, () => {
+          const dados = dadosDemo.listas()[chave]
+          // Pedidos: as vendas fechadas no app entram na frente das que vieram do painel.
+          if (chave === 'pedidos' && registroVendas.listar().length) {
+            const manuais = registroVendas.listar().map(registroVendas.comoPedido)
+            return { dados: { ...dados, itens: manuais.concat(dados.itens) }, offline: false, ts: Date.now(), demo: true }
+          }
+          return { dados, offline: false, ts: Date.now(), demo: true }
+        })
       }
       const CANAIS_APOIO = {
         'compras-carregar': 'compras', 'estoque-carregar': 'estoque', 'cupons-carregar': 'cupons',
@@ -616,13 +645,51 @@ async function createWindow() {
         }
       })
 
+      // ── Venda manual: a primeira tela do app que ESCREVE ──
+      // A venda fechada aqui recebe número, entra no quadro de pedidos, no caixa e no
+      // extrato. É o ensaio do modo offline: fechar venda sem depender do servidor.
+      const registroVendas = require('./vendas-locais').criarRegistro({ proximoNumero: 1044 })
+      ipcMain.handle('venda-cardapio', () => ({
+        dados: {
+          categorias: dadosDemo.listas().cardapio.categorias,
+          clientes: dadosDemo.listas().clientes.itens,
+          taxasBairro: { 'Praia de Guaibim': 5.00, Centro: 7.00, 'Bela Vista': 9.00, 'São Félix': 8.00 },
+        },
+        offline: false, ts: Date.now(), demo: true,
+      }))
+      ipcMain.handle('venda-registrar', (e, v) => {
+        const r = registroVendas.registrar(v)
+        if (r.ok) log.info('[VENDA] #' + r.numero + ' fechada no app · ' + r.venda.total)
+        return r
+      })
+
       const CANAIS_ABAS = {
         'financeiro-abas-carregar': 'financeiro', 'atendimento-abas-carregar': 'atendimento',
         'estoque-abas-carregar': 'estoque',
       }
       for (const canal of Object.keys(CANAIS_ABAS)) {
         const chave = CANAIS_ABAS[canal]
-        ipcMain.handle(canal, () => ({ dados: dadosDemo.telasComAbas()[chave], offline: false, ts: Date.now(), demo: true }))
+        ipcMain.handle(canal, () => {
+          const dados = dadosDemo.telasComAbas()[chave]
+          // Financeiro: a venda do app aparece no extrato e no livro caixa, como no painel.
+          if (chave === 'financeiro' && registroVendas.listar().length) {
+            const movs = registroVendas.listar().map(registroVendas.comoMovimento)
+            let saldo = dados.extrato.length ? dados.extrato[0].saldo : 0
+            movs.forEach((m) => { saldo += m.valor; m.saldo = Math.round(saldo * 100) / 100 })
+            return {
+              dados: { ...dados,
+                extrato: movs.concat(dados.extrato),
+                livroCaixa: movs.filter((m) => m.forma === 'dinheiro').concat(dados.livroCaixa),
+                vendas: registroVendas.listar().map((v) => ({
+                  numero: v.numero, data: v.data, hora: v.hora, cliente: v.cliente, canal: v.canal,
+                  produtos: v.produtos, servico: 0, entrega: v.entrega, desconto: 0,
+                  pagamento: v.forma, financeiro: 'Pago', pedido: 'em produção', total: v.total,
+                })).concat(dados.vendas) },
+              offline: false, ts: Date.now(), demo: true,
+            }
+          }
+          return { dados, offline: false, ts: Date.now(), demo: true }
+        })
       }
       const CANAIS_OPERACAO = { 'cozinha-carregar': 'cozinha', 'bar-carregar': 'bar', 'salao-carregar': 'salao' }
       for (const canal of Object.keys(CANAIS_OPERACAO)) {
