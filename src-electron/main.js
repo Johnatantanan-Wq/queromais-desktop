@@ -24,6 +24,11 @@ const { calcularBounds } = SHELL_ELO ? require('./layout-views') : {}
 const { makeStore } = SHELL_ELO ? require('./cache-store') : {}
 const { criarMonitor } = SHELL_ELO ? require('./rede') : {}
 const ponte = SHELL_ELO ? require('./ponte') : null
+// Modo DEMONSTRAÇÃO: `open -a "<app>" --args --demo` (ou PEDIU_DEMO=1). Serve para
+// trabalhar nas telas sem depender de login/servidor. Nunca liga sozinho, e a topbar
+// mostra um selo permanente — dado fictício não pode se passar por real.
+const DEMO = SHELL_ELO && (process.argv.includes('--demo') || process.env.PEDIU_DEMO === '1')
+const dadosDemo = DEMO ? require('./demo-dados') : null
 initConfig()
 
 // ── Status da loja (aberta/fechada) ──────────────────────────────────────────
@@ -271,6 +276,15 @@ const HEADER      = SHELL_ELO ? 118 : 44   // 44 titlebar + 74 topbar
 function posicionarViews() {
   const win = global.mainWindow
   if (!win || !global.cardapioView || !global.whatsappView) return
+  // Tela nativa na frente: as views saem da área de conteúdo e FICAM fora — senão o
+  // posicionamento do boot (e o do resize) devolvia a BrowserView para cima da tela
+  // nativa, que é o que escondia o Caixa atrás do login no modo demonstração.
+  if (global.telaNativaAtiva) {
+    const fora = { x: 0, y: 0, width: 0, height: 0 }
+    global.cardapioView.setBounds(fora)
+    global.whatsappView.setBounds(fora)
+    return
+  }
   const b = win.getContentBounds()
   const w = b.width, h = b.height
   const SB = global.sidebarW
@@ -337,12 +351,20 @@ async function createWindow() {
     },
   })
 
-  await global.mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, SHELL_ELO ? '../renderer/elo/index.html' : '../renderer/index.html'),
-    protocol: 'file:',
-    slashes: true,
-  }))
-  global.mainWindow.webContents.send('app-version', { version: app.getVersion() })
+  // O shell elo pede o menu (menu-carregar) assim que carrega — se o HTML entrar
+  // antes de a ponte registrar os canais, o app sobe com a barra lateral VAZIA
+  // ("No handler registered for 'menu-carregar'", visto ao abrir o beta 07/09).
+  // Por isso, no beta a página só entra depois da ponte, mais abaixo. As outras
+  // marcas continuam carregando exatamente aqui, como sempre.
+  const carregarRenderer = async () => {
+    await global.mainWindow.loadURL(url.format({
+      pathname: path.join(__dirname, SHELL_ELO ? '../renderer/elo/index.html' : '../renderer/index.html'),
+      protocol: 'file:',
+      slashes: true,
+    }))
+    global.mainWindow.webContents.send('app-version', { version: app.getVersion() })
+  }
+  if (!SHELL_ELO) await carregarRenderer()
   global.mainWindow.setMenu(null)
   global.mainWindow.setMenuBarVisibility(false)
   if (typeof global.mainWindow.removeMenu === 'function') {
@@ -486,7 +508,7 @@ async function createWindow() {
         log.info('[REDE] ' + (online ? 'conectado' : 'sem internet'))
       },
     })
-    monitorRede.iniciar()
+    if (!DEMO) monitorRede.iniciar()
 
     // qualquer rota de leitura do painel, pela view logada
     const pedirTela = async (caminho) => {
@@ -496,7 +518,18 @@ async function createWindow() {
         "fetch('" + caminho + "',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
     }
 
-    ponte.registrar({
+    ipcMain.handle('app-info', () => ({ demo: DEMO, versao: app.getVersion(), marca: brand.nome_app }))
+
+    if (DEMO) {
+      // Demonstração: nada de rede. Os mesmos canais, com dados fictícios.
+      log.info('[DEMO] modo demonstração ligado — dados fictícios, sem servidor')
+      ipcMain.handle('menu-carregar', () => ({ dados: dadosDemo.menu(), offline: false, ts: Date.now(), demo: true }))
+      ipcMain.handle('caixa-carregar', () => ({ dados: dadosDemo.caixa(), offline: false, ts: Date.now(), demo: true }))
+      ipcMain.handle('rede-status', () => ({ online: true, demo: true }))
+      ipcMain.handle('cache-get', () => null)
+      ipcMain.handle('cache-set', () => ({ ok: true }))
+      ipcMain.handle('abrir-rota', () => ({ ok: false, demo: true }))
+    } else ponte.registrar({
       ipcMain, cache: cacheDisco, monitorRede,
       pedirAoPainel: pedirMenuAoPainel,
       pedirTela,
@@ -504,6 +537,7 @@ async function createWindow() {
       abrirRota: (href) => {
         const base = getConfig().cardapioUrl.replace(/\/admin\/?$/, '')
         global.activeView = 'cardapio'
+        global.telaNativaAtiva = false
         posicionarViews()
         global.cardapioView.webContents.loadURL(base + href)
         return { ok: true }
@@ -514,10 +548,8 @@ async function createWindow() {
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
     // Windows (nunca add/remove em runtime) e a página do painel viva por trás.
     ipcMain.on('esconder-view', () => {
-      try {
-        global.cardapioView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-        global.whatsappView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
-      } catch (e) {}
+      global.telaNativaAtiva = true
+      try { posicionarViews() } catch (e) {}
     })
 
     // Recolher/expandir o menu muda a largura útil: as views acompanham.
@@ -533,6 +565,9 @@ async function createWindow() {
     }
     global.cardapioView.webContents.on('did-navigate', (e, u) => avisarRota(u))
     global.cardapioView.webContents.on('did-navigate-in-page', (e, u) => avisarRota(u))
+
+    // ponte pronta: agora sim a página do shell entra, com os canais já registrados
+    await carregarRenderer()
   }
 
   // Captura console do WhatsApp para o log do Electron
@@ -749,6 +784,7 @@ ipcMain.on('window-close', () => {
 
 ipcMain.on('change-view', (event, { view }) => {
   const nextView = ['whatsapp', 'split'].includes(view) ? view : 'cardapio'
+  global.telaNativaAtiva = false   // WhatsApp/tela dividida precisam das views de volta
   log.info('[NAV] change-view recebido:', view, '=>', nextView)
   global.activeView = nextView
   posicionarViews()

@@ -81,6 +81,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tinta);
 .echip:hover{filter:brightness(.97)}
 .echip.on{background:var(--acento-suave);color:var(--acento-texto)}
 .echip.offline{background:#fdeaea;color:#b42318}
+/* modo demonstração: âmbar, para não ser confundido com estado de conexão */
+.echip.demo{background:#fff3cc;color:#8a6508;font-weight:800;letter-spacing:.02em}
 .eiconbtn{width:38px;height:38px;border:1px solid var(--linha-2);border-radius:10px;background:var(--painel);
   color:var(--tinta-2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:inherit}
 .eiconbtn:hover{background:#fafafa}

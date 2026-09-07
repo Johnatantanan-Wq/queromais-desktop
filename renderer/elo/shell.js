@@ -100,6 +100,7 @@ if (typeof document !== 'undefined') {
   let ROTA = '/admin'
   let ONLINE = false
   let VIEW = 'cardapio'
+  let DEMO = false
 
   const $ = (id) => document.getElementById(id)
 
@@ -111,8 +112,13 @@ if (typeof document !== 'undefined') {
     $('erailAvatar').textContent = iniciaisDe(loja.nome)
     $('erailNome').textContent = loja.nome || brand.nome_delivery
     $('erailDoc').textContent = loja.documento || ''
-    $('chipRede').className = 'echip' + (ONLINE ? '' : ' offline')
-    $('chipRede').textContent = ONLINE ? 'conectado' : 'sem internet'
+    if (DEMO) {
+      $('chipRede').className = 'echip demo'
+      $('chipRede').textContent = 'DEMONSTRAÇÃO · dados fictícios'
+    } else {
+      $('chipRede').className = 'echip' + (ONLINE ? '' : ' offline')
+      $('chipRede').textContent = ONLINE ? 'conectado' : 'sem internet'
+    }
   }
 
   // Rota nativa: o app desenha em #econtent e ESCONDE a BrowserView (senão ela
@@ -121,10 +127,21 @@ if (typeof document !== 'undefined') {
     if (ehNativa(rota)) {
       ipcRenderer.send('esconder-view')
       carregarTelaNativa(rota)
-    } else {
-      document.getElementById('econtent').innerHTML = ''
-      ipcRenderer.invoke('abrir-rota', rota)
+      return
     }
+    if (DEMO) {
+      // Em demonstração não há servidor: em vez de abrir o painel (que pediria
+      // login), a tela diz a verdade sobre o que ainda não é nativo.
+      ipcRenderer.send('esconder-view')
+      document.getElementById('econtent').innerHTML =
+        '<div class="ecard"><div class="evazio">'
+        + '<div style="font-size:15px;font-weight:800;color:#111;margin-bottom:6px">Esta tela ainda não é nativa</div>'
+        + 'No modo demonstração o app não fala com o servidor. Hoje só o <b>Caixa</b> é desenhado pelo app; '
+        + 'as outras telas abrem o painel, e para isso é preciso conexão e login.</div></div>'
+      return
+    }
+    document.getElementById('econtent').innerHTML = ''
+    ipcRenderer.invoke('abrir-rota', rota)
   }
 
   async function carregarTelaNativa(rota) {
@@ -197,9 +214,24 @@ if (typeof document !== 'undefined') {
   raiz.setProperty('--acento-texto', tons.texto)
   raiz.setProperty('--acento-linha', tons.linha)
 
+  // Logo da marca (assets/logo-marca.svg, posta pelo apply-brand). Se a marca não
+  // tiver SVG, mostra o nome — nunca o ícone quebrado que aparecia antes.
+  const logo = $('erailLogo')
+  logo.addEventListener('error', () => {
+    logo.style.display = 'none'
+    const txt = $('erailNomeMarca')
+    txt.textContent = brand.nome_delivery || brand.nome_app
+    txt.style.display = 'block'
+  })
+
   $('tbNome').textContent = brand.nome_app
   document.title = brand.nome_app
   pintar()
+  ipcRenderer.invoke('app-info').then((info) => {
+    DEMO = !!(info && info.demo)
+    if (DEMO) { ONLINE = true; abrirRota('/admin/caixa'); ROTA = '/admin/caixa' }
+    pintar()
+  }).catch(() => {})
   ipcRenderer.invoke('rede-status').then((r) => { ONLINE = !!(r && r.online); pintar() }).catch(() => {})
   carregarMenu()
   setInterval(carregarMenu, 30000)

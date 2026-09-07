@@ -71,6 +71,24 @@ for (const [chave, destinoNome] of Object.entries(mapaIcones)) {
   }
 }
 
+// ── 1b. Logo da marca para o shell "elo" ────────────────────────────────────
+// O shell novo desenha a logo na barra lateral. Ela não pode vir de `brands/`:
+// o electron-builder empacota só src-electron/, renderer/ e assets/ — no app
+// instalado o caminho não existe e a logo saía quebrada (visto no beta 07/09).
+// Copiada para assets/, entra no pacote como os ícones. Marca sem SVG de logo
+// não quebra o build: o shell cai no nome da marca em texto.
+const logoSvg = path.join(brandDir, 'src', slug.replace(/-beta$/, '') + '-logo-principal.svg')
+const logoDest = path.join(ROOT, 'assets', 'logo-marca.svg')
+if (fs.existsSync(logoSvg)) {
+  const igualLogo = fs.existsSync(logoDest) && fs.readFileSync(logoSvg).equals(fs.readFileSync(logoDest))
+  if (!igualLogo) {
+    fs.copyFileSync(logoSvg, logoDest)
+    console.log(`  assets/logo-marca.svg ← brands/${slug}/src/`)
+  }
+} else if (fs.existsSync(logoDest)) {
+  fs.unlinkSync(logoDest)   // marca sem logo não herda a da marca anterior
+}
+
 // ── 2. Config de runtime → src-electron/brand.generated.json ────────────────
 const runtime = { ...brand }
 delete runtime.icons // caminhos de build não interessam em runtime
