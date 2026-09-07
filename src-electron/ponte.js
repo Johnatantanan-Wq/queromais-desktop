@@ -73,17 +73,25 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   // As demais telas vêm do catálogo (telas-ponte.js): uma linha por tela, com as
   // rotas do painel, o adaptador e o que conta como resposta boa.
   for (const tela of TELAS) {
-    ipcMain.handle(tela.canal, () => buscarTela({
-      cache,
-      chave: tela.cache + '|' + (lojaIdAtual() || 'sem-loja'),
-      pedirAoPainel: async () => {
-        const bruto = await buscarVarias({ rotas: tela.rotas, pedirTela })
-        if (tela.valida && !tela.valida(bruto)) return null
-        return tela.adaptar(bruto)
-      },
-      // O adaptador já devolveu no formato da tela; aqui só se recusa o vazio.
-      valida: (d) => d != null,
-    }))
+    ipcMain.handle(tela.canal, (evento, args) => {
+      // Tela que muda com a escolha do lojista (o período da Visão geral) leva o
+      // parâmetro na rota E na chave do cache — senão a semana ficaria mostrando o
+      // dado do dia guardado antes.
+      const sufixo = tela.comArgumentos ? tela.comArgumentos(args) : ''
+      const rotas = {}
+      for (const k of Object.keys(tela.rotas)) rotas[k] = tela.rotas[k] + sufixo
+      return buscarTela({
+        cache,
+        chave: tela.cache + sufixo + '|' + (lojaIdAtual() || 'sem-loja'),
+        pedirAoPainel: async () => {
+          const bruto = await buscarVarias({ rotas, pedirTela })
+          if (tela.valida && !tela.valida(bruto)) return null
+          return tela.adaptar(bruto)
+        },
+        // O adaptador já devolveu no formato da tela; aqui só se recusa o vazio.
+        valida: (d) => d != null,
+      })
+    })
   }
 
   // Telas que o painel ainda não expõe por rota de leitura: em vez de "No handler

@@ -27,6 +27,9 @@ const respostas = {
   '/api/admin/kds/codigo': { definido: true, dispositivos: 1 },
   '/api/admin/clientes': [{ nome: 'Maria', telefone: '111', total_pedidos: 3, total_gasto: 300 }],
   '/api/admin/loja': { id: 'l1', nome: 'Pizzaria' },
+  '/api/admin/desktop/pedidos': { itens: [], kpis: {}, contadores: {} },
+  '/api/admin/desktop/visao-geral?periodo=mes': { kpis: { faturamento: { valor: 1 } } },
+  '/api/admin/desktop/visao-geral?periodo=dia': { kpis: { faturamento: { valor: 2 } } },
 }
 
 function pontePronta({ falha = [], loja = 'loja-1' } = {}) {
@@ -130,9 +133,26 @@ test('mas se a rota PRINCIPAL falha, a tela não inventa dado', async () => {
 
 test('tela sem rota no painel diz O QUE falta, em vez de erro genérico', async () => {
   const p = pontePronta()
-  const r = await p.chamar('pedidos-carregar')
+  const r = await p.chamar('push-carregar')
   assert.strictEqual(r.dados, null)
   assert.match(r.semApi, /rota de leitura no painel/)
+})
+
+test('a Visão geral leva o período na rota E na chave do cache', async () => {
+  const p = pontePronta()
+  await p.chamar('visao-geral-carregar', { periodo: 'mes' })
+  assert.ok(p.pedidas.some((r) => r.indexOf('periodo=mes') > 0), p.pedidas.join(','))
+  await p.chamar('visao-geral-carregar', { periodo: 'dia' })
+  const chaves = p.cache.chaves()
+  assert.ok(chaves.some((k) => k.indexOf('periodo=mes') > 0) && chaves.some((k) => k.indexOf('periodo=dia') > 0),
+    'cada período tem a sua chave: ' + chaves.join(','))
+})
+
+test('as telas do painel novo vêm prontas — o app não retraduz', async () => {
+  const p = pontePronta()
+  const r = await p.chamar('pedidos-carregar')
+  assert.strictEqual(r.offline, false, 'a rota respondeu')
+  assert.ok(p.pedidas.includes('/api/admin/desktop/pedidos'))
 })
 
 test('cada tela do catálogo declara rota, adaptador e validação', () => {

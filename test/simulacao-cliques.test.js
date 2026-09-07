@@ -415,6 +415,10 @@ test('venda manual: dá para fechar uma venda inteira só clicando', async () =>
   assert.strictEqual(registroDeTeste.listar().length, antes + 1, 'a venda foi gravada de verdade')
   assert.ok(/registrada/.test(conteudo()), 'a tela vira recibo: ' + conteudo().slice(0, 200))
   assert.ok(/Seu Antônio/.test(conteudo()))
+  // O id do produto tem que ir junto: é ele que o painel exige para lançar o pedido
+  // quando o app está conectado.
+  const gravada = registroDeTeste.listar()[0]
+  assert.ok(gravada.itens[0].nome, 'a venda gravada tem o item')
 })
 
 test('venda manual: o app barra a venda incompleta em vez de gravar torto', async () => {

@@ -540,6 +540,17 @@ async function createWindow() {
       log,
     })
 
+    // Escrita no painel, pela MESMA view logada: sem token novo, sem sessão paralela.
+    // É por aqui que a venda manual do app vira pedido de verdade.
+    const enviarAoPainel = async (caminho, corpo) => {
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return null
+      return wc.executeJavaScript(
+        "fetch(" + JSON.stringify(caminho) + ",{method:'POST',credentials:'include',"
+        + "headers:{'content-type':'application/json'},body:" + JSON.stringify(JSON.stringify(corpo))
+        + "}).then(r=>r.json().catch(()=>null)).catch(()=>null)", true)
+    }
+
     // qualquer rota de leitura do painel, pela view logada
     const pedirTela = async (caminho) => {
       const wc = global.cardapioView?.webContents
@@ -681,6 +692,11 @@ async function createWindow() {
         return { ok: true }
       },
     })
+
+    // Venda manual no app conectado: o PDV monta e o painel lança o pedido. No modo
+    // demonstração a venda é gravada localmente (vendas-locais.js), então este canal
+    // só existe fora dele.
+    if (!DEMO) require('./venda-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

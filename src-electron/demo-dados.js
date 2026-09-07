@@ -380,27 +380,27 @@ function listas() {
       qualidade: { pontuacao: 63, promocionais: 1, comFotos: 71, comDescricoes: 79, promocoesCategorias: 0 },
       categorias: [
         { nome: 'Promoção do dia! 🔥', etiquetas: ['Promocional', 'OCULTA', 'Destaque pop-up'], esgotada: false, itens: [
-          { nome: 'Combo casal — 2 pizzas G', preco: 99.90, esgotado: false, foto: true, descricao: 'Duas pizzas grandes + refrigerante 2L' },
+          { id: 'demo-p1', nome: 'Combo casal — 2 pizzas G', preco: 99.90, esgotado: false, foto: true, descricao: 'Duas pizzas grandes + refrigerante 2L' },
         ] },
         { nome: 'Pizzas salgadas', etiquetas: ['Pizza', 'Itens principais'], esgotada: false, itens: [
-          { nome: 'Calabresa', preco: 44.90, esgotado: false, foto: true, descricao: 'Molho, muçarela, calabresa e cebola' },
-          { nome: 'Portuguesa', preco: 47.90, esgotado: false, foto: true, descricao: 'Presunto, ovo, ervilha, cebola e azeitona' },
-          { nome: 'Frango com catupiry', preco: 49.90, esgotado: false, foto: false },
-          { nome: 'Marguerita', preco: 42.90, esgotado: true, foto: true, descricao: 'Manjericão fresco' },
+          { id: 'demo-p2', nome: 'Calabresa', preco: 44.90, esgotado: false, foto: true, descricao: 'Molho, muçarela, calabresa e cebola' },
+          { id: 'demo-p3', nome: 'Portuguesa', preco: 47.90, esgotado: false, foto: true, descricao: 'Presunto, ovo, ervilha, cebola e azeitona' },
+          { id: 'demo-p4', nome: 'Frango com catupiry', preco: 49.90, esgotado: false, foto: false },
+          { id: 'demo-p5', nome: 'Marguerita', preco: 42.90, esgotado: true, foto: true, descricao: 'Manjericão fresco' },
         ] },
         { nome: 'Pizzas doces', etiquetas: ['Pizza'], esgotada: false, itens: [
-          { nome: 'Chocolate', preco: 39.90, esgotado: false, foto: true },
-          { nome: 'Romeu e Julieta', preco: 41.90, esgotado: false, foto: false },
+          { id: 'demo-p6', nome: 'Chocolate', preco: 39.90, esgotado: false, foto: true },
+          { id: 'demo-p7', nome: 'Romeu e Julieta', preco: 41.90, esgotado: false, foto: false },
         ] },
         { nome: 'Bebidas', etiquetas: ['Itens principais'], esgotada: false, itens: [
-          { nome: 'Refrigerante 2L', preco: 12.00, esgotado: false, foto: true },
-          { nome: 'Refrigerante lata', preco: 6.00, esgotado: false, foto: true },
-          { nome: 'Cerveja long neck', preco: 9.00, esgotado: true, foto: false, descricao: 'Preço sob consulta — confirmar com a loja antes de ativar a venda.' },
-          { nome: 'Suco de laranja 500ml', preco: 11.00, esgotado: false, foto: false },
+          { id: 'demo-p8', nome: 'Refrigerante 2L', preco: 12.00, esgotado: false, foto: true },
+          { id: 'demo-p9', nome: 'Refrigerante lata', preco: 6.00, esgotado: false, foto: true },
+          { id: 'demo-p10', nome: 'Cerveja long neck', preco: 9.00, esgotado: true, foto: false, descricao: 'Preço sob consulta — confirmar com a loja antes de ativar a venda.' },
+          { id: 'demo-p11', nome: 'Suco de laranja 500ml', preco: 11.00, esgotado: false, foto: false },
         ] },
         { nome: 'Adicionais', etiquetas: [], esgotada: false, itens: [
-          { nome: 'Borda recheada', preco: 8.00, esgotado: false, foto: false },
-          { nome: 'Bacon extra', preco: 6.00, esgotado: false, foto: false },
+          { id: 'demo-p12', nome: 'Borda recheada', preco: 8.00, esgotado: false, foto: false },
+          { id: 'demo-p13', nome: 'Bacon extra', preco: 6.00, esgotado: false, foto: false },
         ] },
       ],
       // continua servindo a lista simples (a tela antiga usava isto)

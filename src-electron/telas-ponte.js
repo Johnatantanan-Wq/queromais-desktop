@@ -96,6 +96,34 @@ const TELAS = [
     adaptar: (r) => A.fidelidade(r),
     valida: (r) => !!r.dashboardResp,
   },
+  // ── Telas servidas por /api/admin/desktop/[tela] ──
+  // O painel devolve o dado JÁ no formato da tela: a tradução mora do lado do
+  // servidor, junto das regras (o que é "hoje" no fuso da loja, o que entra no
+  // quadro, o que conta como pago). Duplicar isso aqui criaria uma segunda verdade.
+  ...['pedidos', 'despacho', 'cardapio', 'carrinhos', 'cupons', 'entregadores', 'compras']
+    .map((tela) => ({
+      canal: tela === 'entregadores' ? 'entregadores-carregar' : tela + '-carregar',
+      cache: tela,
+      rotas: { d: '/api/admin/desktop/' + tela },
+      adaptar: (r) => r.d,
+      valida: (r) => !!r.d && !r.d.error,
+    })),
+  {
+    // O PDV precisa do cardápio, dos clientes (busca por telefone) e da taxa de cada
+    // bairro — é ela que muda o total antes de fechar a venda.
+    canal: 'venda-cardapio', cache: 'venda',
+    rotas: { d: '/api/admin/desktop/venda' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error && Array.isArray(r.d.categorias),
+  },
+  {
+    canal: 'visao-geral-carregar', cache: 'visao-geral',
+    rotas: { d: '/api/admin/desktop/visao-geral' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error && !!r.d.kpis,
+    // A Visão geral muda com o período escolhido na tela.
+    comArgumentos: (args) => '?periodo=' + encodeURIComponent((args && args.periodo) || 'semana'),
+  },
 ]
 
 /**
@@ -104,19 +132,10 @@ const TELAS = [
  * no código, não numa conversa.
  */
 const SEM_API = {
-  'visao-geral-carregar': 'a visão geral precisa de uma rota de resumo no painel',
-  'pedidos-carregar': 'o quadro de pedidos precisa de uma rota de leitura no painel',
-  'carrinhos-carregar': 'os carrinhos abandonados precisam de uma rota de leitura no painel',
-  'cardapio-carregar': 'o cardápio precisa de uma rota de leitura no painel',
-  'despacho-carregar': 'o despacho precisa de uma rota de leitura no painel',
   'financeiro-abas-carregar': 'o financeiro precisa do painel aceitar o período por parâmetro',
-  'compras-carregar': 'a lista de reposição precisa de uma rota de leitura no painel',
-  'cupons-carregar': 'os cupons precisam de uma rota de leitura no painel',
   'push-carregar': 'o histórico de push precisa de uma rota de leitura no painel',
-  'entregadores-carregar': 'os entregadores precisam de uma rota de leitura no painel',
   'insights-carregar': 'os insights precisam de uma rota de leitura no painel',
   'relatorios-carregar': 'os relatórios precisam de uma rota de leitura no painel',
-  'venda-cardapio': 'a venda manual precisa do cardápio por uma rota de leitura',
 }
 
 module.exports = { TELAS, SEM_API }

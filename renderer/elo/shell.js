@@ -497,7 +497,8 @@ if (typeof document !== 'undefined') {
       atual.qtd += delta
       if (atual.qtd <= 0) VENDA.itens = VENDA.itens.filter((i) => i !== atual)
     } else if (delta > 0 && produto) {
-      VENDA.itens = VENDA.itens.concat([{ nome, preco: Number(produto.preco) || 0, qtd: 1 }])
+      // O id vai junto: é ele que o painel exige para lançar o pedido.
+      VENDA.itens = VENDA.itens.concat([{ id: produto.id || null, nome, preco: Number(produto.preco) || 0, qtd: 1 }])
     }
     redesenharTelaAtual()
   }
