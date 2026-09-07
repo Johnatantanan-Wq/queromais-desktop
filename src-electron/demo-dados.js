@@ -565,29 +565,97 @@ function listasApoio() {
 function apoioFinal() {
   return {
     insights: {
-      horarios: { labels: ['10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
-                  valores: [2, 5, 13, 11, 4, 2, 2, 3, 7, 12, 16, 14, 9, 4] },
-      abc: [
-        { label: 'Refrigerante 2L', value: 210 },
-        { label: 'Borda recheada', value: 132 },
-        { label: 'Pizza Calabresa G', value: 128 },
-        { label: 'Pizza Portuguesa G', value: 96 },
-        { label: 'Cerveja long neck', value: 88 },
+      geral: { faturamento: 17107.25, entrega: 0, recebido: 17107.25, pedidos: 315, ticket: 54.31, clientes: 128, cancelamentoPct: 7.4 },
+      financeiro: { receitas: 17571.89, despesas: 0, taxaEntrega: 0, saldo: 17571.89 },
+      formas: [
+        { nome: 'Crédito', valor: 4716.24 }, { nome: 'Dinheiro', valor: 4685.51 },
+        { nome: 'Pix', valor: 4108.98 }, { nome: 'Débito', valor: 4035.87 }, { nome: 'Cartão', valor: 25.29 },
       ],
-      recorrencia: { novos: 120, voltaram: 222 },
-      ticketPorCanal: [
-        { label: 'Mesa', value: 98.20 }, { label: 'Delivery', value: 62.40 },
-        { label: 'Balcão', value: 48.10 }, { label: 'Retirada', value: 41.90 },
+      origens: [{ nome: 'Vendas', receita: 17571.89, despesa: 0 }],
+      canais: [
+        { nome: 'Mesa', pedidos: 315, faturamento: 17107.25 },
+        { nome: 'Sem fonte', pedidos: 0, faturamento: 0 },
+      ],
+      pareto: { produtos: 31, total: 77 },
+      mix: { cozinha: 6869.32, bar: 599.80, produtosCozinha: 10, produtosBar: 10 },
+      destaques: { diaForte: 'Domingo', diaFortePedidos: 165, diaFraco: 'Quinta', diaFracoPedidos: 6,
+        horarioPico: '23h – 24h', horarioPicoPedidos: 42, modalidadeTop: 'Mesa', modalidadeTopPct: 100 },
+      porDia: [
+        { dia: 'Dom', pedidos: 165 }, { dia: 'Seg', pedidos: 50 }, { dia: 'Ter', pedidos: 0 },
+        { dia: 'Qua', pedidos: 7 }, { dia: 'Qui', pedidos: 6 }, { dia: 'Sex', pedidos: 13 }, { dia: 'Sáb', pedidos: 74 },
+      ],
+      porHora: [
+        { hora: '11h', pedidos: 4 }, { hora: '12h', pedidos: 18 }, { hora: '13h', pedidos: 16 },
+        { hora: '14h', pedidos: 9 }, { hora: '15h', pedidos: 6 }, { hora: '18h', pedidos: 14 },
+        { hora: '19h', pedidos: 26 }, { hora: '20h', pedidos: 31 }, { hora: '21h', pedidos: 24 },
+        { hora: '22h', pedidos: 19 }, { hora: '23h', pedidos: 42 },
+      ],
+      produtos: {
+        cozinha: [
+          { nome: 'Filé de Frango', qtd: 39, detalhe: 'R$ 974,61' },
+          { nome: 'X Bacon', qtd: 39, detalhe: 'R$ 1291,00' },
+          { nome: 'Bife Acebolado', qtd: 24, detalhe: 'R$ 741,60' },
+          { nome: 'X Burger', qtd: 24, detalhe: 'R$ 690,00' },
+          { nome: 'Moqueca de Peixe', qtd: 8, detalhe: 'R$ 1159,00' },
+        ],
+        bar: [
+          { nome: 'Cerveja', qtd: 97, detalhe: 'R$ 1332,50' },
+          { nome: 'Refrigerante (1 L)', qtd: 44, detalhe: 'R$ 567,60' },
+          { nome: 'Água de Coco', qtd: 39, detalhe: 'R$ 311,61' },
+          { nome: 'Refrigerante (350 ml)', qtd: 33, detalhe: 'R$ 293,70' },
+          { nome: 'Cokitel de Morango', qtd: 6, detalhe: 'R$ 173,40' },
+        ],
+        categorias: [
+          { nome: 'Burgers Gourmet', receita: 4223.31, detalhe: '132 uni' },
+          { nome: 'Pratos Executivos', receita: 2388.04, detalhe: '81 uni' },
+          { nome: 'Premium Burgers', receita: 1913.99, detalhe: '33 uni' },
+          { nome: 'Bebidas', receita: 1734.81, detalhe: '180 uni' },
+          { nome: 'Cervejas', receita: 1332.50, detalhe: '97 uni' },
+        ],
+      },
+      baixaVenda: [
+        { nome: 'Cerveja sem Álcool (350 ml)', vendas: 1, receita: 10.90 },
+        { nome: 'Espaguete ao Molho Branco', vendas: 1, receita: 99.90 },
+        { nome: 'Tábua de Frios Pequena', vendas: 1, receita: 69.90 },
       ],
     },
-    relatorios: { itens: [
-      { chave: 'vendas', nome: 'Vendas por período', desc: 'faturamento, pedidos e ticket médio', formatos: ['PDF', 'Excel'] },
-      { chave: 'produtos', nome: 'Produtos vendidos', desc: 'quantidade e valor por item', formatos: ['PDF', 'Excel'] },
-      { chave: 'caixa', nome: 'Fechamento de caixa', desc: 'conferência por turno e operador', formatos: ['PDF'] },
-      { chave: 'clientes', nome: 'Clientes', desc: 'cadastro, frequência e gasto', formatos: ['Excel'] },
-      { chave: 'entregas', nome: 'Entregas', desc: 'tempo médio por bairro e entregador', formatos: ['PDF', 'Excel'] },
-      { chave: 'fiscal', nome: 'Documentos fiscais', desc: 'notas emitidas no período', formatos: ['ZIP'] },
-    ] },
+    relatorios: {
+      intervalo: '08/08/2026 a 07/09/2026', de: '08/08/2026', ate: '07/09/2026',
+      vendas: {
+        faturamento: 17107.25, entrega: 0, recebido: 17107.25, pedidos: 315, ticket: 54.31, cancelados: 25,
+        serie: [
+          { dia: '26/08', valor: 420 }, { dia: '27/08', valor: 380 }, { dia: '28/08', valor: 510 },
+          { dia: '29/08', valor: 980 }, { dia: '30/08', valor: 1120 }, { dia: '04/09', valor: 860 },
+          { dia: '05/09', valor: 3120 }, { dia: '06/09', valor: 6980 }, { dia: '07/09', valor: 2740 },
+        ],
+        modalidades: [
+          { nome: 'Mesa', pedidos: 315, valor: 17107.25 },
+        ],
+        formas: [
+          { nome: 'Cartão', valor: 7995.62 }, { nome: 'PIX', valor: 4795.94 }, { nome: 'Dinheiro', valor: 4315.69 },
+        ],
+      },
+      secoes: {
+        pedidos: { titulo: 'Pedidos', sub: 'por situação no período',
+          colunas: ['Situação', 'Pedidos', 'Valor'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [['Entregues', '290', 'R$ 15.820,40'], ['Cancelados', '25', 'R$ 1.286,85']] },
+        cardapio: { titulo: 'Cardápio', sub: 'saída por produto',
+          colunas: ['Produto', 'Quantidade', 'Receita'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [['Cerveja', '97', 'R$ 1.332,50'], ['X Bacon', '39', 'R$ 1.291,00'], ['Filé de Frango', '39', 'R$ 974,61']] },
+        entregadores: { titulo: 'Entregadores', sub: 'entregas e valor levado',
+          colunas: ['Entregador', 'Entregas', 'Valor'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [] },
+        reposicao: { titulo: 'Reposição', sub: 'o que precisa comprar',
+          colunas: ['Produto', 'Saldo', 'Comprar'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [['Farinha de trigo', '18 kg', '62 kg'], ['Calabresa', '9 kg', '21 kg']] },
+        parceiros: { titulo: 'Parceiros', sub: 'vendas e comissão',
+          colunas: ['Parceiro', 'Pedidos', 'Comissão'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [['Hotel Praia Bela', '62', 'R$ 780,00'], ['Pousada do Porto', '41', 'R$ 420,00']] },
+        clientes: { titulo: 'Clientes', sub: 'quem mais comprou',
+          colunas: ['Cliente', 'Pedidos', 'Gasto'], grade: '1fr 140px 180px', direita: [1, 2],
+          linhas: [['Maria Silva', '42', 'R$ 2.140,00'], ['João Pereira', '27', 'R$ 1.380,50']] },
+      },
+    },
     configuracoes: { secoes: [
       { titulo: 'Loja', campos: [
         { rotulo: 'Nome', valor: 'Pizzaria Demonstração' },

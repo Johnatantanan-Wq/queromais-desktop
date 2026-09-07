@@ -124,6 +124,8 @@ if (typeof document !== 'undefined') {
   const SUB_GESTAO = {}         // Gestão: sub-aba de cada aba (entrada, movimentações, fichas)
   let PERIODO_MOV = 'mes'       // Gestão › Movimentações: período escolhido
   let FICHA_ABERTA = null       // Gestão › Fichas técnicas: produto escolhido na lista
+  let PERIODO_REL = '30dias'    // Relatórios e Insights: período escolhido
+  let ABA_REL = 'vendas'        // Relatórios: aba escolhida
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
@@ -292,8 +294,16 @@ if (typeof document !== 'undefined') {
   }
 
   const Finais = require('./telas-finais')
-  NATIVAS['/admin/insights'] = { canal: 'insights-carregar', desenhar: (d, e) => Finais.htmlInsights(d, e), erro: 'Não deu para carregar os insights agora.' }
-  NATIVAS['/admin/relatorios'] = { canal: 'relatorios-carregar', desenhar: (d, e) => Finais.htmlRelatorios(d, e), erro: 'Não deu para carregar os relatórios agora.' }
+  NATIVAS['/admin/insights'] = {
+    canal: 'insights-carregar',
+    desenhar: (d, e) => Finais.htmlInsights(d, { ...e, periodoRel: PERIODO_REL }),
+    erro: 'Não deu para carregar os insights agora.',
+  }
+  NATIVAS['/admin/relatorios'] = {
+    canal: 'relatorios-carregar',
+    desenhar: (d, e) => Finais.htmlRelatorios(d, { ...e, periodoRel: PERIODO_REL, abaRel: ABA_REL }),
+    erro: 'Não deu para carregar os relatórios agora.',
+  }
   NATIVAS['/admin/configuracoes'] = { canal: 'configuracoes-carregar', desenhar: (d, e) => Finais.htmlConfiguracoes(d, e), erro: 'Não deu para carregar as configurações agora.' }
 
   function telaDe(rota) {
@@ -426,6 +436,18 @@ if (typeof document !== 'undefined') {
       const i = CATEGORIAS_ABERTAS.indexOf(nome)
       if (i >= 0) CATEGORIAS_ABERTAS.splice(i, 1)
       else CATEGORIAS_ABERTAS = CATEGORIAS_ABERTAS.concat([nome])
+      redesenharTelaAtual()
+      return
+    }
+    const btPeriodoRel = e.target.closest ? e.target.closest('[data-periodo-rel]') : null
+    if (btPeriodoRel) {
+      PERIODO_REL = btPeriodoRel.getAttribute('data-periodo-rel')
+      carregarTelaNativa(ROTA)   // período novo = números novos: recarrega
+      return
+    }
+    const btAbaRel = e.target.closest ? e.target.closest('[data-aba-rel]') : null
+    if (btAbaRel) {
+      ABA_REL = btAbaRel.getAttribute('data-aba-rel')
       redesenharTelaAtual()
       return
     }

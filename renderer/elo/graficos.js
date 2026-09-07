@@ -112,6 +112,34 @@ function barras(linhas, opts) {
   }).join('')
 }
 
+/**
+ * Barras VERTICAIS — o formato que o painel usa em "Evolução diária", "Por dia da
+ * semana" e "Por hora do dia". A maior fica com o acento da marca e as outras em
+ * cinza: quem olha de longe acha o pico sem ler número nenhum.
+ */
+function colunas(pontos, opts) {
+  opts = opts || {}
+  const altura = opts.altura || 150
+  const fmt = opts.fmt || n
+  const valores = pontos.map((p) => Number(p.value) || 0)
+  const max = Math.max(...valores, 1)
+  const destaque = opts.destacarMaior === false ? -1 : valores.indexOf(Math.max(...valores))
+  const barras = pontos.map((p, i) => {
+    const v = Number(p.value) || 0
+    const alt = v > 0 ? Math.max(3, (v / max) * altura) : 1
+    const cor = i === destaque ? (opts.cor || 'var(--acento, #14CE6B)') : '#e5e7eb'
+    return '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end">'
+      + (opts.mostrarValor !== false && v > 0
+        ? '<span style="font-size:11px;font-weight:800;color:' + (i === destaque ? 'var(--acento-texto, #0A7A3E)' : '#9ca3af')
+          + '">' + esc(fmt(v)) + '</span>' : '')
+      + '<div title="' + esc(p.label + ': ' + fmt(v)) + '" style="width:100%;max-width:44px;height:' + alt.toFixed(1)
+      + 'px;background:' + cor + ';border-radius:4px 4px 0 0"></div>'
+      + '<span style="font-size:10.5px;font-weight:600;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">'
+      + esc(p.label) + '</span></div>'
+  }).join('')
+  return '<div style="display:flex;align-items:flex-end;gap:6px;height:' + (altura + 42) + 'px">' + barras + '</div>'
+}
+
 /** Rosca de N fatias (um arco por fatia, offset acumulado). */
 function donut(fatias, tamanho, traco) {
   tamanho = tamanho || 150
@@ -138,4 +166,4 @@ function donut(fatias, tamanho, traco) {
 /** Paleta do shell: acento da marca primeiro, depois neutros que não competem com ele. */
 const PALETA = ['#14CE6B', '#111827', '#0AA758', '#6b7280', '#A8E9C6', '#9ca3af']
 
-module.exports = { linha, barras, donut, n, esc, PALETA }
+module.exports = { linha, barras, colunas, donut, n, esc, PALETA }
