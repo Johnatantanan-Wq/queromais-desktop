@@ -56,3 +56,11 @@ test('sem dados, a tela avisa em vez de desenhar abas vazias', () => {
 test('rota sem abas devolve null (o shell segue para o formato de lista)', () => {
   assert.strictEqual(T.htmlComAbas('/admin/clientes', {}, {}), null)
 })
+
+test('Pedidos no modo lista não repete a faixa de KPIs', () => {
+  const Catalogo = require('../renderer/elo/telas-catalogo')
+  const dadosPed = require('../src-electron/demo-dados').listas().pedidos
+  const h = Catalogo.htmlDaRota('/admin/pedidos', dadosPed, { modo: 'lista', filtro: 'todos', online: true, ts: Date.now() })
+  const vezes = (h.match(/aguardando aceite/g) || []).length
+  assert.strictEqual(vezes, 1, 'o KPI "Novos / aguardando aceite" apareceu ' + vezes + ' vezes')
+})

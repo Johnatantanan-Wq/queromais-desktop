@@ -221,6 +221,7 @@ if (typeof document !== 'undefined') {
   }
 
   const TelaImpressao = require('./tela-impressao')
+  const Ficha = require('./ficha')
   NATIVAS['/app/impressao'] = {
     canal: 'impressao-info',
     desenhar: (dados, estado) => TelaImpressao.htmlImpressao(dados, estado),
@@ -250,6 +251,44 @@ if (typeof document !== 'undefined') {
       alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
     } catch (e) {
       alvo.innerHTML = '<div class="ecard"><div class="evazio">' + tela.erro + '</div></div>'
+    }
+  }
+
+  // ── Ficha (painel lateral) ───────────────────────────────────────────────
+  // Abre ao clicar numa linha, num cartão do quadro ou numa mesa. Painel, não página:
+  // no balcão se abre um pedido e se volta para a lista em seguida.
+  function abrirFicha(titulo, corpo) {
+    fecharFicha()
+    const div = document.createElement('div')
+    div.innerHTML = Ficha.painel(titulo, corpo)
+    document.body.appendChild(div.firstChild)
+  }
+  function fecharFicha() {
+    const f = document.getElementById('eloFicha')
+    if (f) f.remove()
+  }
+
+  /** Acha o registro clicado dentro do dado que a tela já tem na mão. */
+  function acharNoDado(chave) {
+    const d = DADOS_TELA
+    if (!d) return null
+    const listas = [d.itens, d.mesas, d.produtos, d.contas].filter(Array.isArray)
+    for (const lista of listas) {
+      const achado = lista.find((x) => String(x.numero || x.nome || x.telefone || x.codigo || x.descricao || x.pedido) === String(chave))
+      if (achado) return achado
+    }
+    return null
+  }
+
+  function abrirFichaDe(chave) {
+    const item = acharNoDado(chave)
+    if (!item) return
+    if (ROTA === '/admin/pedidos' || ROTA === '/admin/despacho') {
+      abrirFicha('Pedido #' + (item.numero || item.pedido || chave), Ficha.fichaPedido(item))
+    } else if (ROTA === '/admin/clientes' || ROTA === '/admin/fidelidade') {
+      abrirFicha(item.nome || 'Cliente', Ficha.fichaCliente(item))
+    } else if (ROTA === '/admin/cardapio') {
+      abrirFicha(item.nome || 'Produto', Ficha.fichaProduto(item))
     }
   }
 
@@ -309,6 +348,7 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    if (e.target.closest && e.target.closest('[data-fechar-ficha]')) { fecharFicha(); return }
     const btImpressora = e.target.closest ? e.target.closest('[data-impressora]') : null
     if (btImpressora) {
       ipcRenderer.invoke('impressao-escolher', { nome: btImpressora.getAttribute('data-impressora') })
@@ -320,6 +360,16 @@ if (typeof document !== 'undefined') {
       const acao = btAcao.getAttribute('data-acao')
       // As ações de impressão FAZEM (o resto ainda é pelo painel).
       if (acao === 'impressao:procurar') { carregarTelaNativa(ROTA); return }
+      if (acao.indexOf('ficha:imprimir:') === 0) {
+        const pedido = acharNoDado(acao.split(':')[2])
+        const antes = btAcao.textContent
+        btAcao.textContent = 'imprimindo…'
+        ipcRenderer.invoke('impressao-comanda', { pedido }).then((r) => {
+          btAcao.textContent = (r && r.ok) ? '✓ enviado à impressora' : '✗ não imprimiu'
+          setTimeout(() => { btAcao.textContent = antes }, 3500)
+        }).catch(() => { btAcao.textContent = '✗ não imprimiu' })
+        return
+      }
       if (acao === 'impressao:teste' || acao === 'impressao:comanda') {
         const canal = acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda'
         const antes = btAcao.textContent
@@ -347,6 +397,14 @@ if (typeof document !== 'undefined') {
     if (btMetrica) {
       METRICA = btMetrica.getAttribute('data-metrica')
       redesenharTelaAtual()
+      return
+    }
+    const alvoFicha = e.target.closest
+      ? (e.target.closest('[data-linha]') || e.target.closest('[data-pedido]') || e.target.closest('[data-mesa]'))
+      : null
+    if (alvoFicha && !e.target.closest('[data-acao]')) {
+      const chave = alvoFicha.getAttribute('data-linha') || alvoFicha.getAttribute('data-pedido') || alvoFicha.getAttribute('data-mesa')
+      abrirFichaDe(chave)
       return
     }
     const item = e.target.closest ? e.target.closest('.erailitem') : null
@@ -389,6 +447,10 @@ if (typeof document !== 'undefined') {
       const novo = document.getElementById('listaBusca')
       if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos) } catch (x) {} }
     }
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') fecharFicha()
   })
 
   ipcRenderer.on('rota-mudou', (e, rota) => {

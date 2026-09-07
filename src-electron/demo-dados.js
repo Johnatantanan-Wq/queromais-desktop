@@ -285,9 +285,9 @@ function visaoGeral(periodo) {
 /** Listas de demonstração das telas de módulo (pedidos, carrinhos, clientes, …). */
 function listas() {
   const pedidos = [
-    { numero: '1043', hora: '20:18', cliente: 'Sandra Reis', canal: 'Delivery', status: 'Novo', valor: 112.80, filtro: 'novo', etapa: 'aguardando', entrouHaMin: 2, pagamento: 'Pix', itens: ['1x Pizza Portuguesa G', '1x Borda recheada', '1x Refrigerante 2L'] },
-    { numero: '1042', hora: '20:12', cliente: 'Maria Silva', canal: 'Delivery', status: 'Em produção', valor: 89.90, filtro: 'producao', etapa: 'producao', entrouHaMin: 8, pagamento: 'Pix', itens: ['1x Pizza Calabresa G', '1x Refrigerante 2L'] },
-    { numero: '1041', hora: '20:05', cliente: 'João Pereira', canal: 'Balcão', status: 'Pronto', valor: 54.00, filtro: 'pronto', etapa: 'pronto', entrouHaMin: 15, pagamento: 'Cartão', itens: ['1x Pizza Chocolate M'] },
+    { numero: '1043', hora: '20:18', cliente: 'Sandra Reis', canal: 'Delivery', status: 'Novo', valor: 112.80, filtro: 'novo', etapa: 'aguardando', entrouHaMin: 2, pagamento: 'Pix', telefone: '(75) 98811-7788', endereco: 'Rua das Palmeiras, 45 — Centro', taxa: 8.00, desconto: 0, itens: ['1x Pizza Portuguesa G', '1x Borda recheada', '1x Refrigerante 2L'] },
+    { numero: '1042', hora: '20:12', cliente: 'Maria Silva', canal: 'Delivery', status: 'Em produção', valor: 89.90, filtro: 'producao', etapa: 'producao', entrouHaMin: 8, pagamento: 'Pix', telefone: '(75) 98811-0001', endereco: 'Rua das Flores, 120 — Centro', taxa: 8.00, desconto: 5.00, itens: ['1x Pizza Calabresa G', '1x Refrigerante 2L'] },
+    { numero: '1041', hora: '20:05', cliente: 'João Pereira', canal: 'Balcão', status: 'Pronto', valor: 54.00, filtro: 'pronto', etapa: 'pronto', entrouHaMin: 15, pagamento: 'Cartão', telefone: '(75) 98811-0002', endereco: null, taxa: 0, desconto: 0, itens: ['1x Pizza Chocolate M'] },
     { numero: '1040', hora: '19:58', cliente: 'Carla Nunes', canal: 'Delivery', status: 'Em entrega', valor: 132.40, filtro: 'entrega', etapa: 'transito', entrouHaMin: 22, pagamento: 'Dinheiro', itens: ['2x Pizza Calabresa G', '1x Cerveja long neck', '1x Borda recheada', '1x Água'] },
     { numero: '1039', hora: '19:22', cliente: 'Mesa 7', canal: 'Mesa', status: 'Em produção', valor: 128.50, filtro: 'producao', etapa: 'producao', entrouHaMin: 31, pagamento: 'Na entrega', itens: ['2x Pizza Portuguesa G'] },
     { numero: '1038', hora: '19:10', cliente: 'Rafael Souza', canal: 'Delivery', status: 'Novo', valor: 76.30, filtro: 'novo', etapa: 'aguardando', entrouHaMin: 12, pagamento: 'Cartão', itens: ['1x Pizza Calabresa M', '1x Refrigerante lata'] },
@@ -313,7 +313,7 @@ function listas() {
     clientes: {
       total: 1284, ativosMes: 342, ticket: 59.02,
       itens: [
-        { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro', pedidos: 42, ultimo: 'hoje', total: 2480.30 },
+        { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro', pedidos: 42, ultimo: 'hoje', total: 2480.30, ultimos: [{ numero: '1042', data: 'hoje', valor: 89.90 }, { numero: '0994', data: '02/09', valor: 112.40 }, { numero: '0961', data: '28/08', valor: 74.00 }] },
         { nome: 'João Pereira', telefone: '(75) 98811-0002', bairro: 'Jardim América', pedidos: 27, ultimo: 'ontem', total: 1610.00 },
         { nome: 'Carla Nunes', telefone: '(75) 98811-0003', bairro: 'Vila Nova', pedidos: 19, ultimo: 'há 3 dias', total: 1122.80 },
         { nome: 'Rafael Souza', telefone: '(75) 98811-0004', bairro: 'Boa Vista', pedidos: 11, ultimo: 'há 8 dias', total: 690.50 },
@@ -323,7 +323,7 @@ function listas() {
     cardapio: {
       total: 86, disponiveis: 79, esgotados: 7, precoMedio: 42.60,
       itens: [
-        { nome: 'Pizza Calabresa G', categoria: 'Pizzas salgadas', preco: 59.90, vendas7d: 128, situacao: 'Disponível' },
+        { nome: 'Pizza Calabresa G', categoria: 'Pizzas salgadas', preco: 59.90, vendas7d: 128, situacao: 'Disponível', custo: 18.40, insumos: ['Massa 350g', 'Muçarela 250g', 'Calabresa 120g', 'Molho 80g', 'Orégano'] },
         { nome: 'Pizza Portuguesa G', categoria: 'Pizzas salgadas', preco: 62.90, vendas7d: 96, situacao: 'Disponível' },
         { nome: 'Pizza Chocolate M', categoria: 'Pizzas doces', preco: 48.00, vendas7d: 41, situacao: 'Disponível' },
         { nome: 'Refrigerante 2L', categoria: 'Bebidas', preco: 12.00, vendas7d: 210, situacao: 'Disponível' },

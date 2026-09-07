@@ -399,9 +399,11 @@ function htmlPedidos(dados, estado) {
     + '</div></div>'
 
   if (modo === 'lista') {
+    // semKpis: a faixa de KPIs já foi desenhada aqui em cima — sem isso a lista
+    // repetia os quatro cartões logo abaixo dos mesmos quatro cartões.
     return '<div style="display:flex;flex-direction:column;gap:18px">' + kpis
       + '<div class="ecard" style="padding:24px">' + barra + '</div>'
-      + htmlListaDaRota('/admin/pedidos', dados, estado) + '</div>'
+      + htmlListaDaRota('/admin/pedidos', dados, { ...estado, semKpis: true }) + '</div>'
   }
   return '<div style="display:flex;flex-direction:column;gap:18px">' + kpis
     + '<div class="ecard" style="padding:20px 24px">' + barra + '</div>'
@@ -421,6 +423,7 @@ function htmlListaDaRota(rota, dados, estado) {
   if (!cfg) return null
   if (!dados) return L.htmlLista({ titulo: '', colunas: [] }, null, estado)
   const def = cfg.def(dados)
+  if (estado && estado.semKpis) def.kpis = []
   let linhas = cfg.linhas(dados)
   const filtro = estado.filtro || (def.filtros && def.filtros[0] && def.filtros[0].chave) || 'todos'
   if (cfg.filtrar) linhas = cfg.filtrar(linhas, filtro, dados)
