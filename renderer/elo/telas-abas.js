@@ -16,7 +16,9 @@ function brl(v) {
   return 'R$ ' + (isFinite(n) ? n : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 const ETIQ = { Pago: 'verde', Pendente: 'amarelo', Vencido: 'vermelho', 'A vencer': 'amarelo', Liquidado: 'verde',
-  Aberta: 'amarelo', Atendida: 'verde', Recusada: 'vermelho', Ativa: 'verde', Inativa: 'cinza', Entrada: 'verde', Saída: 'vermelho' }
+  Aberta: 'amarelo', Atendida: 'verde', Recusada: 'vermelho', Ativa: 'verde', Inativa: 'cinza', Entrada: 'verde', Saída: 'vermelho',
+  Perda: 'vermelho', Ajuste: 'amarelo', Produção: 'verde', 'Consumo interno': 'amarelo',
+  'A conferir': 'amarelo', Conferida: 'verde' }
 const et = (t) => ({ texto: t, etiqueta: ETIQ[t] || 'cinza' })
 
 const ABAS = {
@@ -293,37 +295,340 @@ function gestaoProdutos(d, estado) {
 }
 
 // ── Gestão (estoque) ────────────────────────────────────────────────────────
+// As cinco abas restantes, desenhadas olhando o painel (Du Pellegrini, 07/09).
+
+/** Sub-abas sublinhadas (Nota Fiscal de entrada, Movimentações, Fichas). */
+function subAbas(aba, lista, atual) {
+  const escolhida = lista.some((s) => s.chave === atual) ? atual : lista[0].chave
+  return '<div style="display:flex;gap:18px;border-bottom:1px solid #ebebe8;margin-bottom:18px">'
+    + lista.map((s) => '<button type="button" data-subgestao="' + esc(aba) + ':' + esc(s.chave) + '"'
+      + ' style="border:none;background:none;font-family:inherit;cursor:pointer;padding:0 0 10px;font-size:13px;'
+      + (s.chave === escolhida
+        ? 'font-weight:800;color:var(--acento-texto);box-shadow:inset 0 -2px 0 var(--acento)'
+        : 'font-weight:600;color:#6b7280') + '">' + esc(s.rotulo) + '</button>').join('')
+    + '</div>'
+}
+const subAtual = (lista, atual) => (lista.some((s) => s.chave === atual) ? atual : lista[0].chave)
+
+/** Botão de tela (as ações de escrita seguem indo para o painel). */
+function botao(acao, rotulo, primaria, pequeno) {
+  return '<button type="button" data-acao="' + esc(acao) + '" style="height:' + (pequeno ? 30 : 36) + 'px;padding:0 '
+    + (pequeno ? 12 : 16) + 'px;border-radius:' + (pequeno ? 9 : 10) + 'px;font-size:12.5px;font-weight:800;'
+    + 'font-family:inherit;cursor:pointer;white-space:nowrap;' + (primaria
+      ? 'border:none;background:var(--acento);color:#fff'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
+}
+/** Cabeçalho de aba: título grande à esquerda, ação à direita. */
+function tituloDeAba(titulo, sub, acao) {
+  return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px">'
+    + '<div><div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em">' + esc(titulo) + '</div>'
+    + (sub ? '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;margin-top:4px">' + esc(sub) + '</div>' : '')
+    + '</div>' + (acao || '') + '</div>'
+}
+/** Faixa de aviso do painel (fundo âmbar, barra à esquerda). */
+function faixaAviso(titulo, texto) {
+  return '<div style="border-left:3px solid #eab308;background:#fff9e8;border-radius:10px;padding:12px 16px;margin-bottom:18px">'
+    + '<div style="font-size:13px;font-weight:800;color:#8a6508">⚠ ' + esc(titulo) + '</div>'
+    + '<div style="font-size:12.5px;color:#8a6508;font-weight:500;margin-top:3px">' + esc(texto) + '</div></div>'
+}
+/** Filtros que o app ainda não aplica sozinho: mostram o estado, não fingem filtrar. */
+function campoFalso(rotulo, valor, largura) {
+  return '<div style="min-width:0">'
+    + (rotulo ? '<div style="font-size:11px;font-weight:700;color:#9ca3af;margin-bottom:5px">' + esc(rotulo) + '</div>' : '')
+    + '<div style="height:34px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;display:flex;align-items:center;'
+    + 'padding:0 11px;font-size:12.5px;color:#9ca3af;font-weight:500;width:' + (largura || '100%') + '">'
+    + esc(valor) + '</div></div>'
+}
+
+const PERIODOS_MOV = [
+  { chave: 'hoje', rotulo: 'Hoje' }, { chave: 'ontem', rotulo: 'Ontem' }, { chave: '7dias', rotulo: '7 dias' },
+  { chave: 'mes', rotulo: 'Este mês' }, { chave: 'mespassado', rotulo: 'Mês passado' }, { chave: 'ano', rotulo: 'Este ano' },
+]
+const SUB_ENTRADA = [{ chave: 'notas', rotulo: 'Notas de compra' }, { chave: 'pendencias', rotulo: 'Pendências' }]
+const SUB_MOV = [
+  { chave: 'extrato', rotulo: 'Extrato' }, { chave: 'tipo', rotulo: 'Resumo por tipo' },
+  { chave: 'giro', rotulo: 'Giro por produto' }, { chave: 'giro4', rotulo: 'Giro 4 semanas' },
+  { chave: 'abc', rotulo: 'Curva ABC' }, { chave: 'operador', rotulo: 'Por operador' },
+]
+const SUB_FICHAS = [{ chave: 'produto', rotulo: 'Por produto' }, { chave: 'insumo', rotulo: '⇄ Por insumo (onde é usado)' }]
+
+// ── Nota Fiscal (Entrada) ───────────────────────────────────────────────────
+function gestaoEntrada(d, estado) {
+  const sub = subAtual(SUB_ENTRADA, estado.subGestao)
+  const dados = d.nfEntrada || {}
+  const notas = dados.notas || []
+  const pendencias = dados.pendencias || []
+  const topo = subAbas('entrada', SUB_ENTRADA, sub)
+
+  if (sub === 'pendencias') {
+    return topo + (pendencias.length
+      ? cartao('Pendências', 'notas que entraram mas ainda não bateram com o estoque',
+        grade(['Nota', 'Fornecedor', 'Pendência', 'Valor'],
+          pendencias.map((p) => ({ chave: p.numero, celulas: [{ texto: p.numero, forte: true, cor: '#111' },
+            p.fornecedor, p.pendencia, { texto: brl(p.valor), forte: true, cor: '#111' }] })),
+          '130px 1fr 260px 150px', [3]))
+      : aviso('Nenhuma pendência — todas as notas importadas já foram conferidas.'))
+  }
+
+  const barra = '<div class="ecard" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;'
+    + 'gap:14px;flex-wrap:wrap">' + botao('estoque:nova-entrada', '+ Nova entrada', true)
+    + '<span style="margin-left:auto;font-size:12.5px;color:#9ca3af;font-weight:500">'
+    + 'A nota entra como “A conferir” — o estoque só muda quando você confirmar os itens.</span></div>'
+
+  const filtros = '<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:0 0 16px">'
+    + '<div style="font-size:15px;font-weight:800;color:#111">Notas de compra (' + notas.length + ')</div>'
+    + campoFalso('', 'Buscar fornecedor, NF ou CNPJ…', '260px')
+    + '<span style="margin-left:auto;display:flex;align-items:flex-end;gap:10px">'
+    + campoFalso('DE', 'dd/mm/aaaa', '150px') + campoFalso('ATÉ', 'dd/mm/aaaa', '150px')
+    + botao('estoque:buscar-notas', 'Buscar', true, true) + '</span></div>'
+
+  const corpo = notas.length
+    ? grade(['Nota', 'Fornecedor', 'Emissão', 'Itens', 'Situação', 'Valor'],
+      notas.map((n) => ({ chave: n.numero, celulas: [{ texto: n.numero, forte: true, cor: '#111' },
+        n.fornecedor, n.emissao, String(n.itens), et(n.situacao), { texto: brl(n.valor), forte: true, cor: '#111' }] })),
+      '120px 1fr 110px 90px 130px 150px', [3, 5])
+    : '<div class="evazio">Nenhuma nota importada ainda. Use “Importar da SEFAZ” (notas emitidas contra o CNPJ da loja) '
+      + 'ou envie o XML que o fornecedor mandou.</div>'
+
+  return topo + barra + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'
+    + filtros + corpo + '</div>'
+}
+
+// ── Nota Fiscal (Saída) ─────────────────────────────────────────────────────
+const SITUACAO_NF = { 'Sem nota': 'amarelo', Emitida: 'verde', Falha: 'vermelho', Cancelada: 'cinza' }
+
+function gestaoSaida(d) {
+  const nf = d.nfSaida || {}
+  const f = nf.fiscal || {}
+  const itens = nf.itens || []
+
+  const cartoes = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-bottom:18px">'
+    + [
+      { r: 'Notas emitidas hoje', v: String(nf.emitidasHoje || 0), s: 'Total: ' + brl(nf.emitidasHojeValor) },
+      { r: 'Pendentes de emissão', v: String(nf.pendentes || 0), s: 'Valor total: ' + brl(nf.pendentesValor), c: '#6d28d9' },
+      { r: 'Com falha', v: String(nf.comFalha || 0), s: nf.comFalha ? 'precisam de reenvio' : 'Nenhuma falha no momento', c: nf.comFalha ? '#b42318' : '#0A7A3E' },
+      { r: 'Total do período', v: String(nf.periodo || 0), s: 'Valor total: ' + brl(nf.periodoValor) },
+    ].map((k) => cartaoKpi({ rotulo: k.r, valor: k.v, sub: k.s, cor: k.c })).join('') + '</div>'
+
+  const semProvedor = !f.provedor || f.provedor === 'Nenhum'
+  const alerta = semProvedor
+    ? faixaAviso('Emissão fiscal não configurada',
+      'Para emitir NF de verdade escolha um provedor fiscal em Configurações › Dados fiscais.')
+    : ''
+
+  const par = (rotulo, valor, sub, cor) => '<div style="min-width:0">'
+    + '<div style="font-size:11.5px;color:#6b7280;font-weight:700;margin-bottom:4px">' + esc(rotulo) + '</div>'
+    + '<div style="font-size:14px;font-weight:800;color:' + (cor || '#111') + '">' + esc(valor) + '</div>'
+    + (sub ? '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(sub) + '</div>' : '') + '</div>'
+
+  const status = '<div class="ecard" style="padding:20px 24px;margin-bottom:18px;background:#fffdf5;border-color:#f0e6c8">'
+    + '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 32px">'
+    + par('Ambiente', f.ambiente || '—', f.ambiente === 'Produção' ? '' : 'nota de teste, sem valor fiscal')
+    + par('Provedor fiscal', f.provedor || 'Nenhum', '', semProvedor ? '#b42318' : '#111')
+    + par('Situação da emissão', f.situacao || '—', semProvedor ? 'Configure em Dados fiscais' : '')
+    + par('Fila de reenvio', f.fila || 'Vazia', 'reenvio automático a cada 5 min')
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:10px;border-top:1px solid #f0e6c8;margin-top:16px;padding-top:12px">'
+    + '<span style="font-size:11.5px;color:#8a6508;font-weight:600">Última verificação: ' + esc(f.verificadoEm || '—') + '</span>'
+    + '<span style="margin-left:auto">' + botao('nf:atualizar-status', '↻ Atualizar status', false, true) + '</span></div></div>'
+
+  const filtros = '<div class="ecard" style="padding:16px 20px;margin-bottom:14px;display:grid;'
+    + 'grid-template-columns:1fr 170px 220px 200px auto;gap:14px;align-items:end">'
+    + campoFalso('Buscar', 'Cliente ou nº do pedido')
+    + campoFalso('Situação', 'Todas')
+    + campoFalso('Período', 'dd/mm/aaaa → dd/mm/aaaa')
+    + campoFalso('Valor (R$)', 'Mínimo até Máximo')
+    + botao('nf:limpar-filtros', 'Limpar filtros', false, true) + '</div>'
+
+  const tabela = itens.length
+    ? grade(['Data', 'Nº pedido', 'Cliente', 'Valor', 'Situação', 'Nº nota', 'Ações'],
+      itens.map((n) => ({ chave: n.pedido, celulas: [n.data, { texto: '#' + n.pedido, forte: true, cor: '#111' }, n.cliente,
+        { texto: brl(n.valor), forte: true, cor: '#111' },
+        { texto: n.situacao, etiqueta: SITUACAO_NF[n.situacao] || 'cinza' },
+        n.nota || '—',
+        { html: botao('nf:gerar:' + n.pedido, 'Gerar nota', false, true) }] })),
+      '110px 110px 1fr 120px 130px 110px 130px', [3])
+    : '<div class="evazio">Nenhuma venda no período.</div>'
+
+  return tituloDeAba('Notas Fiscais', 'Emissão de NF em sincronia com as vendas efetivadas',
+    botao('nf:emitir-manual', '📄 Emitir nota manualmente', true))
+    + cartoes + alerta + status + filtros
+    + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">' + tabela + '</div>'
+}
+
+// ── Movimentações ───────────────────────────────────────────────────────────
+function gestaoMovimentacoes(d, estado) {
+  const mv = d.movimentacoes || {}
+  const itens = mv.itens || []
+  const sub = subAtual(SUB_MOV, estado.subGestao)
+  const periodo = PERIODOS_MOV.some((p) => p.chave === estado.periodoMov) ? estado.periodoMov : 'mes'
+
+  const chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">'
+    + PERIODOS_MOV.map((p) => '<button type="button" data-periodo-mov="' + esc(p.chave) + '" class="echip'
+      + (p.chave === periodo ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (p.chave === periodo
+        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
+        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+
+  const filtros = '<div class="ecard" style="padding:16px 20px;margin-bottom:14px;display:grid;'
+    + 'grid-template-columns:1fr 190px 190px 190px;gap:12px;align-items:end">'
+    + campoFalso('', 'Buscar produto…')
+    + campoFalso('', 'Todos os tipos') + campoFalso('', 'Ingredientes e massas') + campoFalso('', 'Todos os operadores')
+    + '</div>'
+
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:18px">'
+    + [
+      { r: 'Entradas (valor)', v: brl(mv.entradasValor), s: 'compras e produção' },
+      { r: 'Saídas (valor)', v: brl(mv.saidasValor), s: 'vendas e consumo', c: '#b42318' },
+      { r: 'Perdas (valor)', v: brl(mv.perdasValor), s: 'descarte e quebra', c: mv.perdasValor ? '#b42318' : '#111' },
+      { r: 'Lançamentos', v: String(mv.lancamentos != null ? mv.lancamentos : itens.length), s: 'no período' },
+      { r: 'Produtos movimentados', v: String(mv.produtosMovimentados != null ? mv.produtosMovimentados : 0), s: 'itens distintos' },
+    ].map((k) => cartaoKpi({ rotulo: k.r, valor: k.v, sub: k.s, cor: k.c })).join('') + '</div>'
+
+  let corpo
+  if (sub === 'extrato') {
+    corpo = itens.length
+      ? grade(['Data', 'Produto', 'Movimento', 'Qtd', 'Conversão', 'Saldo após', 'Custo', 'Operador', 'Observação'],
+        itens.map((m) => ({ chave: m.data + m.produto + m.hora, celulas: [
+          { texto: m.data + (m.hora ? '  ' + m.hora : ''), cor: '#4b5563' },
+          { texto: m.produto, forte: true, cor: '#111' },
+          et(m.movimento), String(m.qtd), m.conversao || '—', String(m.saldoApos),
+          brl(m.custo), m.operador || 'Sistema', m.observacao || '—'] })),
+        '150px 1fr 110px 70px 100px 100px 100px 110px 130px', [3, 5, 6])
+      : '<div class="evazio">Nenhum lançamento no período.</div>'
+  } else if (sub === 'tipo') {
+    const porTipo = {}
+    itens.forEach((m) => { porTipo[m.movimento] = (porTipo[m.movimento] || 0) + 1 })
+    corpo = Object.keys(porTipo).length
+      ? grade(['Movimento', 'Lançamentos'], Object.keys(porTipo).map((t) => ({ chave: t, celulas: [et(t), String(porTipo[t])] })),
+        '1fr 160px', [1])
+      : '<div class="evazio">Nenhum lançamento no período.</div>'
+  } else if (sub === 'operador') {
+    const porOp = {}
+    itens.forEach((m) => { const o = m.operador || 'Sistema'; porOp[o] = (porOp[o] || 0) + 1 })
+    corpo = grade(['Operador', 'Lançamentos'], Object.keys(porOp).map((o) => ({ chave: o, celulas: [o, String(porOp[o])] })),
+      '1fr 160px', [1])
+  } else {
+    const giro = mv.giro || []
+    corpo = giro.length
+      ? grade(['Produto', 'Saídas', 'Saldo', 'Giro'],
+        giro.map((g) => ({ chave: g.produto, celulas: [g.produto, String(g.saidas), String(g.saldo),
+          { texto: g.giro + 'x', forte: true, cor: '#111' }] })), '1fr 120px 120px 120px', [1, 2, 3])
+      : '<div class="evazio">O giro é calculado pelo painel — ainda não veio para o app.</div>'
+  }
+
+  const rodape = '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
+    + itens.length + ' lançamento(s) · ' + (mv.diasNoPeriodo != null ? mv.diasNoPeriodo : 0) + ' dia(s) no período</div>'
+
+  return chips + filtros + kpis
+    + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">'
+    + '<div style="flex:1;min-width:0">' + subAbas('movimentacoes', SUB_MOV, sub) + '</div>'
+    + botao('mov:pdf', '🖨 Baixar PDF', false, true) + '</div>'
+    + corpo + rodape + '</div>'
+}
+
+// ── Fichas técnicas ─────────────────────────────────────────────────────────
+function gestaoFichas(d, estado) {
+  const fichas = d.fichas || {}
+  const itens = fichas.itens || []
+  const sub = subAtual(SUB_FICHAS, estado.subGestao)
+  const escolhido = estado.fichaAberta && itens.find((i) => i.produto === estado.fichaAberta)
+  const comFicha = itens.filter((i) => (i.insumos || []).length).length
+
+  const topo = '<div class="ecard" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + SUB_FICHAS.map((s) => '<button type="button" data-subgestao="fichas:' + esc(s.chave) + '"'
+      + ' class="echip' + (s.chave === sub ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (s.chave === sub
+        ? 'background:var(--acento);color:#fff;font-weight:800'
+        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(s.rotulo) + '</button>').join('') + '</div>'
+
+  if (sub === 'insumo') {
+    const porInsumo = {}
+    itens.forEach((i) => (i.insumos || []).forEach((n) => {
+      (porInsumo[n.nome] = porInsumo[n.nome] || []).push(i.produto)
+    }))
+    const nomes = Object.keys(porInsumo)
+    return topo + '<div class="ecard" style="padding:24px">'
+      + (nomes.length
+        ? grade(['Insumo', 'Sai em', 'Produtos'],
+          nomes.map((n) => ({ chave: n, celulas: [{ texto: n, forte: true, cor: '#111' },
+            String(porInsumo[n].length) + ' produto(s)', porInsumo[n].join(', ')] })),
+          '220px 130px 1fr', [1])
+        : '<div class="evazio">Nenhuma ficha técnica montada ainda — nenhum insumo sai do estoque na venda.</div>')
+      + '</div>'
+  }
+
+  const busca = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
+    + campoFalso('', 'Buscar produto…', '360px') + campoFalso('', 'Todas as categorias', '190px')
+    + '<span style="margin-left:auto;display:flex;align-items:center;gap:14px">'
+    + '<span style="font-size:12px;font-weight:800;color:var(--acento-texto)">' + comFicha + ' com estoque configurado</span>'
+    + '<span style="font-size:12px;font-weight:700;color:#9ca3af">' + (itens.length - comFicha) + ' sem controle</span>'
+    + '</span></div>'
+
+  const lista = '<div class="ecard" style="padding:0;overflow:hidden">'
+    + '<div style="padding:12px 16px;border-bottom:1px solid #ebebe8;background:#f6f6f4;font-size:13.5px;font-weight:800;color:#111">'
+    + 'Produtos (' + itens.length + ')</div>'
+    + (itens.length ? itens.map((i) => {
+      const temFicha = (i.insumos || []).length
+      const aberto = escolhido && escolhido.produto === i.produto
+      return '<div data-ficha="' + esc(i.produto) + '" style="display:flex;align-items:center;gap:10px;padding:11px 16px;'
+        + 'border-bottom:1px solid #f0f0ee;cursor:pointer' + (aberto ? ';background:var(--acento-suave)' : '') + '">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13.5px;font-weight:700;color:#111">' + esc(i.produto) + '</div>'
+        + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:2px">' + esc(i.categoria || '—')
+        + ' · ' + (temFicha ? temFicha + ' insumo(s)' : 'sem ficha') + '</div></div>'
+        + '<span style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc(brl(i.preco)) + '</span></div>'
+    }).join('') : '<div class="evazio">Nenhum produto no cardápio ainda.</div>')
+    + '</div>'
+
+  const detalhe = escolhido
+    ? '<div class="ecard" style="padding:24px">'
+      + '<div style="font-size:15px;font-weight:800;color:#111;margin-bottom:4px">' + esc(escolhido.produto) + '</div>'
+      + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;margin-bottom:18px">'
+      + esc(escolhido.categoria || '—') + ' · vende por ' + esc(brl(escolhido.preco)) + '</div>'
+      + ((escolhido.insumos || []).length
+        ? grade(['Insumo', 'Quantidade'], escolhido.insumos.map((n) => ({ chave: n.nome,
+          celulas: [n.nome, { texto: n.qtd, forte: true, cor: '#111' }] })), '1fr 160px', [1])
+          + '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:14px;font-size:13px;font-weight:800;color:#111">'
+          + '<span>Custo da ficha</span><span>' + esc(brl(escolhido.custo)) + '</span></div>'
+          + '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:6px;font-size:12.5px;font-weight:700;color:var(--acento-texto)">'
+          + '<span>Margem</span><span>' + (escolhido.preco ? Math.round(((escolhido.preco - escolhido.custo) / escolhido.preco) * 100) : 0)
+          + '%</span></div>'
+        : '<div class="evazio">Produto sem ficha — a venda dele não mexe no estoque de insumos.</div>')
+      + '</div>'
+    : '<div class="ecard" style="padding:60px 24px;text-align:center">'
+      + '<div style="font-size:30px;line-height:1;margin-bottom:12px">👨‍🍳</div>'
+      + '<div style="font-size:15px;font-weight:800;color:#111;margin-bottom:6px">Escolha um produto</div>'
+      + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;line-height:1.6;max-width:360px;margin:0 auto">'
+      + 'A ficha técnica é a receita: quanto de cada insumo sai do estoque quando o produto vende. '
+      + 'Produto sem ficha não mexe no estoque de insumos.</div></div>'
+
+  return topo + busca
+    + '<div style="display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:18px;align-items:start">'
+    + lista + detalhe + '</div>'
+}
+
+// ── Fornecedores ────────────────────────────────────────────────────────────
+function gestaoFornecedores(d) {
+  const lista = d.fornecedores || []
+  return tituloDeAba('Fornecedores', lista.length ? 'quem abastece a loja' : 'Nenhum fornecedor cadastrado.',
+    botao('estoque:novo-fornecedor', '+ Adicionar fornecedor', true))
+    + (lista.length
+      ? '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'
+        + grade(['Fornecedor', 'CNPJ / CPF', 'Telefone', 'Última compra', 'Compras no mês'],
+          lista.map((f) => ({ chave: f.nome, celulas: [{ texto: f.nome, forte: true, cor: '#111' },
+            f.cnpj || '—', f.telefone, f.ultima, { texto: brl(f.mes), forte: true, cor: '#111' }] })),
+          '1fr 180px 160px 150px 170px', [4]) + '</div>'
+      : aviso('Nenhum fornecedor cadastrado. Eles entram sozinhos quando você importa uma nota de compra.'))
+}
+
 function gestao(d, aba, estado) {
   estado = estado || {}
   if (aba === 'produtos') return gestaoProdutos(d, estado)
-  if (aba === 'entrada' || aba === 'saida') {
-    const notas = aba === 'entrada' ? d.nfEntrada : d.nfSaida
-    return cartao(aba === 'entrada' ? 'Notas de entrada' : 'Notas de saída',
-      aba === 'entrada' ? 'compras que deram entrada no estoque' : 'notas emitidas pela loja',
-      grade(['Número', aba === 'entrada' ? 'Fornecedor' : 'Cliente', 'Data', 'Itens', 'Valor'],
-        notas.map((n) => ({ chave: n.numero, celulas: [{ texto: n.numero, forte: true, cor: '#111' }, n.parte, n.data, String(n.itens), { texto: brl(n.valor), forte: true, cor: '#111' }] })),
-        '130px 1fr 120px 100px 150px', [3, 4]))
-  }
-  if (aba === 'movimentacoes') {
-    return cartao('Movimentações', 'tudo que entrou e saiu do estoque',
-      grade(['Data', 'Insumo', 'Tipo', 'Quantidade', 'Motivo'],
-        d.movimentacoes.map((m) => ({ chave: m.data + m.insumo, celulas: [m.data, m.insumo, et(m.tipo),
-          { texto: (m.tipo === 'Saída' ? '- ' : '+ ') + m.qtd, forte: true, cor: m.tipo === 'Saída' ? '#b42318' : '#0A7A3E' }, m.motivo] })),
-        '110px 1fr 120px 130px 200px', [3]))
-  }
-  if (aba === 'fichas') {
-    return cartao('Fichas técnicas', 'o que cada produto consome do estoque',
-      grade(['Produto', 'Insumos', 'Custo', 'Preço de venda', 'Margem'],
-        d.fichas.map((f) => ({ chave: f.produto, celulas: [f.produto, String(f.insumos), brl(f.custo), brl(f.preco),
-          { texto: Math.round(((f.preco - f.custo) / f.preco) * 100) + '%', forte: true, cor: '#0A7A3E' }] })),
-        '1fr 110px 140px 160px 120px', [1, 2, 3, 4]))
-  }
-  if (aba === 'fornecedores') {
-    return cartao('Fornecedores', 'quem abastece a loja',
-      grade(['Fornecedor', 'Telefone', 'Última compra', 'Compras no mês'],
-        d.fornecedores.map((f) => ({ chave: f.nome, celulas: [f.nome, f.telefone, f.ultima, { texto: brl(f.mes), forte: true, cor: '#111' }] })),
-        '1fr 160px 150px 170px', [3]))
-  }
+  if (aba === 'entrada') return gestaoEntrada(d, estado)
+  if (aba === 'saida') return gestaoSaida(d, estado)
+  if (aba === 'movimentacoes') return gestaoMovimentacoes(d, estado)
+  if (aba === 'fichas') return gestaoFichas(d, estado)
+  if (aba === 'fornecedores') return gestaoFornecedores(d)
   return aviso('Aba sem conteúdo.')
 }
 

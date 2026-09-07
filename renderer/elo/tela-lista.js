@@ -37,6 +37,8 @@ function selo(estado) {
 
 function celula(c, alinhaDireita) {
   if (c && typeof c === 'object') {
+    // coluna de ação (um botão pronto): vai crua, já vem escapada de quem montou
+    if (c.html) return c.html
     const e = ETIQUETAS[c.etiqueta] || ETIQUETAS.cinza
     if (c.etiqueta) {
       return '<span style="font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;background:' + e.bg + ';color:' + e.c + ';white-space:nowrap">' + esc(c.texto) + '</span>'

@@ -121,6 +121,9 @@ if (typeof document !== 'undefined') {
   let CAT_ESTOQUE = 'todos'     // Gestão › Produtos: categoria escolhida
   let BLOCOS_FECHADOS = []      // Gestão › Produtos: blocos recolhidos (abrem por padrão)
   const BUSCA_BLOCO = {}        // Gestão › Produtos: busca de cada bloco
+  const SUB_GESTAO = {}         // Gestão: sub-aba de cada aba (entrada, movimentações, fichas)
+  let PERIODO_MOV = 'mes'       // Gestão › Movimentações: período escolhido
+  let FICHA_ABERTA = null       // Gestão › Fichas técnicas: produto escolhido na lista
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
@@ -238,6 +241,7 @@ if (typeof document !== 'undefined') {
         return ComAbas.htmlComAbas(rota, dados, {
           ...estado, aba,
           catEstoque: CAT_ESTOQUE, blocosFechados: BLOCOS_FECHADOS, buscaBloco: BUSCA_BLOCO,
+          subGestao: SUB_GESTAO[aba || 'produtos'], periodoMov: PERIODO_MOV, fichaAberta: FICHA_ABERTA,
         })
       },
       erro: 'Não deu para carregar esta tela agora.',
@@ -415,6 +419,26 @@ if (typeof document !== 'undefined') {
       const i = CATEGORIAS_ABERTAS.indexOf(nome)
       if (i >= 0) CATEGORIAS_ABERTAS.splice(i, 1)
       else CATEGORIAS_ABERTAS = CATEGORIAS_ABERTAS.concat([nome])
+      redesenharTelaAtual()
+      return
+    }
+    const btSubGestao = e.target.closest ? e.target.closest('[data-subgestao]') : null
+    if (btSubGestao) {
+      const partes = btSubGestao.getAttribute('data-subgestao').split(':')
+      SUB_GESTAO[partes[0]] = partes[1]
+      redesenharTelaAtual()
+      return
+    }
+    const btPeriodoMov = e.target.closest ? e.target.closest('[data-periodo-mov]') : null
+    if (btPeriodoMov) {
+      PERIODO_MOV = btPeriodoMov.getAttribute('data-periodo-mov')
+      redesenharTelaAtual()
+      return
+    }
+    const btFicha = e.target.closest ? e.target.closest('[data-ficha]') : null
+    if (btFicha) {
+      const nome = btFicha.getAttribute('data-ficha')
+      FICHA_ABERTA = FICHA_ABERTA === nome ? null : nome
       redesenharTelaAtual()
       return
     }

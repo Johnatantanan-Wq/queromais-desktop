@@ -759,34 +759,65 @@ function telasComAbas() {
           ] },
         ] },
       ],
-      nfEntrada: [
-        { numero: '8821', parte: 'Laticínios Vale Verde', data: '05/09', itens: 6, valor: 4200.00 },
-        { numero: '4410', parte: 'Distribuidora Bebidas SA', data: '04/09', itens: 14, valor: 3180.90 },
-        { numero: '992', parte: 'Hortifruti do Porto', data: '03/09', itens: 22, valor: 1290.40 },
-      ],
-      nfSaida: [
-        { numero: '000.412', parte: 'Consumidor final', data: '07/09', itens: 3, valor: 132.40 },
-        { numero: '000.411', parte: 'Hotel Praia Bela', data: '06/09', itens: 18, valor: 1840.00 },
-        { numero: '000.410', parte: 'Consumidor final', data: '06/09', itens: 2, valor: 89.90 },
-      ],
-      movimentacoes: [
-        { data: '07/09', insumo: 'Muçarela', tipo: 'Saída', qtd: '3,2 kg', motivo: 'Produção do turno' },
-        { data: '07/09', insumo: 'Refrigerante 2L', tipo: 'Saída', qtd: '12 un', motivo: 'Vendas' },
-        { data: '06/09', insumo: 'Muçarela', tipo: 'Entrada', qtd: '20 kg', motivo: 'NF 8821' },
-        { data: '06/09', insumo: 'Calabresa', tipo: 'Saída', qtd: '1,8 kg', motivo: 'Produção do turno' },
-        { data: '05/09', insumo: 'Caixa de pizza G', tipo: 'Entrada', qtd: '200 un', motivo: 'NF 1571' },
-      ],
-      fichas: [
-        { produto: 'Pizza Calabresa G', insumos: 6, custo: 18.40, preco: 59.90 },
-        { produto: 'Pizza Portuguesa G', insumos: 8, custo: 21.10, preco: 62.90 },
-        { produto: 'Pizza Chocolate M', insumos: 5, custo: 14.20, preco: 48.00 },
-        { produto: 'Borda recheada', insumos: 2, custo: 2.10, preco: 8.00 },
-      ],
+      nfEntrada: {
+        notas: [
+          { numero: '8821', fornecedor: 'Laticínios Vale Verde', emissao: '05/09', itens: 6, situacao: 'Conferida', valor: 4200.00 },
+          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', emissao: '04/09', itens: 14, situacao: 'A conferir', valor: 3180.90 },
+          { numero: '992', fornecedor: 'Hortifruti do Porto', emissao: '03/09', itens: 22, situacao: 'Conferida', valor: 1290.40 },
+        ],
+        pendencias: [
+          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', pendencia: '14 itens sem produto vinculado', valor: 3180.90 },
+        ],
+      },
+      nfSaida: {
+        emitidasHoje: 4, emitidasHojeValor: 612.40,
+        pendentes: 12, pendentesValor: 1840.20,
+        comFalha: 0,
+        periodo: 16, periodoValor: 2452.60,
+        fiscal: { ambiente: 'Homologação', provedor: 'Nenhum', situacao: 'Sem provedor', fila: 'Vazia', verificadoEm: '07/09/2026 16:01' },
+        itens: [
+          { data: '07/09/2026', pedido: '0037', cliente: 'Mesa 7', valor: 39.90, situacao: 'Sem nota', nota: null },
+          { data: '07/09/2026', pedido: '0036', cliente: 'Marina Prado', valor: 89.80, situacao: 'Emitida', nota: '000.412' },
+          { data: '07/09/2026', pedido: '0035', cliente: 'Mesa 34', valor: 7.99, situacao: 'Sem nota', nota: null },
+          { data: '06/09/2026', pedido: '0034', cliente: 'Rafael Souza', valor: 114.90, situacao: 'Emitida', nota: '000.411' },
+        ],
+      },
+      movimentacoes: {
+        entradasValor: 8670.40, saidasValor: 3120.80, perdasValor: 148.00,
+        lancamentos: 5, produtosMovimentados: 4, diasNoPeriodo: 30,
+        itens: [
+          { data: '07/09/2026', hora: '11:40', produto: 'Muçarela', movimento: 'Saída', qtd: '3,2 kg', conversao: '—', saldoApos: 42, custo: 124.48, operador: 'Sistema', observacao: 'Produção do turno' },
+          { data: '07/09/2026', hora: '10:12', produto: 'Refrigerante 2L', movimento: 'Saída', qtd: '12 un', conversao: '—', saldoApos: 8, custo: 82.80, operador: 'Sistema', observacao: 'Venda' },
+          { data: '06/09/2026', hora: '16:30', produto: 'Muçarela', movimento: 'Entrada', qtd: '20 kg', conversao: 'cx → kg', saldoApos: 45, custo: 778.00, operador: 'Ana', observacao: 'NF 8821' },
+          { data: '06/09/2026', hora: '09:05', produto: 'Calabresa', movimento: 'Perda', qtd: '1,8 kg', conversao: '—', saldoApos: 9, custo: 53.64, operador: 'Bruno', observacao: 'Fora da validade' },
+          { data: '05/09/2026', hora: '14:22', produto: 'Caixa de pizza G', movimento: 'Entrada', qtd: '200 un', conversao: '—', saldoApos: 340, custo: 360.00, operador: 'Ana', observacao: 'NF 1571' },
+        ],
+        giro: [
+          { produto: 'Muçarela', saidas: 96, saldo: 42, giro: 2.3 },
+          { produto: 'Refrigerante 2L', saidas: 240, saldo: 8, giro: 30 },
+          { produto: 'Calabresa', saidas: 38, saldo: 9, giro: 4.2 },
+        ],
+      },
+      fichas: {
+        itens: [
+          { produto: 'Pizza Calabresa G', categoria: 'Pizzas', preco: 59.90, custo: 18.40, insumos: [
+            { nome: 'Muçarela', qtd: '250 g' }, { nome: 'Calabresa', qtd: '180 g' },
+            { nome: 'Molho de tomate', qtd: '90 ml' }, { nome: 'Caixa de pizza G', qtd: '1 un' },
+          ] },
+          { produto: 'Pizza Portuguesa G', categoria: 'Pizzas', preco: 62.90, custo: 21.10, insumos: [
+            { nome: 'Muçarela', qtd: '250 g' }, { nome: 'Molho de tomate', qtd: '90 ml' },
+            { nome: 'Caixa de pizza G', qtd: '1 un' },
+          ] },
+          { produto: 'Moqueca de Peixe', categoria: 'Pratos', preco: 89.00, custo: 32.00, insumos: [] },
+          { produto: 'Refrigerante 2L', categoria: 'Bebidas', preco: 14.90, custo: 6.90, insumos: [] },
+          { produto: 'Água de Coco', categoria: 'Bebidas', preco: 7.99, custo: 3.20, insumos: [] },
+        ],
+      },
       fornecedores: [
-        { nome: 'Laticínios Vale Verde', telefone: '(75) 3222-1010', ultima: '05/09', mes: 8400.00 },
-        { nome: 'Distribuidora Bebidas SA', telefone: '(75) 3222-2020', ultima: '04/09', mes: 6320.90 },
-        { nome: 'Hortifruti do Porto', telefone: '(75) 3222-3030', ultima: '03/09', mes: 2580.80 },
-        { nome: 'Embalagens Norte', telefone: '(75) 3222-4040', ultima: '02/09', mes: 1760.00 },
+        { nome: 'Laticínios Vale Verde', cnpj: '12.345.678/0001-90', telefone: '(75) 3222-1010', ultima: '05/09', mes: 8400.00 },
+        { nome: 'Distribuidora Bebidas SA', cnpj: '98.765.432/0001-10', telefone: '(75) 3222-2020', ultima: '04/09', mes: 6320.90 },
+        { nome: 'Hortifruti do Porto', cnpj: '45.111.222/0001-33', telefone: '(75) 3222-3030', ultima: '03/09', mes: 2580.80 },
+        { nome: 'Embalagens Norte', cnpj: '77.888.999/0001-55', telefone: '(75) 3222-4040', ultima: '02/09', mes: 1760.00 },
       ],
     },
   }
