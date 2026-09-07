@@ -252,6 +252,108 @@ test('nenhuma tela do menu quebra ao ser aberta pelo clique', async () => {
   }
 })
 
+test('todo controle de tela (aba, filtro, chip, período) muda alguma coisa ao ser clicado', async () => {
+  await abrirApp()
+  // Atributos que existem para MUDAR a tela. Se clicar num deles não muda nada, ou o
+  // controle está morto ou está desenhando o mesmo estado — os dois são defeito.
+  const CONTROLES = ['aba', 'subaba', 'aba-rel', 'aba-cfg', 'sub-cfg', 'aba-campanha',
+    'aba-fidelidade', 'aba-cliente', 'aba-carrinho', 'aba-cardapio', 'subgestao',
+    'cat-estoque', 'bloco-estoque', 'filtro', 'filtro-pedido', 'filtro-carrinho',
+    'modo', 'visao', 'metrica', 'periodo', 'periodo-rel', 'periodo-fid', 'periodo-mov',
+    'periodo-fin', 'categoria', 'perfil-campanha', 'ficha']
+  const hrefs = [...doc.querySelectorAll('.erailitem')].map((i) => i.getAttribute('data-href'))
+  const mortos = []
+  for (const href of hrefs) {
+    await irPara(href)
+    for (const attr of CONTROLES) {
+      const todos = [...doc.querySelectorAll('#econtent [data-' + attr + ']')]
+      if (!todos.length) continue
+      // Clica num que NÃO seja o estado atual — clicar no que já está ativo não muda
+      // nada por definição, e isso não é defeito.
+      const alvo = todos.filter((el) => !/\bis-on\b|\bon\b/.test(el.className || '')).pop()
+      if (!alvo) continue
+      const valor = alvo.getAttribute('data-' + attr)
+      const antes = conteudo()
+      clicar(alvo)
+      await esperar(45)
+      if (conteudo() === antes) mortos.push(href + ' → data-' + attr + '="' + valor + '"')
+    }
+  }
+  assert.deepStrictEqual(mortos, [], 'controles que não mudaram nada: ' + mortos.join(', '))
+})
+
+test('a busca filtra a lista enquanto se digita, sem perder o campo', async () => {
+  await abrirApp()
+  await irPara('/admin/clientes')
+  const campo = doc.getElementById('listaBusca')
+  assert.ok(campo, 'a lista de clientes tem busca')
+  const antes = conteudo()
+  campo.value = 'maria'
+  campo.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(40)
+  assert.notStrictEqual(conteudo(), antes, 'digitar precisa filtrar')
+  assert.ok(/Maria Silva/.test(conteudo()) && !/Rafael Souza/.test(conteudo()))
+  assert.ok(doc.getElementById('listaBusca'), 'e o campo continua na tela')
+  assert.strictEqual(doc.getElementById('listaBusca').value, 'maria', 'com o que foi digitado')
+})
+
+test('o item avulso de Compras guarda o que foi digitado', async () => {
+  await abrirApp()
+  await irPara('/admin/compras')
+  const campo = doc.querySelector('[data-compra-avulsa="nome"]')
+  assert.ok(campo, 'o formulário de item avulso existe')
+  campo.value = 'Saco de lixo 100L'
+  campo.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(20)
+  clicar(doc.querySelector('[data-acao="compras:relatorio-reposicao"]'))
+  await esperar(60)
+  await irPara('/admin/compras')
+  assert.strictEqual(doc.querySelector('[data-compra-avulsa="nome"]').value, 'Saco de lixo 100L',
+    'o que foi digitado sobrevive ao redesenho')
+})
+
+test('escolher entregador no Despacho fica escolhido', async () => {
+  await abrirApp()
+  await irPara('/admin/despacho')
+  const sel = doc.querySelector('[data-entregador-de]')
+  assert.ok(sel, 'cada linha tem o seletor de entregador')
+  const nome = [...sel.options].map((o) => o.value).filter(Boolean)[0]
+  sel.value = nome
+  sel.dispatchEvent(new win.Event('change', { bubbles: true }))
+  await esperar(30)
+  assert.ok(/com /.test(aviso().textContent), aviso().textContent)
+  clicar(doc.querySelector('[data-visao="lista"]'))
+  await esperar(40)
+  const depois = doc.querySelector('[data-entregador-de]')
+  assert.strictEqual(depois.value, nome, 'a escolha sobrevive ao redesenho')
+})
+
+test('clicar numa linha da lista abre a ficha, e Esc fecha', async () => {
+  await abrirApp()
+  await irPara('/admin/clientes')
+  clicar(doc.querySelector('#econtent [data-linha]'))
+  await esperar(30)
+  assert.ok(doc.getElementById('eloFicha'), 'a ficha do cliente abre')
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  await esperar(20)
+  assert.ok(!doc.getElementById('eloFicha'), 'e Esc fecha')
+})
+
+test('os botões DENTRO da ficha também respondem', async () => {
+  await abrirApp()
+  await irPara('/admin/pedidos')
+  clicar(doc.querySelector('#econtent [data-pedido]') || doc.querySelector('#econtent [data-linha]'))
+  await esperar(30)
+  const ficha = doc.getElementById('eloFicha')
+  assert.ok(ficha, 'a ficha do pedido abre')
+  const botao = ficha.querySelector('[data-acao]')
+  assert.ok(botao, 'a ficha tem ações')
+  aviso().className = ''
+  clicar(botao)
+  await esperar(60)
+  assert.ok(aviso().className.includes('on'), 'clicar dentro da ficha responde: ' + botao.getAttribute('data-acao'))
+})
+
 test('todo botão de toda tela do menu responde ao clique', async () => {
   await abrirApp()
   const hrefs = [...doc.querySelectorAll('.erailitem')].map((i) => i.getAttribute('data-href'))

@@ -85,8 +85,16 @@ function htmlClientes(dados, estado) {
   const k = dados.kpis || {}
   // "Maior gasto" × "Comprou recente": o botão do painel ordena de verdade — antes
   // ele só desenhava a seta e a lista não mudava.
+  // A busca do painel filtra a lista enquanto se digita — o campo estava desenhado,
+  // guardava o que era digitado, e não filtrava nada.
+  const termo = (estado.termo || '').trim().toLowerCase()
+  const filtrados = termo
+    ? (dados.itens || []).filter((c) => (c.nome || '').toLowerCase().indexOf(termo) >= 0
+      || (c.telefone || '').replace(/\D/g, '').indexOf(termo.replace(/\D/g, '')) >= 0 && /\d/.test(termo)
+      || (c.bairro || '').toLowerCase().indexOf(termo) >= 0)
+    : (dados.itens || [])
   const porRecencia = estado.ordem === 'recencia'
-  const ordenados = (dados.itens || []).slice().sort((a2, b2) => porRecencia
+  const ordenados = filtrados.slice().sort((a2, b2) => porRecencia
     ? (diasSemComprar(a2) - diasSemComprar(b2))
     : (Number(b2.totalGasto || 0) - Number(a2.totalGasto || 0)))
   const linhas = ordenados.map((c) => ({

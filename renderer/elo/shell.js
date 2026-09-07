@@ -461,8 +461,13 @@ if (typeof document !== 'undefined') {
     const d = DADOS_TELA
     if (!d) return null
     const listas = [d.itens, d.mesas, d.produtos, d.contas, d.prontos, d.repor, d.avulsos].filter(Array.isArray)
+    // Compara com TODOS os identificadores do registro: cada tela usa o seu como chave
+    // da linha (a de clientes usa o telefone, a de pedidos o número). Comparar só com o
+    // primeiro que existir fazia a ficha do cliente não abrir.
+    const bate = (x) => [x.numero, x.nome, x.telefone, x.codigo, x.descricao, x.pedido, x.mesa]
+      .some((v) => v != null && String(v) === String(chave))
     for (const lista of listas) {
-      const achado = lista.find((x) => String(x.numero || x.nome || x.telefone || x.codigo || x.descricao || x.pedido) === String(chave))
+      const achado = lista.find(bate)
       if (achado) return achado
     }
     return null
