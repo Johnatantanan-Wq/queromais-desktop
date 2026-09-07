@@ -730,13 +730,34 @@ function telasComAbas() {
     },
     estoque: {
       valorTotal: 18420.00,
-      produtos: [
-        { nome: 'Muçarela', unidade: 'kg', saldo: 42, minimo: 30, custo: 38.90 },
-        { nome: 'Farinha de trigo', unidade: 'kg', saldo: 18, minimo: 40, custo: 4.20 },
-        { nome: 'Molho de tomate', unidade: 'lata', saldo: 61, minimo: 24, custo: 12.50 },
-        { nome: 'Calabresa', unidade: 'kg', saldo: 9, minimo: 15, custo: 29.80 },
-        { nome: 'Refrigerante 2L', unidade: 'un', saldo: 8, minimo: 24, custo: 6.90 },
-        { nome: 'Caixa de pizza G', unidade: 'un', saldo: 340, minimo: 200, custo: 1.80 },
+      categorias: [
+        { id: 'producao', nome: 'Produção Própria', mostraMassas: true, massas: [], subcategorias: [
+          { nome: 'Produção Própria', itens: [
+            { codigo: 'P0010', nome: 'Combo Família', cardapio: true, fiscalPendente: true, saldo: 0, unidade: 'un', minimo: 0, custo: 0, ativo: true },
+            { codigo: 'P0003', nome: 'Pizza Calabresa G', cardapio: true, fiscalPendente: false, saldo: 12, unidade: 'un', minimo: 4, custo: 18.40, ativo: true },
+            { codigo: 'P0004', nome: 'Pizza Portuguesa G', cardapio: true, fiscalPendente: true, saldo: 3, unidade: 'un', minimo: 4, custo: 21.10, ativo: true },
+            { codigo: 'P0005', nome: 'Pizza Chocolate M', cardapio: true, fiscalPendente: false, saldo: 0, unidade: 'un', minimo: 2, custo: 14.20, ativo: true },
+            { codigo: 'P0007', nome: 'Moqueca de Peixe', cardapio: true, fiscalPendente: false, saldo: 6, unidade: 'un', minimo: 2, custo: 32.00, ativo: true },
+            { codigo: 'P0009', nome: 'Borda recheada', cardapio: false, fiscalPendente: false, saldo: 40, unidade: 'un', minimo: 10, custo: 2.10, ativo: true },
+            { codigo: 'P0013', nome: 'Pizza Doce Antiga', cardapio: false, fiscalPendente: false, saldo: 0, unidade: 'un', minimo: 0, custo: 0, ativo: false },
+          ] },
+        ] },
+        { id: 'revenda', nome: 'Revenda', subcategorias: [
+          { nome: 'Revenda', itens: [
+            { codigo: 'P0001', nome: 'Refrigerante 2L', cardapio: true, fiscalPendente: true, saldo: 8, unidade: 'un', minimo: 24, custo: 6.90, ativo: true },
+            { codigo: 'P0002', nome: 'Cerveja long neck', cardapio: true, fiscalPendente: false, saldo: 96, unidade: 'un', minimo: 48, custo: 4.20, ativo: true },
+            { codigo: 'P0014', nome: 'Água mineral 500ml', cardapio: true, fiscalPendente: false, saldo: 0, unidade: 'un', minimo: 24, custo: 1.60, ativo: true },
+          ] },
+        ] },
+        { id: 'insumos', nome: 'Insumos', subcategorias: [
+          { nome: 'Insumos', itens: [
+            { codigo: 'I0001', nome: 'Muçarela', saldo: 42, unidade: 'kg', minimo: 30, custo: 38.90, ativo: true },
+            { codigo: 'I0002', nome: 'Farinha de trigo', saldo: 18, unidade: 'kg', minimo: 40, custo: 4.20, ativo: true },
+            { codigo: 'I0003', nome: 'Molho de tomate', saldo: 61, unidade: 'lata', minimo: 24, custo: 12.50, ativo: true },
+            { codigo: 'I0004', nome: 'Calabresa', saldo: 9, unidade: 'kg', minimo: 15, custo: 29.80, ativo: true },
+            { codigo: 'I0005', nome: 'Caixa de pizza G', saldo: 340, unidade: 'un', minimo: 200, custo: 1.80, ativo: true },
+          ] },
+        ] },
       ],
       nfEntrada: [
         { numero: '8821', parte: 'Laticínios Vale Verde', data: '05/09', itens: 6, valor: 4200.00 },

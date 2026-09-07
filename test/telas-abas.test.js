@@ -25,7 +25,7 @@ test('a barra de abas aparece com a aba escolhida marcada', () => {
 test('aba inválida cai na primeira, não em tela branca', () => {
   const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'nao-existe' })
   assert.ok(/is-on/.test(h.split('data-aba="produtos"')[1].slice(0, 90)))
-  assert.ok(/Produtos em estoque/.test(h))
+  assert.ok(/Sincronizar com o cardápio/.test(h))
 })
 
 test('Financeiro: contas a pagar e a receber separam os lançamentos', () => {
@@ -35,13 +35,40 @@ test('Financeiro: contas a pagar e a receber separam os lançamentos', () => {
   assert.ok(receber.includes('Repasse iFood') && !receber.includes('Aluguel do ponto'))
 })
 
-test('Gestão: insumo abaixo do mínimo sai em vermelho', () => {
+test('Gestão: a situação da prateleira segue a regra do painel', () => {
   const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'produtos' })
-  // a linha inteira, até o começo da próxima (o saldo é a 3ª célula)
-  const linha = h.split('data-linha="Farinha de trigo"')[1].split('data-linha=')[0]
-  assert.ok(/b42318/.test(linha), 'saldo abaixo do mínimo precisa gritar: ' + linha.slice(0, 200))
-  const ok = h.split('data-linha="Muçarela"')[1].split('data-linha=')[0]   // 42 de saldo, mínimo 30
-  assert.ok(!/b42318/.test(ok), 'insumo com saldo bom não pode aparecer em vermelho')
+  const linha = (nome) => h.split('data-linha="' + nome + '"')[1].split('data-linha=')[0]
+  assert.ok(/Sem estoque/.test(linha('Pizza Chocolate M')), 'saldo zerado é "Sem estoque"')
+  assert.ok(/Estoque baixo/.test(linha('Farinha de trigo')), 'saldo 18 com mínimo 40 é "Estoque baixo"')
+  assert.ok(/>OK</.test(linha('Muçarela')), 'saldo 42 com mínimo 30 está OK')
+  assert.ok(/Desativado/.test(linha('Pizza Doce Antiga')), 'item desativado manda na situação')
+})
+
+test('Gestão › Produtos: categorias, blocos e selos do cadastro-mestre', () => {
+  const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'produtos' })
+  assert.ok(h.includes('data-cat-estoque="todos"') && h.includes('data-cat-estoque="revenda"'))
+  assert.ok(h.includes('data-bloco-estoque="producao:Produção Própria"'))
+  assert.ok(h.includes('7 itens') && h.includes('3 itens'), 'cada bloco conta os seus itens')
+  assert.ok(h.includes('Estoque de Massas'), 'a produção própria tem o bloco de massas')
+  const combo = h.split('data-linha="Combo Família"')[1].split('data-linha=')[0]
+  assert.ok(/↔ cardápio/.test(combo) && /fiscal/.test(combo), 'os selos do painel ficam ao lado do nome')
+})
+
+test('Gestão › Produtos: a pílula filtra a categoria', () => {
+  const so = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'produtos', catEstoque: 'revenda' })
+  assert.ok(so.includes('Refrigerante 2L'))
+  assert.ok(!so.includes('data-linha="Muçarela"'), 'insumos ficam de fora quando a categoria é Revenda')
+})
+
+test('Gestão › Produtos: bloco fechado esconde a tabela, e a busca filtra dentro dele', () => {
+  const fechado = T.htmlComAbas('/admin/estoque', dados.estoque,
+    { aba: 'produtos', blocosFechados: ['insumos:Insumos'] })
+  assert.ok(!fechado.includes('data-linha="Muçarela"'), 'bloco fechado não desenha as linhas')
+  const busca = T.htmlComAbas('/admin/estoque', dados.estoque,
+    { aba: 'produtos', buscaBloco: { 'insumos:Insumos': 'calab' } })
+  assert.ok(busca.includes('data-linha="Calabresa"'))
+  assert.ok(!busca.includes('data-linha="Muçarela"'), 'a busca de um bloco não mexe nos outros')
+  assert.ok(busca.includes('data-linha="Pizza Calabresa G"'), 'e não mexe na Produção Própria')
 })
 
 test('Atendimento: a aba Salão desenha as mesas', () => {

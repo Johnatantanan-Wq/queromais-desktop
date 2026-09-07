@@ -155,19 +155,147 @@ function atendimento(d, aba) {
   return aviso('Aba sem conteúdo.')
 }
 
-// ── Gestão (estoque) ────────────────────────────────────────────────────────
-function gestao(d, aba) {
-  if (aba === 'produtos') {
-    return faixaKpis([
-      { rotulo: 'Itens', valor: String(d.produtos.length), sub: 'controlados' },
-      { rotulo: 'Abaixo do mínimo', valor: String(d.produtos.filter((p) => p.saldo <= p.minimo).length), sub: 'repor', cor: '#b42318' },
-      { rotulo: 'Valor em estoque', valor: brl(d.valorTotal), sub: 'a preço de compra' },
-    ]) + cartao('Produtos em estoque', 'saldo e mínimo por insumo',
-      grade(['Insumo', 'Unidade', 'Saldo', 'Mínimo', 'Custo médio'],
-        d.produtos.map((p) => ({ chave: p.nome, celulas: [p.nome, p.unidade,
-          { texto: String(p.saldo), forte: true, cor: p.saldo <= p.minimo ? '#b42318' : '#111' }, String(p.minimo), brl(p.custo)] })),
-        '1fr 120px 110px 110px 140px', [2, 3, 4]))
+// ── Gestão › Produtos ───────────────────────────────────────────────────────
+// Conforme a tela real (Sabor do Pirão, 07/09): não é uma lista de insumos — é o
+// CADASTRO-MESTRE em categorias. Pílula de categorias em cima, e cada subcategoria
+// vira um bloco que abre e fecha, com a sua própria busca e a tabela densa de ERP
+// (código, produto, estoque, mínimo, custo, situação). Os selos ao lado do nome são
+// o que o dono precisa ver de relance: "↔ cardápio" (a venda baixa aqui) e "⚠ fiscal"
+// (falta classificação, a nota sai no chute).
+
+/** Situação da prateleira — a mesma regra do painel (zerado / abaixo do mínimo / ok). */
+function situacaoEstoque(i) {
+  if (i.ativo === false) return { texto: 'Desativado', cor: '#6b7280', bg: '#f0f0ee' }
+  const saldo = Number(i.saldo) || 0
+  if (saldo <= 0) return { texto: 'Sem estoque', cor: '#b42318', bg: '#fdeaea' }
+  if (saldo <= (Number(i.minimo) || 0)) return { texto: 'Estoque baixo', cor: '#8a6508', bg: '#fff9e8' }
+  return { texto: 'OK', cor: '#0A7A3E', bg: '#E7FAF0' }
+}
+function baixos(itens) {
+  return (itens || []).filter((i) => i.ativo !== false && Number(i.saldo) > 0 && Number(i.saldo) <= Number(i.minimo)).length
+}
+
+const GRADE_ESTOQUE = '80px 1fr 110px 70px 110px 120px 34px'
+
+function selo(texto, cor, bg, titulo) {
+  return '<span title="' + esc(titulo || '') + '" style="margin-left:6px;font-size:10px;font-weight:700;color:' + cor
+    + ';background:' + bg + ';border-radius:5px;padding:1px 5px;white-space:nowrap">' + esc(texto) + '</span>'
+}
+
+function linhaItemEstoque(i) {
+  const s = situacaoEstoque(i)
+  return '<div data-linha="' + esc(i.nome) + '" style="display:grid;grid-template-columns:' + GRADE_ESTOQUE
+    + ';align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0f0ee'
+    + (i.ativo === false ? ';opacity:.5' : '') + '">'
+    + '<span style="font-size:12px;color:#9ca3af;font-weight:600;font-variant-numeric:tabular-nums">' + esc(i.codigo || '—') + '</span>'
+    + '<span style="font-size:13.5px;color:#111;font-weight:600;min-width:0">' + esc(i.nome)
+    + (i.cardapio ? selo('↔ cardápio', '#6b7280', '#f0f0ee', 'Vinculado ao produto do cardápio — a venda baixa aqui') : '')
+    + (i.cardapio === false ? selo('sem vínculo', '#b42318', '#fdeaea', 'Sem produto do cardápio vinculado') : '')
+    + (i.fiscalPendente ? selo('⚠ fiscal', '#8a6508', '#fff9e8', 'Classificação fiscal incompleta — a nota sai no padrão de alimentação') : '')
+    + '</span>'
+    + '<span style="font-size:13px;color:#111;font-weight:700;text-align:right;font-variant-numeric:tabular-nums">'
+    + esc((Number(i.saldo) || 0) + ' ' + (i.unidade || 'un')) + '</span>'
+    + '<span style="font-size:12.5px;color:#9ca3af;font-weight:600;text-align:right;font-variant-numeric:tabular-nums">'
+    + esc(String(Number(i.minimo) || 0)) + '</span>'
+    + '<span style="font-size:13px;color:#111;font-weight:600;text-align:right;font-variant-numeric:tabular-nums">'
+    + esc(brl(i.custo)) + '</span>'
+    + '<span><span style="font-size:10.5px;font-weight:800;color:' + s.cor + ';background:' + s.bg
+    + ';border-radius:6px;padding:2px 7px;white-space:nowrap">' + esc(s.texto) + '</span></span>'
+    + '<button type="button" data-acao="estoque:menu:' + esc(i.nome) + '" title="Lançar, editar, histórico"'
+    + ' style="border:none;background:none;color:#9ca3af;font-size:17px;line-height:1;cursor:pointer;font-family:inherit">⋯</button>'
+    + '</div>'
+}
+
+/** Bloco que abre e fecha, com faixa cinza no cabeçalho — o mesmo do painel. */
+function blocoEstoque(id, titulo, contagem, alerta, extra, corpo, aberto) {
+  return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
+    + '<div data-bloco-estoque="' + esc(id) + '" style="display:flex;align-items:center;gap:10px;padding:11px 14px;'
+    + 'background:#f6f6f4;cursor:pointer' + (aberto ? ';border-bottom:1px solid #ebebe8' : '') + '">'
+    + '<span style="font-size:13.5px;font-weight:800;color:#111;flex:1;letter-spacing:-.01em">' + esc(titulo) + '</span>'
+    + '<span style="font-size:12px;color:#9ca3af;font-weight:600;white-space:nowrap">' + contagem
+    + (contagem === 1 ? ' item' : ' itens') + '</span>'
+    + (alerta > 0 ? '<span style="font-size:10.5px;font-weight:800;color:#b42318;background:#fdeaea;border-radius:6px;'
+      + 'padding:2px 7px;white-space:nowrap">' + alerta + ' baixo</span>' : '')
+    + (extra || '')
+    + '<span style="font-size:11px;color:#9ca3af;transition:transform .2s;display:inline-block'
+    + (aberto ? ';transform:rotate(180deg)' : '') + '">▼</span>'
+    + '</div>'
+    + (aberto ? corpo : '')
+    + '</div>'
+}
+
+function botaoEstoque(acao, rotulo, primaria, pequeno) {
+  return '<button type="button" data-acao="' + esc(acao) + '" style="height:' + (pequeno ? 28 : 32) + 'px;padding:0 '
+    + (pequeno ? 10 : 12) + 'px;border-radius:9px;font-size:' + (pequeno ? 11.5 : 12.5) + 'px;font-weight:800;'
+    + 'font-family:inherit;cursor:pointer;white-space:nowrap;' + (primaria
+      ? 'border:none;background:var(--acento);color:#fff'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
+}
+
+function corpoDoBloco(id, itens, termo) {
+  const t = (termo || '').trim().toLowerCase()
+  const vistos = t
+    ? itens.filter((i) => (i.nome || '').toLowerCase().indexOf(t) >= 0 || (i.codigo || '').toLowerCase().indexOf(t) >= 0)
+    : itens
+  const busca = '<div style="padding:8px 14px;border-bottom:1px solid #f0f0ee">'
+    + '<input data-busca-bloco="' + esc(id) + '" placeholder="Buscar por nome ou código…" value="' + esc(termo || '') + '"'
+    + ' autocomplete="off" style="width:240px;max-width:100%;height:32px;border:1px solid #e5e7eb;border-radius:9px;'
+    + 'padding:0 11px;font-family:inherit;font-size:13px;color:#111;background:#fff"></div>'
+  if (!vistos.length) {
+    return busca + '<div class="evazio">' + (itens.length
+      ? 'Nada encontrado.' : 'Nenhum produto nesta subcategoria ainda.') + '</div>'
   }
+  const cabecalho = '<div style="display:grid;grid-template-columns:' + GRADE_ESTOQUE + ';gap:10px;padding:9px 14px;'
+    + 'border-bottom:1px solid #ebebe8;font-size:10.5px;font-weight:800;color:#b3b2ac;text-transform:uppercase;letter-spacing:.08em">'
+    + ['Código', 'Produto'].map((c) => '<span>' + c + '</span>').join('')
+    + ['Estoque', 'Mín.', 'Custo'].map((c) => '<span style="text-align:right">' + c + '</span>').join('')
+    + '<span>Situação</span><span></span></div>'
+  return busca + cabecalho + vistos.map(linhaItemEstoque).join('')
+}
+
+function gestaoProdutos(d, estado) {
+  const categorias = d.categorias || []
+  if (!categorias.length) return aviso('Nenhuma categoria de estoque cadastrada ainda.')
+  const escolhida = estado.catEstoque || 'todos'
+  const fechados = estado.blocosFechados || []
+  const buscas = estado.buscaBloco || {}
+  const visiveis = escolhida === 'todos' ? categorias : categorias.filter((c) => c.id === escolhida)
+
+  const pilula = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
+    + [{ id: 'todos', nome: 'Todos' }].concat(categorias).map((c) =>
+      '<button type="button" data-cat-estoque="' + esc(c.id) + '" class="echip' + (escolhida === c.id ? ' on' : '') + '"'
+      + ' style="cursor:pointer;height:32px;' + (escolhida === c.id
+        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
+        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(c.nome) + '</button>').join('')
+    + botaoEstoque('estoque:nova-categoria', '+', false)
+    + '<span style="margin-left:auto">' + botaoEstoque('estoque:sincronizar-cardapio', '↔ Sincronizar com o cardápio', false) + '</span>'
+    + '</div>'
+
+  const secoes = visiveis.map((cat) => {
+    const subs = (cat.subcategorias || []).map((sub) => {
+      const id = cat.id + ':' + sub.nome
+      const itens = sub.itens || []
+      const aberto = fechados.indexOf(id) < 0
+      const extra = botaoEstoque('estoque:adicionar:' + cat.id, '+ Adicionar', false, true)
+      return blocoEstoque(id, sub.nome, itens.length, baixos(itens), extra,
+        corpoDoBloco(id, itens, buscas[id]), aberto)
+    }).join('')
+    const massas = cat.mostraMassas
+      ? blocoEstoque(cat.id + ':massas', 'Estoque de Massas', (cat.massas || []).length,
+        0, botaoEstoque('estoque:sincronizar-massas', '↻ Sincronizar cardápio', true, true),
+        corpoDoBloco(cat.id + ':massas', cat.massas || [], buscas[cat.id + ':massas']),
+        fechados.indexOf(cat.id + ':massas') < 0)
+      : ''
+    return subs + massas
+  }).join('')
+
+  return pilula + '<div style="animation:eloFadeUp .5s ease both">' + secoes + '</div>'
+}
+
+// ── Gestão (estoque) ────────────────────────────────────────────────────────
+function gestao(d, aba, estado) {
+  estado = estado || {}
+  if (aba === 'produtos') return gestaoProdutos(d, estado)
   if (aba === 'entrada' || aba === 'saida') {
     const notas = aba === 'entrada' ? d.nfEntrada : d.nfSaida
     return cartao(aba === 'entrada' ? 'Notas de entrada' : 'Notas de saída',
@@ -207,8 +335,8 @@ function htmlComAbas(rota, dados, estado) {
   const aba = Abas.abaAtual(abas, estado && estado.aba)
   const corpo = rota === '/admin/financeiro' ? financeiro(dados, aba)
     : rota === '/admin/atendimento' ? atendimento(dados, aba)
-    : gestao(dados, aba)
+    : gestao(dados, aba, estado)
   return '<div>' + Abas.barraDeAbas(abas, aba) + corpo + '</div>'
 }
 
-module.exports = { htmlComAbas, ABAS }
+module.exports = { htmlComAbas, ABAS, situacaoEstoque }

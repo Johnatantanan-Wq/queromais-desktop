@@ -118,6 +118,9 @@ if (typeof document !== 'undefined') {
   const SUBABA = {}             // subaba (Caixa: mesas | delivery | movimentações)
   const VISAO = {}              // visão (Despacho: por bairro | lista)
   let CATEGORIAS_ABERTAS = []   // Cardápio: categorias expandidas
+  let CAT_ESTOQUE = 'todos'     // Gestão › Produtos: categoria escolhida
+  let BLOCOS_FECHADOS = []      // Gestão › Produtos: blocos recolhidos (abrem por padrão)
+  const BUSCA_BLOCO = {}        // Gestão › Produtos: busca de cada bloco
   let PERIODO_FIN = 'hoje'      // Financeiro: período da visão geral
   let MODO_PEDIDOS = 'quadro'   // quadro (padrão) | lista
   let FILTRO_PEDIDO = 'todos'   // quadro: canal ou forma de pagamento
@@ -232,7 +235,10 @@ if (typeof document !== 'undefined') {
           return require('./abas').barraDeAbas(ComAbas.ABAS[rota], 'salao')
             + Principais.htmlSalao(dados.salaoDetalhado, estado)
         }
-        return ComAbas.htmlComAbas(rota, dados, { ...estado, aba })
+        return ComAbas.htmlComAbas(rota, dados, {
+          ...estado, aba,
+          catEstoque: CAT_ESTOQUE, blocosFechados: BLOCOS_FECHADOS, buscaBloco: BUSCA_BLOCO,
+        })
       },
       erro: 'Não deu para carregar esta tela agora.',
     }
@@ -412,6 +418,21 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    const btCatEstoque = e.target.closest ? e.target.closest('[data-cat-estoque]') : null
+    if (btCatEstoque) {
+      CAT_ESTOQUE = btCatEstoque.getAttribute('data-cat-estoque')
+      redesenharTelaAtual()
+      return
+    }
+    const btBloco = e.target.closest ? e.target.closest('[data-bloco-estoque]') : null
+    if (btBloco && !e.target.closest('[data-acao]')) {
+      const id = btBloco.getAttribute('data-bloco-estoque')
+      const i = BLOCOS_FECHADOS.indexOf(id)
+      if (i >= 0) BLOCOS_FECHADOS.splice(i, 1)
+      else BLOCOS_FECHADOS = BLOCOS_FECHADOS.concat([id])
+      redesenharTelaAtual()
+      return
+    }
     const btFiltroPedido = e.target.closest ? e.target.closest('[data-filtro-pedido]') : null
     if (btFiltroPedido) {
       FILTRO_PEDIDO = btFiltroPedido.getAttribute('data-filtro-pedido')
@@ -559,6 +580,15 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       const novoCampo = document.getElementById('buscaPedidos')
       if (novoCampo) { novoCampo.focus(); try { novoCampo.setSelectionRange(pos2, pos2) } catch (x) {} }
+      return
+    }
+    if (e.target && e.target.getAttribute && e.target.getAttribute('data-busca-bloco')) {
+      const id = e.target.getAttribute('data-busca-bloco')
+      BUSCA_BLOCO[id] = e.target.value
+      const pos4 = e.target.selectionStart
+      redesenharTelaAtual()
+      const campo = document.querySelector('[data-busca-bloco="' + id.replace(/"/g, '\\"') + '"]')
+      if (campo) { campo.focus(); try { campo.setSelectionRange(pos4, pos4) } catch (x) {} }
       return
     }
     if (!e.target || e.target.id !== 'listaBusca') return
