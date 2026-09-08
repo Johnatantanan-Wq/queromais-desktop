@@ -96,14 +96,14 @@ function atendimento(d, aba) {
   if (aba === 'relatorios') {
     return cartao('Relatórios do salão', 'geração ainda pelo painel',
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">'
-      + d.relatorios.map((r) => '<div style="border:1px solid #ebebe8;border-radius:12px;padding:16px">'
+      + d.relatorios.map((r) => '<div style="border:1px solid #e8eaee;border-radius:12px;padding:16px">'
         + '<div style="font-size:14px;font-weight:800;color:#111;margin-bottom:4px">' + esc(r.nome) + '</div>'
         + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">' + esc(r.desc) + '</div></div>').join('') + '</div>')
   }
   if (aba === 'controle' || aba === 'app') {
     const campos = aba === 'controle' ? d.controle : d.app
     return cartao(aba === 'controle' ? 'Controle do salão' : 'App do garçom', 'em leitura — alterar é pelo painel',
-      campos.map((c) => '<div style="display:grid;grid-template-columns:240px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #f0f0ee">'
+      campos.map((c) => '<div style="display:grid;grid-template-columns:240px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #eef0f3">'
         + '<span style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc(c.rotulo) + '</span>'
         + '<span style="font-size:13px;font-weight:600;color:#111">' + esc(c.valor) + '</span></div>').join(''))
   }
@@ -126,7 +126,7 @@ function atendimento(d, aba) {
 
 /** Situação da prateleira — a mesma regra do painel (zerado / abaixo do mínimo / ok). */
 function situacaoEstoque(i) {
-  if (i.ativo === false) return { texto: 'Desativado', cor: '#6b7280', bg: '#f0f0ee' }
+  if (i.ativo === false) return { texto: 'Desativado', cor: '#6b7280', bg: '#eef0f3' }
   const saldo = Number(i.saldo) || 0
   if (saldo <= 0) return { texto: 'Sem estoque', cor: '#b42318', bg: '#fdeaea' }
   if (saldo <= (Number(i.minimo) || 0)) return { texto: 'Estoque baixo', cor: '#8a6508', bg: '#fff9e8' }
@@ -146,11 +146,11 @@ function selo(texto, cor, bg, titulo) {
 function linhaItemEstoque(i) {
   const s = situacaoEstoque(i)
   return '<div data-linha="' + esc(i.nome) + '" style="display:grid;grid-template-columns:' + GRADE_ESTOQUE
-    + ';align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f0f0ee'
+    + ';align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #eef0f3'
     + (i.ativo === false ? ';opacity:.5' : '') + '">'
     + '<span style="font-size:12px;color:#9ca3af;font-weight:600;font-variant-numeric:tabular-nums">' + esc(i.codigo || '—') + '</span>'
     + '<span style="font-size:13.5px;color:#111;font-weight:600;min-width:0">' + esc(i.nome)
-    + (i.cardapio ? selo('↔ cardápio', '#6b7280', '#f0f0ee', 'Vinculado ao produto do cardápio — a venda baixa aqui') : '')
+    + (i.cardapio ? selo('↔ cardápio', '#6b7280', '#eef0f3', 'Vinculado ao produto do cardápio — a venda baixa aqui') : '')
     + (i.cardapio === false ? selo('sem vínculo', '#b42318', '#fdeaea', 'Sem produto do cardápio vinculado') : '')
     + (i.fiscalPendente ? selo('⚠ fiscal', '#8a6508', '#fff9e8', 'Classificação fiscal incompleta — a nota sai no padrão de alimentação') : '')
     + '</span>'
@@ -171,7 +171,7 @@ function linhaItemEstoque(i) {
 function blocoEstoque(id, titulo, contagem, alerta, extra, corpo, aberto) {
   return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
     + '<div data-bloco-estoque="' + esc(id) + '" style="display:flex;align-items:center;gap:10px;padding:11px 14px;'
-    + 'background:#f6f6f4;cursor:pointer' + (aberto ? ';border-bottom:1px solid #ebebe8' : '') + '">'
+    + 'background:#f4f5f7;cursor:pointer' + (aberto ? ';border-bottom:1px solid #e8eaee' : '') + '">'
     + '<span style="font-size:13.5px;font-weight:800;color:#111;flex:1;letter-spacing:-.01em">' + esc(titulo) + '</span>'
     + '<span style="font-size:12px;color:#9ca3af;font-weight:600;white-space:nowrap">' + contagem
     + (contagem === 1 ? ' item' : ' itens') + '</span>'
@@ -198,7 +198,7 @@ function corpoDoBloco(id, itens, termo) {
   const vistos = t
     ? itens.filter((i) => (i.nome || '').toLowerCase().indexOf(t) >= 0 || (i.codigo || '').toLowerCase().indexOf(t) >= 0)
     : itens
-  const busca = '<div style="padding:8px 14px;border-bottom:1px solid #f0f0ee">'
+  const busca = '<div style="padding:8px 14px;border-bottom:1px solid #eef0f3">'
     + '<input data-busca-bloco="' + esc(id) + '" placeholder="Buscar por nome ou código…" value="' + esc(termo || '') + '"'
     + ' autocomplete="off" style="width:240px;max-width:100%;height:32px;border:1px solid #e5e7eb;border-radius:9px;'
     + 'padding:0 11px;font-family:inherit;font-size:13px;color:#111;background:#fff"></div>'
@@ -207,7 +207,7 @@ function corpoDoBloco(id, itens, termo) {
       ? 'Nada encontrado.' : 'Nenhum produto nesta subcategoria ainda.') + '</div>'
   }
   const cabecalho = '<div style="display:grid;grid-template-columns:' + GRADE_ESTOQUE + ';gap:10px;padding:9px 14px;'
-    + 'border-bottom:1px solid #ebebe8;font-size:10.5px;font-weight:800;color:#b3b2ac;text-transform:uppercase;letter-spacing:.08em">'
+    + 'border-bottom:1px solid #e8eaee;font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em">'
     + ['Código', 'Produto'].map((c) => '<span>' + c + '</span>').join('')
     + ['Estoque', 'Mín.', 'Custo'].map((c) => '<span style="text-align:right">' + c + '</span>').join('')
     + '<span>Situação</span><span></span></div>'
@@ -227,7 +227,7 @@ function gestaoProdutos(d, estado) {
       '<button type="button" data-cat-estoque="' + esc(c.id) + '" class="echip' + (escolhida === c.id ? ' on' : '') + '"'
       + ' style="cursor:pointer;height:32px;' + (escolhida === c.id
         ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(c.nome) + '</button>').join('')
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(c.nome) + '</button>').join('')
     + botaoEstoque('estoque:nova-categoria', '+', false)
     + '<span style="margin-left:auto">' + botaoEstoque('estoque:sincronizar-cardapio', '↔ Sincronizar com o cardápio', false) + '</span>'
     + '</div>'
@@ -259,7 +259,7 @@ function gestaoProdutos(d, estado) {
 /** Sub-abas sublinhadas (Nota Fiscal de entrada, Movimentações, Fichas). */
 function subAbas(aba, lista, atual) {
   const escolhida = lista.some((s) => s.chave === atual) ? atual : lista[0].chave
-  return '<div style="display:flex;gap:18px;border-bottom:1px solid #ebebe8;margin-bottom:18px">'
+  return '<div style="display:flex;gap:18px;border-bottom:1px solid #e8eaee;margin-bottom:18px">'
     + lista.map((s) => '<button type="button" data-subgestao="' + esc(aba) + ':' + esc(s.chave) + '"'
       + ' style="border:none;background:none;font-family:inherit;cursor:pointer;padding:0 0 10px;font-size:13px;'
       + (s.chave === escolhida
@@ -330,12 +330,12 @@ const TIPO_DOC = { nfe: 'NF-e', nfse: 'NFS-e', manual: 'Manual', sem_nota: 'Sem 
 function menuNovaEntrada() {
   const opcao = (acao, titulo, explica) => '<button type="button" data-acao="' + esc(acao) + '"'
     + ' style="display:block;width:100%;text-align:left;padding:12px 14px;background:none;border:none;'
-    + 'border-bottom:1px solid #f0f0ee;cursor:pointer;font-family:inherit">'
+    + 'border-bottom:1px solid #eef0f3;cursor:pointer;font-family:inherit">'
     + '<div style="font-size:13.5px;font-weight:700;color:#111">' + esc(titulo) + '</div>'
     + '<div style="font-size:11px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(explica) + '</div></button>'
   return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
     + '<div style="padding:10px 14px;font-size:12.5px;font-weight:800;color:#6b7280;'
-    + 'border-bottom:1px solid #f0f0ee;background:#f6f6f4">Nova entrada — de onde vem a nota?</div>'
+    + 'border-bottom:1px solid #eef0f3;background:#f4f5f7">Nova entrada — de onde vem a nota?</div>'
     + opcao('entrada:sefaz', '☁ Buscar da SEFAZ (automática)', 'Traz as notas de compra emitidas contra o CNPJ da loja')
     + opcao('entrada:xml', '⭱ Importar XML', 'Você já tem o arquivo da nota')
     + opcao('entrada:manual', '📄 Lançar manualmente — com nota fiscal', 'Digita fornecedor e itens; vai para a conferência normal')
@@ -347,7 +347,7 @@ function menuNovaEntrada() {
 function conferenciaDaNota(nota) {
   const itens = nota.itens || []
   const cabecalho = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;'
-    + 'flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid #f0f0ee">'
+    + 'flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid #eef0f3">'
     + '<div style="min-width:0"><div style="font-size:15px;font-weight:800;color:#111">'
     + esc(nota.fornecedor) + ' · NF ' + esc(nota.numero) + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;margin-top:3px">'
@@ -522,7 +522,7 @@ function gestaoMovimentacoes(d, estado) {
     + PERIODOS_MOV.map((p) => '<button type="button" data-periodo-mov="' + esc(p.chave) + '" class="echip'
       + (p.chave === periodo ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (p.chave === periodo
         ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
 
   const filtros = '<div class="ecard" style="padding:16px 20px;margin-bottom:14px;display:grid;'
     + 'grid-template-columns:1fr 190px 190px 190px;gap:12px;align-items:end">'
@@ -594,7 +594,7 @@ function gestaoFichas(d, estado) {
     + SUB_FICHAS.map((s) => '<button type="button" data-subgestao="fichas:' + esc(s.chave) + '"'
       + ' class="echip' + (s.chave === sub ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (s.chave === sub
         ? 'background:var(--acento);color:#fff;font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(s.rotulo) + '</button>').join('') + '</div>'
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(s.rotulo) + '</button>').join('') + '</div>'
 
   if (sub === 'insumo') {
     const porInsumo = {}
@@ -620,13 +620,13 @@ function gestaoFichas(d, estado) {
     + '</span></div>'
 
   const lista = '<div class="ecard" style="padding:0;overflow:hidden">'
-    + '<div style="padding:12px 16px;border-bottom:1px solid #ebebe8;background:#f6f6f4;font-size:13.5px;font-weight:800;color:#111">'
+    + '<div style="padding:12px 16px;border-bottom:1px solid #e8eaee;background:#f4f5f7;font-size:13.5px;font-weight:800;color:#111">'
     + 'Produtos (' + itens.length + ')</div>'
     + (itens.length ? itens.map((i) => {
       const temFicha = (i.insumos || []).length
       const aberto = escolhido && escolhido.produto === i.produto
       return '<div data-ficha="' + esc(i.produto) + '" style="display:flex;align-items:center;gap:10px;padding:11px 16px;'
-        + 'border-bottom:1px solid #f0f0ee;cursor:pointer' + (aberto ? ';background:var(--acento-suave)' : '') + '">'
+        + 'border-bottom:1px solid #eef0f3;cursor:pointer' + (aberto ? ';background:var(--acento-suave)' : '') + '">'
         + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:13.5px;font-weight:700;color:#111">' + esc(i.produto) + '</div>'
         + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:2px">' + esc(i.categoria || '—')

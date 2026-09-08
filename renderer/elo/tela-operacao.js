@@ -66,7 +66,7 @@ function itemKds(item, dep) {
     botao = '<span style="flex-shrink:0;font-size:11px;font-weight:800;color:var(--acento-texto)">✓ PRONTO</span>'
   }
   return '<div data-item-kds="' + esc(item.id) + '" style="display:flex;align-items:flex-start;gap:10px;'
-    + 'padding:10px 0;border-bottom:1px solid #f6f6f4' + (pronto ? ';opacity:.5' : '') + '">'
+    + 'padding:10px 0;border-bottom:1px solid #f4f5f7' + (pronto ? ';opacity:.5' : '') + '">'
     + '<div style="width:30px;height:30px;border-radius:8px;flex:0 0 30px;background:' + dep.bg + ';color:' + dep.cor
     + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">' + esc(item.qtd) + '×</div>'
     + '<div style="flex:1;min-width:0">'
@@ -85,7 +85,7 @@ function cartaoKds(p, dep) {
   return '<div data-pedido-kds="' + esc(p.numero) + '" class="ecard" style="padding:0;overflow:hidden;'
     + 'border-top:4px solid ' + (todosProntos ? 'var(--acento)' : dep.cor) + (todosProntos ? ';opacity:.6' : '') + '">'
     + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;'
-    + 'padding:12px 16px;border-bottom:1px solid #f0f0ee">'
+    + 'padding:12px 16px;border-bottom:1px solid #eef0f3">'
     + '<div style="min-width:0">'
     + '<div style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.04em">' + esc(rotuloCanal(p)) + '</div>'
     + '<div style="font-size:22px;font-weight:800;color:' + dep.cor + ';letter-spacing:-.02em">' + esc(numero) + '</div>'

@@ -41,7 +41,7 @@ function chipFinal(attr, chave, rotulo, ligado) {
   return '<button type="button" ' + attr + '="' + esc(chave) + '" class="echip' + (ligado ? ' is-on' : '') + '"'
     + ' style="cursor:pointer;height:30px;' + (ligado
       ? 'background:var(--acento);color:#fff;font-weight:800'
-      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(rotulo) + '</button>'
+      : 'background:#eef0f3;color:#4b5563') + '">' + esc(rotulo) + '</button>'
 }
 /** Cartão de número do painel: rótulo miúdo em caixa alta, número grande. */
 function kpiFinal(rotulo, valor, sub, cor, faixa) {
@@ -61,7 +61,7 @@ function faixaKpisFinal(lista, colunas) {
 }
 /** Rótulo de seção (RECEITAS, DESTAQUES…) — o painel separa os blocos assim. */
 function rotuloSecao(t) {
-  return '<div style="font-size:10.5px;font-weight:800;color:#b3b2ac;text-transform:uppercase;letter-spacing:.12em;'
+  return '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.12em;'
     + 'margin:4px 0 10px">' + esc(t) + '</div>'
 }
 function campoData(rotulo, valor) {
@@ -98,7 +98,7 @@ function htmlRelatorios(dados, estado) {
     + ABAS_REL.map((a) => '<button type="button" data-aba-rel="' + esc(a.chave) + '" class="echip'
       + (a.chave === aba ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (a.chave === aba
         ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
 
   if (aba !== 'vendas') {
     const secao = (dados.secoes || {})[aba]
@@ -130,7 +130,7 @@ function htmlRelatorios(dados, estado) {
         + '<span style="font-size:11.5px;color:#9ca3af;font-weight:600"> · ' + esc(m.pedidos) + ' ped.</span></span>'
         + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(m.valor))
         + '<span style="font-size:11.5px;color:#9ca3af;font-weight:600"> ' + ((m.valor / totalMod) * 100).toFixed(1) + '%</span></span></div>'
-        + '<div style="height:8px;border-radius:4px;background:#f0f0ee;overflow:hidden">'
+        + '<div style="height:8px;border-radius:4px;background:#eef0f3;overflow:hidden">'
         + '<div style="height:100%;width:' + ((m.valor / totalMod) * 100).toFixed(1) + '%;background:var(--acento);border-radius:4px"></div>'
         + '</div></div>').join('')
       : '<div class="evazio">Sem vendas no período.</div>')
@@ -191,7 +191,7 @@ function htmlInsights(dados, estado) {
         + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px">'
         + '<span style="font-size:13px;font-weight:700;color:#111">' + esc(f.nome) + '</span>'
         + '<span style="font-size:13px;font-weight:800;color:var(--acento-texto)">' + esc(brl(f.valor)) + '</span></div>'
-        + '<div style="height:7px;border-radius:4px;background:#f0f0ee;overflow:hidden">'
+        + '<div style="height:7px;border-radius:4px;background:#eef0f3;overflow:hidden">'
         + '<div style="height:100%;width:' + ((f.valor / totalFormas) * 100).toFixed(1) + '%;background:var(--acento);border-radius:4px"></div></div>'
         + '<div style="font-size:11px;color:#9ca3af;font-weight:600;margin-top:3px">'
         + ((f.valor / totalFormas) * 100).toFixed(1) + '%</div></div>').join('')
@@ -236,7 +236,7 @@ function htmlInsights(dados, estado) {
     + '<div style="font-size:13px;font-weight:800;color:#111;margin-bottom:8px">'
     + '<span style="color:var(--acento-texto)">Coz. ' + pctCoz + '%</span>'
     + '<span style="color:#9ca3af"> &nbsp; Bar ' + (100 - pctCoz) + '%</span></div>'
-    + '<div style="height:8px;border-radius:4px;background:#f0f0ee;overflow:hidden">'
+    + '<div style="height:8px;border-radius:4px;background:#eef0f3;overflow:hidden">'
     + '<div style="height:100%;width:' + pctCoz + '%;background:var(--acento);border-radius:4px"></div></div></div>'
     + '</div>'
 
@@ -257,17 +257,17 @@ function htmlInsights(dados, estado) {
     + '</div>'
 
   const ranking = (titulo, sub, itens, campo, fmt) => '<div class="ecard" style="padding:0;overflow:hidden;min-width:0">'
-    + '<div style="padding:16px 18px;border-bottom:1px solid #f0f0ee">'
+    + '<div style="padding:16px 18px;border-bottom:1px solid #eef0f3">'
     + '<div style="font-size:14px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(sub) + '</div></div>'
     + (itens && itens.length ? itens.map((x, i) => {
       const max = Math.max(...itens.map((y) => Number(y[campo]) || 0), 1)
       return '<div style="display:grid;grid-template-columns:26px 1fr 90px;gap:10px;align-items:center;'
-        + 'padding:9px 18px;border-bottom:1px solid #f6f6f4">'
+        + 'padding:9px 18px;border-bottom:1px solid #f4f5f7">'
         + '<span style="font-size:12px;font-weight:800;color:' + (i < 3 ? 'var(--acento-texto)' : '#9ca3af') + '">' + (i + 1) + '</span>'
         + '<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:#111;overflow:hidden;'
         + 'text-overflow:ellipsis;white-space:nowrap">' + esc(x.nome) + '</div>'
-        + '<div style="height:5px;border-radius:3px;background:#f0f0ee;overflow:hidden;margin-top:5px">'
+        + '<div style="height:5px;border-radius:3px;background:#eef0f3;overflow:hidden;margin-top:5px">'
         + '<div style="height:100%;width:' + (((Number(x[campo]) || 0) / max) * 100).toFixed(1)
         + '%;background:var(--acento);border-radius:3px"></div></div></div>'
         + '<div style="text-align:right"><div style="font-size:13px;font-weight:800;color:#111">' + esc(fmt(x)) + '</div>'
@@ -286,12 +286,12 @@ function htmlInsights(dados, estado) {
   const baixa = (dados.baixaVenda || []).length
     ? rotuloSecao('Baixa venda')
       + '<div class="ecard" style="padding:0;overflow:hidden;border-left:3px solid #b42318">'
-      + '<div style="padding:16px 20px;border-bottom:1px solid #f0f0ee">'
+      + '<div style="padding:16px 20px;border-bottom:1px solid #eef0f3">'
       + '<div style="font-size:14px;font-weight:800;color:#111">Produtos com menor saída</div>'
       + '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:2px">'
       + 'Considere promoção, melhoria de foto ou remoção do cardápio</div></div>'
       + (dados.baixaVenda || []).map((x, i) => '<div style="display:grid;grid-template-columns:26px 1fr 110px 120px;'
-        + 'gap:10px;align-items:center;padding:9px 20px;border-bottom:1px solid #f6f6f4">'
+        + 'gap:10px;align-items:center;padding:9px 20px;border-bottom:1px solid #f4f5f7">'
         + '<span style="font-size:12px;font-weight:800;color:#9ca3af">' + (i + 1) + '</span>'
         + '<span style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
         + esc(x.nome) + '</span>'
@@ -325,11 +325,11 @@ const SUB_CFG_GERAL = [
 function valorCfg(v) {
   return v
     ? '<span style="font-size:13.5px;font-weight:600;color:#111">' + esc(v) + '</span>'
-    : '<span style="font-size:13.5px;font-weight:500;color:#c9c6bd;font-style:italic">Não informado</span>'
+    : '<span style="font-size:13.5px;font-weight:500;color:#c4c8cf;font-style:italic">Não informado</span>'
 }
 function grupoCfg(titulo, campos, colunas) {
-  return '<div style="padding:18px 24px;border-bottom:1px solid #f0f0ee">'
-    + (titulo ? '<div style="font-size:10.5px;font-weight:800;color:#b3b2ac;text-transform:uppercase;'
+  return '<div style="padding:18px 24px;border-bottom:1px solid #eef0f3">'
+    + (titulo ? '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;'
       + 'letter-spacing:.1em;margin-bottom:14px">' + esc(titulo) + '</div>' : '')
     + '<div style="display:grid;grid-template-columns:repeat(' + (colunas || 3) + ',minmax(0,1fr));gap:16px 24px">'
     + campos.map((c) => '<div style="min-width:0">'
@@ -349,7 +349,7 @@ function htmlConfiguracoes(dados, estado) {
       + ' style="cursor:pointer;height:32px;' + (x.chave === atual
         ? (ativa === 'cheia' ? 'background:var(--acento);color:#fff;font-weight:800'
           : 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800')
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(x.rotulo) + '</button>').join('') + '</div>'
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(x.rotulo) + '</button>').join('') + '</div>'
 
   const cabecalho = barra(ABAS_CFG, aba, 'data-aba-cfg', 'suave')
     + (aba === 'geral' ? barra(SUB_CFG_GERAL, sub, 'data-sub-cfg', 'cheia') : '')

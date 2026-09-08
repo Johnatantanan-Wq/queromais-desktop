@@ -36,7 +36,7 @@ function menu(acao, rotulo) {
 
 const CORES_ETIQUETA = {
   'Promocional': 'background:#fff3cc;color:#8a6508',
-  'OCULTA': 'background:#f0f0ee;color:#9ca3af',
+  'OCULTA': 'background:#eef0f3;color:#9ca3af',
   'Destaque pop-up': 'background:#f5f3ff;color:#6d28d9',
   'Pizza': 'background:#E7FAF0;color:#0A7A3E',
 }
@@ -51,7 +51,7 @@ function medidor(pct) {
   const r = 42, circ = Math.PI * r     // meia volta
   const preenchido = (p / 100) * circ
   return '<svg width="110" height="66" viewBox="0 0 110 66">'
-    + '<path d="M13 58 A42 42 0 0 1 97 58" fill="none" stroke="#f0f0ee" stroke-width="11" stroke-linecap="round"/>'
+    + '<path d="M13 58 A42 42 0 0 1 97 58" fill="none" stroke="#eef0f3" stroke-width="11" stroke-linecap="round"/>'
     + '<path d="M13 58 A42 42 0 0 1 97 58" fill="none" stroke="var(--acento)" stroke-width="11" stroke-linecap="round"'
     + ' stroke-dasharray="' + preenchido.toFixed(1) + ' ' + circ.toFixed(1) + '"/>'
     + '<text x="55" y="54" text-anchor="middle" font-size="22" font-weight="800" fill="#111" font-family="Plus Jakarta Sans, sans-serif">'
@@ -60,7 +60,7 @@ function medidor(pct) {
 
 function faixaQualidade(q) {
   const cartao = (valor, rotulo, acao, rotuloAcao) =>
-    '<div style="flex:1;min-width:170px;padding:14px 18px;border-left:1px solid #f0f0ee">'
+    '<div style="flex:1;min-width:170px;padding:14px 18px;border-left:1px solid #eef0f3">'
     + '<div style="font-size:20px;font-weight:800;color:#111;line-height:1.1">' + esc(valor) + '</div>'
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-bottom:' + (acao ? '10px' : '0') + '">' + esc(rotulo) + '</div>'
     + (acao ? '<button type="button" data-acao="' + esc(acao) + '" style="width:100%;height:32px;border:none;border-radius:9px;'
@@ -80,11 +80,11 @@ function faixaQualidade(q) {
 function item(i, aberta) {
   const apagado = i.esgotado
   return '<div data-item="' + esc(i.nome) + '" style="display:grid;grid-template-columns:20px 54px 1fr 34px 150px 90px 120px;'
-    + 'align-items:center;gap:12px;padding:10px 16px;border-top:1px solid #f6f6f4;background:#fff">'
-    + '<span style="color:#c9c6bd;cursor:grab;font-size:13px">⣿</span>'
+    + 'align-items:center;gap:12px;padding:10px 16px;border-top:1px solid #f4f5f7;background:#fff">'
+    + '<span style="color:#c4c8cf;cursor:grab;font-size:13px">⣿</span>'
     + (i.foto
-      ? '<div style="width:48px;height:48px;border-radius:10px;background:#f0f0ee"></div>'
-      : '<div style="width:48px;height:48px;border-radius:10px;background:#fafafa;border:1px dashed #e5e7eb;display:flex;'
+      ? '<div style="width:48px;height:48px;border-radius:10px;background:#eef0f3"></div>'
+      : '<div style="width:48px;height:48px;border-radius:10px;background:#fafbfc;border:1px dashed #e5e7eb;display:flex;'
         + 'align-items:center;justify-content:center;font-size:9px;color:#9ca3af;font-weight:700;text-align:center;line-height:1.1">sem<br>foto</div>')
     + '<div style="min-width:0"><div style="font-size:13.5px;font-weight:800;color:' + (apagado ? '#9ca3af' : '#111') + '">'
     + esc(i.nome) + ' <span style="color:var(--acento-texto);font-size:11px">▾</span></div>'
@@ -108,7 +108,7 @@ function htmlCardapio(dados, estado) {
       + 'Quando o app falar com o painel, as categorias aparecem aqui.</div></div>'
   }
   const abaAtiva = estado.aba || 'Gestor'
-  const abas = '<div style="display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid #ebebe8;margin-bottom:18px">'
+  const abas = '<div style="display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid #e8eaee;margin-bottom:18px">'
     + ABAS.map((a) => '<button type="button" data-aba-cardapio="' + esc(a) + '" style="height:38px;padding:0 14px;border:none;'
       + 'background:none;font-family:inherit;font-size:13px;cursor:pointer;'
       + (a === abaAtiva ? 'color:var(--acento-texto);font-weight:800;box-shadow:inset 0 -2px 0 var(--acento)' : 'color:#6b7280;font-weight:600')
@@ -130,7 +130,7 @@ function htmlCardapio(dados, estado) {
   }
 
   const barra = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">'
-    + '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;min-width:280px">'
+    + '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafbfc;min-width:280px">'
     + '<span style="color:#9ca3af">🔎</span>'
     + '<input id="buscaCardapio" placeholder="Pesquisar item ou categoria" value="' + esc(estado.termo || '') + '" autocomplete="off"'
     + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
@@ -147,7 +147,7 @@ function htmlCardapio(dados, estado) {
     const itens = aberta ? (c.itens || []).map((i) => item(i, aberta)).join('') : ''
     return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:10px">'
       + '<div data-categoria="' + esc(c.nome) + '" style="display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer">'
-      + '<span style="color:#c9c6bd;cursor:grab;font-size:13px">⣿</span>'
+      + '<span style="color:#c4c8cf;cursor:grab;font-size:13px">⣿</span>'
       + '<span style="font-size:14.5px;font-weight:800;color:#111">' + esc(c.nome) + '</span>'
       + '<span style="color:var(--acento-texto);font-size:12px">' + (aberta ? '▲' : '▼') + '</span>'
       + '<span style="display:flex;gap:6px;flex-wrap:wrap">' + (c.etiquetas || []).map(etiqueta).join('') + '</span>'

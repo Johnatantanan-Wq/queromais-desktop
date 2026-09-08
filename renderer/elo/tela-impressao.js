@@ -31,7 +31,7 @@ function botao(acao, rotulo, primaria) {
 }
 
 function linhaCampo(rotulo, valor, destaque) {
-  return '<div style="display:grid;grid-template-columns:240px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #f0f0ee">'
+  return '<div style="display:grid;grid-template-columns:240px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #eef0f3">'
     + '<span style="font-size:12.5px;font-weight:700;color:#6b7280">' + esc(rotulo) + '</span>'
     + '<span style="font-size:13px;font-weight:' + (destaque ? '800' : '600') + ';color:' + (destaque || '#111') + '">' + esc(valor) + '</span></div>'
 }
@@ -71,7 +71,7 @@ function htmlImpressao(dados, estado) {
     ? impressoras.map((p) => {
         const escolhida = p.name === atual || (!atual && p.isDefault)
         return '<div data-impressora="' + esc(p.name) + '" style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
-          + 'padding:12px 14px;border:1.5px solid ' + (escolhida ? 'var(--acento)' : '#ebebe8') + ';border-radius:12px;cursor:pointer;'
+          + 'padding:12px 14px;border:1.5px solid ' + (escolhida ? 'var(--acento)' : '#e8eaee') + ';border-radius:12px;cursor:pointer;'
           + 'background:' + (escolhida ? 'var(--acento-suave)' : '#fff') + ';margin-bottom:8px">'
           + '<div style="min-width:0"><div style="font-size:13.5px;font-weight:800;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
           + esc(p.displayName || p.name) + '</div>'

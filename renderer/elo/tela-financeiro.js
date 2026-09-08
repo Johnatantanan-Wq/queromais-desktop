@@ -40,14 +40,14 @@ const faixaKpis = (lista) => '<div style="display:grid;grid-template-columns:rep
 function cartao(titulo, acoes, corpo, atraso) {
   return '<div class="ecard" style="padding:0;overflow:hidden;animation:eloFadeUp .5s ease ' + (atraso || 0) + 's both">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;'
-    + 'padding:14px 18px;border-bottom:1px solid #f0f0ee">'
+    + 'padding:14px 18px;border-bottom:1px solid #eef0f3">'
     + '<div style="font-size:14.5px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + (acoes ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + acoes + '</div>' : '')
     + '</div>' + corpo + '</div>'
 }
 /** Pílula segmentada do painel (fin-seg): duas ou três opções coladas. */
 function segmentado(attr, opcoes, atual) {
-  return '<div style="display:inline-flex;background:#f0f0ee;border-radius:9px;padding:2px">'
+  return '<div style="display:inline-flex;background:#eef0f3;border-radius:9px;padding:2px">'
     + opcoes.map((o) => '<button type="button" ' + attr + '="' + esc(o.chave) + '"'
       + ' style="height:26px;padding:0 11px;border:none;border-radius:7px;font-family:inherit;font-size:12px;'
       + 'cursor:pointer;' + (o.chave === atual
@@ -79,15 +79,15 @@ function paginacao(pagina, total) {
   if (paginas <= 1) return ''
   const de = pagina * POR_PAGINA + 1
   const ate = Math.min(total, (pagina + 1) * POR_PAGINA)
-  return '<div style="display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid #f0f0ee">'
+  return '<div style="display:flex;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid #eef0f3">'
     + '<span style="font-size:12px;color:#9ca3af;font-weight:600">' + de + '–' + ate + ' de ' + total + '</span>'
     + '<span style="margin-left:auto;display:flex;gap:6px">'
     + '<button type="button" data-pag-fin="' + Math.max(0, pagina - 1) + '" style="height:28px;padding:0 11px;'
     + 'border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;font-size:12px;font-weight:700;'
-    + (pagina === 0 ? 'color:#c9c6bd' : 'color:#111;cursor:pointer') + '">‹ anterior</button>'
+    + (pagina === 0 ? 'color:#c4c8cf' : 'color:#111;cursor:pointer') + '">‹ anterior</button>'
     + '<button type="button" data-pag-fin="' + Math.min(paginas - 1, pagina + 1) + '" style="height:28px;padding:0 11px;'
     + 'border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;font-size:12px;font-weight:700;'
-    + (pagina >= paginas - 1 ? 'color:#c9c6bd' : 'color:#111;cursor:pointer') + '">próxima ›</button>'
+    + (pagina >= paginas - 1 ? 'color:#c4c8cf' : 'color:#111;cursor:pointer') + '">próxima ›</button>'
     + '</span></div>'
 }
 
@@ -321,9 +321,9 @@ function tabelaPorDia(dias, abertos) {
     + (dir ? 'text-align:right;' : '') + 'font-weight:' + (forte ? 800 : 600) + ';color:' + (cor || '#4b5563')
     + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + t + '</span>'
   const linha = (conteudo, fundo) => '<div style="display:grid;grid-template-columns:' + grade
-    + ';border-bottom:1px solid #f0f0ee;background:' + (fundo || '#fff') + '">' + conteudo + '</div>'
+    + ';border-bottom:1px solid #eef0f3;background:' + (fundo || '#fff') + '">' + conteudo + '</div>'
 
-  const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';background:#f6f6f4;'
+  const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';background:#f4f5f7;'
     + 'border-bottom:1px solid #e5e7eb;font-size:10.5px;font-weight:800;color:#6b7280;text-transform:uppercase;'
     + 'letter-spacing:.05em">'
     + ['Dia / movimentação', 'Categoria'].map((c) => '<span style="padding:8px 10px">' + c + '</span>').join('')
@@ -334,10 +334,10 @@ function tabelaPorDia(dias, abertos) {
     const aberto = (abertos || []).indexOf(d.dia) >= 0
     let html = linha(cel('<strong>' + esc(dataBr(d.dia)) + '</strong>', false, '#111', true) + cel('')
       + cel(esc(brl(d.entradas)), true, 'var(--acento-texto)', true)
-      + cel(esc(brl(d.saidas)), true, '#b42318', true), '#f6f6f4')
+      + cel(esc(brl(d.saidas)), true, '#b42318', true), '#f4f5f7')
     if (d.vendaDiaria) {
       html += '<div data-dia-extrato="' + esc(d.dia) + '" style="display:grid;grid-template-columns:' + grade
-        + ';border-bottom:1px solid #f0f0ee;background:#fff;cursor:pointer">'
+        + ';border-bottom:1px solid #eef0f3;background:#fff;cursor:pointer">'
         + cel('<span style="color:#9ca3af;font-weight:800">' + (aberto ? '▾' : '▸') + '</span> Venda diária'
           + '<span style="color:#9ca3af;font-weight:600"> · ' + d.vendaDiaria.quantidade + ' venda'
           + (d.vendaDiaria.quantidade !== 1 ? 's' : '') + '</span>', false, '#111')
@@ -354,7 +354,7 @@ function tabelaPorDia(dias, abertos) {
     }
     html += d.outras.map((l) => linha(
       cel(esc(l.descricao) + '<span style="color:#9ca3af"> · ' + esc(l.origem || '') + '</span>', false, '#111')
-      + cel('<span style="font-size:11px;font-weight:800;color:#6b7280;background:#f0f0ee;border-radius:6px;'
+      + cel('<span style="font-size:11px;font-weight:800;color:#6b7280;background:#eef0f3;border-radius:6px;'
         + 'padding:2px 8px">' + esc(CATEGORIA_MOV[l.categoria] || l.categoria) + '</span>')
       + cel(l.direcao === 'entrada' && !l.estornado ? esc(brl(l.valor)) : '—', true, 'var(--acento-texto)')
       + cel(l.direcao === 'saida' && !l.estornado ? esc(brl(l.valor)) : '—', true, '#b42318'))).join('')
@@ -605,8 +605,8 @@ function abaDre(d, estado) {
     const total = l.nivel === 'total'
     return '<div' + (temFilhas ? ' data-dre="' + esc(l.chave) + '"' : '')
       + ' style="display:grid;grid-template-columns:1fr 120px 160px;align-items:center;gap:10px;'
-      + 'padding:' + (total ? '12px 18px' : '9px 18px') + ';border-bottom:1px solid #f0f0ee;'
-      + (total ? 'background:#f6f6f4;' : '') + (temFilhas ? 'cursor:pointer;' : '') + '">'
+      + 'padding:' + (total ? '12px 18px' : '9px 18px') + ';border-bottom:1px solid #eef0f3;'
+      + (total ? 'background:#f4f5f7;' : '') + (temFilhas ? 'cursor:pointer;' : '') + '">'
       + '<span style="font-size:' + (total ? 14 : 13) + 'px;font-weight:' + (total ? 800 : 600) + ';color:#111">'
       + (temFilhas ? '<span style="color:#9ca3af;font-weight:800">' + (aberta ? '▾' : '▸') + '</span> ' : '')
       + esc(l.label) + '</span>'
@@ -616,7 +616,7 @@ function abaDre(d, estado) {
       + (negativo ? '#b42318' : '#111') + '">' + (negativo ? '− ' : '') + esc(brl(Math.abs(Number(l.valor) || 0))) + '</span>'
       + '</div>'
       + (aberta ? (l.filhas || []).map((f) => '<div style="display:grid;grid-template-columns:1fr 120px 160px;'
-        + 'align-items:center;gap:10px;padding:7px 18px 7px 40px;border-bottom:1px solid #f6f6f4;background:#fcfcfb">'
+        + 'align-items:center;gap:10px;padding:7px 18px 7px 40px;border-bottom:1px solid #f4f5f7;background:#fbfcfd">'
         + '<span style="font-size:12.5px;font-weight:600;color:#6b7280">' + esc(f.label) + '</span>'
         + '<span style="font-size:11.5px;font-weight:700;color:#9ca3af;text-align:right">'
         + (f.pct != null ? f.pct + '%' : '') + '</span>'
@@ -635,7 +635,7 @@ function abaDre(d, estado) {
         celulas: [{ texto: c.label, forte: true, cor: '#111' },
           (c.categorias || []).slice(0, 3).join(' · '),
           { html: '<span style="display:flex;align-items:center;gap:8px;width:100%">'
-            + '<span style="flex:1;height:7px;border-radius:4px;background:#f0f0ee;overflow:hidden">'
+            + '<span style="flex:1;height:7px;border-radius:4px;background:#eef0f3;overflow:hidden">'
             + '<span style="display:block;height:100%;width:' + (Number(c.participacao) || 0) + '%;'
             + 'background:#7C3AED;border-radius:4px"></span></span>'
             + '<span style="font-size:12px;font-weight:700;color:#9ca3af">' + (Number(c.participacao) || 0) + '%</span></span>' },

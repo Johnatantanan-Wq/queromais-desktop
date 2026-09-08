@@ -41,7 +41,7 @@ function tempoDeEspera(min) {
   return r ? h + ' h ' + String(r).padStart(2, '0') : h + ' h'
 }
 function etiqueta(texto, tom) {
-  const tons = { canal: 'background:#eef4ff;color:#1d4ed8', forma: 'background:#f0f0ee;color:#4b5563',
+  const tons = { canal: 'background:#eef4ff;color:#1d4ed8', forma: 'background:#eef0f3;color:#4b5563',
     conta: 'background:#fff3cc;color:#8a6508', mesa: 'background:#E7FAF0;color:#0A7A3E' }
   return '<span style="font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:6px;white-space:nowrap;'
     + (tons[tom] || tons.forma) + '">' + esc(texto) + '</span>'
@@ -58,7 +58,7 @@ function faixaIndicadores(k) {
     { v: k.producao, r: 'Em produção' },
     { v: k.prontos, r: 'Prontos' },
     { v: k.entregues, r: 'Entregues' },
-  ].map((i) => '<div style="padding:10px 16px;border-right:1px solid #f0f0ee;min-width:0">'
+  ].map((i) => '<div style="padding:10px 16px;border-right:1px solid #eef0f3;min-width:0">'
     + '<div style="font-size:18px;font-weight:800;color:' + (i.cor || '#111') + ';line-height:1.1">' + esc(i.v != null ? i.v : '—') + '</div>'
     + '<div style="font-size:11px;color:#9ca3af;font-weight:600;white-space:nowrap">' + esc(i.r) + '</div></div>').join('')
 
@@ -93,13 +93,13 @@ function barraAcoes(dados) {
 
 function barraFiltros(atual, termo) {
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">'
-    + '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;min-width:280px">'
+    + '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafbfc;min-width:280px">'
     + '<span style="color:#9ca3af">🔎</span>'
     + '<input id="buscaPedidos" placeholder="Buscar pedido, cliente ou telefone…" value="' + esc(termo || '') + '" autocomplete="off"'
     + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
     + FILTROS.map((f) => '<button type="button" data-filtro-pedido="' + esc(f.chave) + '" class="echip'
       + (f.chave === atual ? ' is-on' : '') + '" style="cursor:pointer;height:34px;'
-      + (f.chave === atual ? 'background:#111;color:#fff;font-weight:800' : 'background:#f0f0ee;color:#4b5563') + '">'
+      + (f.chave === atual ? 'background:#111;color:#fff;font-weight:800' : 'background:#eef0f3;color:#4b5563') + '">'
       + esc(f.rotulo) + '</button>').join('')
     + '</div>'
 }

@@ -37,7 +37,7 @@ function topo(titulo, sub, direita, selo) {
 }
 function cartao(titulo, sub, corpo, atraso) {
   return '<div class="ecard" style="padding:0;overflow:hidden;animation:eloFadeUp .5s ease ' + (atraso || 0) + 's both">'
-    + '<div style="padding:16px 20px;border-bottom:1px solid #f0f0ee">'
+    + '<div style="padding:16px 20px;border-bottom:1px solid #eef0f3">'
     + '<div style="font-size:14.5px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + (sub ? '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(sub) + '</div>' : '')
     + '</div>' + corpo + '</div>'
@@ -48,12 +48,12 @@ function campo(rotulo, exemplo, valor, largura) {
     + '<div style="font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;'
     + 'margin-bottom:6px">' + esc(rotulo) + '</div>'
     + '<div style="min-height:36px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;display:flex;'
-    + 'align-items:center;padding:8px 11px;font-size:13px;font-weight:' + (valor ? '600;color:#111' : '500;color:#c9c6bd')
+    + 'align-items:center;padding:8px 11px;font-size:13px;font-weight:' + (valor ? '600;color:#111' : '500;color:#c4c8cf')
     + ';line-height:1.4">' + esc(valor || exemplo) + '</div></div>'
 }
 function marcador(rotulo, explicacao) {
   return '<div style="display:flex;gap:9px;align-items:flex-start;padding:7px 0">'
-    + '<span style="width:15px;height:15px;border:1.5px solid #d5d3cc;border-radius:4px;flex-shrink:0;margin-top:1px"></span>'
+    + '<span style="width:15px;height:15px;border:1.5px solid #d0d4db;border-radius:4px;flex-shrink:0;margin-top:1px"></span>'
     + '<div><div style="font-size:13px;font-weight:700;color:#111">' + esc(rotulo) + '</div>'
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:1px">' + esc(explicacao) + '</div></div></div>'
 }
@@ -79,7 +79,7 @@ function htmlCupons(dados, estado) {
 
   const lista = itens.length
     ? itens.map((c) => '<div data-linha="' + esc(c.codigo) + '" style="display:flex;align-items:center;gap:12px;'
-      + 'padding:13px 20px;border-bottom:1px solid #f0f0ee;cursor:pointer">'
+      + 'padding:13px 20px;border-bottom:1px solid #eef0f3;cursor:pointer">'
       + '<span style="width:8px;height:34px;border-radius:4px;background:' + esc(c.cor || CORES_CUPOM[0]) + ';flex-shrink:0"></span>'
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-size:14px;font-weight:800;color:#111;letter-spacing:.02em">' + esc(c.codigo) + '</div>'
@@ -87,7 +87,7 @@ function htmlCupons(dados, estado) {
       + ' · vale até ' + esc(c.validade) + ' · ' + esc(c.usos) + ' uso(s)'
       + (c.primeiraCompra ? ' · só 1ª compra' : '') + (c.freteGratis ? ' · frete grátis' : '') + '</div></div>'
       + '<span style="font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 9px;'
-      + (c.situacao === 'Ativo' ? 'color:var(--acento-texto);background:var(--acento-suave)' : 'color:#6b7280;background:#f0f0ee')
+      + (c.situacao === 'Ativo' ? 'color:var(--acento-texto);background:var(--acento-suave)' : 'color:#6b7280;background:#eef0f3')
       + '">' + esc(c.situacao) + '</span></div>').join('')
     : '<div class="evazio">Nenhum cupom cadastrado.</div>'
 
@@ -156,7 +156,7 @@ function htmlCampanhas(dados, estado) {
     ? (Number(contagens[perfil]) || 0)
     : (dados.audiencia != null ? dados.audiencia : (dados.contatos || []).length)
 
-  const barraAbas = '<div style="display:flex;gap:18px;border-bottom:1px solid #ebebe8;margin-bottom:18px">'
+  const barraAbas = '<div style="display:flex;gap:18px;border-bottom:1px solid #e8eaee;margin-bottom:18px">'
     + ABAS_CAMPANHA.map((a) => '<button type="button" data-aba-campanha="' + esc(a.chave) + '"'
       + ' style="border:none;background:none;font-family:inherit;cursor:pointer;padding:0 0 10px;font-size:13px;'
       + (a.chave === aba
@@ -194,8 +194,8 @@ function htmlCampanhas(dados, estado) {
       '<span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:'
       + (p[2] ? '800;color:var(--acento-texto)' : '600;color:#9ca3af') + '">'
       + '<span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;'
-      + 'font-size:11.5px;font-weight:800;' + (p[2] ? 'background:var(--acento);color:#fff' : 'background:#f0f0ee;color:#9ca3af')
-      + '">' + p[0] + '</span>' + esc(p[1]) + '</span>').join('<span style="flex:1;height:1px;background:#ebebe8;min-width:20px"></span>')
+      + 'font-size:11.5px;font-weight:800;' + (p[2] ? 'background:var(--acento);color:#fff' : 'background:#eef0f3;color:#9ca3af')
+      + '">' + p[0] + '</span>' + esc(p[1]) + '</span>').join('<span style="flex:1;height:1px;background:#e8eaee;min-width:20px"></span>')
     + '</div>'
 
   const cartoesPerfil = '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'
@@ -208,7 +208,7 @@ function htmlCampanhas(dados, estado) {
         + (escolhido ? 'var(--acento-suave)' : '#fff') + '">'
         + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
         + '<span style="font-size:13.5px;font-weight:800;color:#111">' + esc(p.nome) + '</span>'
-        + '<span style="font-size:12.5px;font-weight:800;color:' + (n ? 'var(--acento-texto)' : '#c9c6bd') + '">' + n + '</span></div>'
+        + '<span style="font-size:12.5px;font-weight:800;color:' + (n ? 'var(--acento-texto)' : '#c4c8cf') + '">' + n + '</span></div>'
         + '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:3px;line-height:1.4">' + esc(p.desc) + '</div></div>'
     }).join('') + '</div>'
 
@@ -216,13 +216,13 @@ function htmlCampanhas(dados, estado) {
     + campo('Dias sem comprar (mín.)', '0 = qualquer') + campo('Gasto mínimo (R$)', '0 = qualquer') + '</div>'
 
   const painelAudiencia = '<div class="ecard" style="padding:0;overflow:hidden">'
-    + '<div style="padding:16px 18px;border-bottom:1px solid #f0f0ee">'
+    + '<div style="padding:16px 18px;border-bottom:1px solid #eef0f3">'
     + '<div style="font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em">Audiência atual</div>'
     + '<div style="font-size:30px;font-weight:800;color:#111;letter-spacing:-.03em;line-height:1.1;margin-top:6px">'
     + audiencia + '</div>'
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">de ' + total + ' contatos'
     + (nomePerfil ? ' · perfil ' + esc(nomePerfil) : '') + '</div></div>'
-    + (contatos.length ? contatos.map((c) => '<div style="padding:11px 18px;border-bottom:1px solid #f6f6f4">'
+    + (contatos.length ? contatos.map((c) => '<div style="padding:11px 18px;border-bottom:1px solid #f4f5f7">'
       + '<div style="font-size:13px;font-weight:700;color:#111">' + esc(c.nome) + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px;margin-top:3px">'
       + '<span style="font-size:10.5px;font-weight:800;color:var(--acento-texto);background:var(--acento-suave);'
@@ -272,13 +272,13 @@ function htmlPush(dados, estado) {
 
   const previa = '<div class="ecard" style="padding:18px 20px">'
     + '<div style="font-size:14px;font-weight:800;color:#111;margin-bottom:12px">Pré-visualização</div>'
-    + '<div style="border:1px solid #ebebe8;border-radius:12px;padding:12px 14px;background:#fff">'
+    + '<div style="border:1px solid #e8eaee;border-radius:12px;padding:12px 14px;background:#fff">'
     + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
     + '<span style="font-size:11.5px;color:#9ca3af;font-weight:700">' + esc(dados.loja || 'Sua loja') + '</span>'
-    + '<span style="font-size:11px;color:#c9c6bd;font-weight:600">agora</span></div>'
+    + '<span style="font-size:11px;color:#c4c8cf;font-weight:600">agora</span></div>'
     + '<div style="font-size:13.5px;font-weight:800;color:#111;margin-top:4px">Título da notificação</div>'
     + '<div style="font-size:12.5px;color:#6b7280;font-weight:500;margin-top:2px">A mensagem aparece aqui conforme você digita.</div>'
-    + '<div style="font-size:11px;color:#c9c6bd;font-weight:600;margin-top:6px">' + esc(dados.dominio || '') + '</div></div>'
+    + '<div style="font-size:11px;color:#c4c8cf;font-weight:600;margin-top:6px">' + esc(dados.dominio || '') + '</div></div>'
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:10px">A aparência pode variar conforme o navegador.</div>'
     + '</div>'
 
@@ -348,12 +348,12 @@ function htmlParceiros(dados, estado) {
       + '<span style="font-size:13px;font-weight:700;color:#111">' + esc(t) + '</span>'
       + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(v))
       + '<span style="font-size:11.5px;color:#9ca3af;font-weight:600"> (' + Math.round((v / totalTipos) * 100) + '%)</span></span></div>'
-      + '<div style="height:7px;border-radius:4px;background:#f0f0ee;overflow:hidden">'
+      + '<div style="height:7px;border-radius:4px;background:#eef0f3;overflow:hidden">'
       + '<div style="height:100%;width:' + ((v / totalTipos) * 100).toFixed(1) + '%;background:var(--acento);border-radius:4px"></div>'
       + '</div></div>'
   }).join('')
     + '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;text-align:center;'
-    + 'border-top:1px solid #f0f0ee;margin-top:14px;padding-top:14px">'
+    + 'border-top:1px solid #eef0f3;margin-top:14px;padding-top:14px">'
     + [[itens.length, 'Total cadastrados'], [ativos, 'Ativos'], [pedidos, 'Pedidos']].map((x) =>
       '<div><div style="font-size:18px;font-weight:800;color:var(--acento-texto)">' + x[0] + '</div>'
       + '<div style="font-size:11px;color:#9ca3af;font-weight:600;margin-top:2px">' + x[1] + '</div></div>').join('')
@@ -362,7 +362,7 @@ function htmlParceiros(dados, estado) {
   const top = [...itens].sort((a, b) => (b.vendas || 0) - (a.vendas || 0)).slice(0, 5)
   const blocoTop = top.length
     ? '<div style="padding:18px 20px">' + top.map((p, i) =>
-      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f6f6f4">'
+      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f4f5f7">'
       + '<span style="font-size:12px;font-weight:800;color:' + (i < 3 ? 'var(--acento-texto)' : '#9ca3af') + '">' + (i + 1) + '</span>'
       + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:#111">' + esc(p.nome) + '</span>'
       + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(p.vendas)) + '</span></div>').join('') + '</div>'
@@ -372,7 +372,7 @@ function htmlParceiros(dados, estado) {
   const porComissao = [...itens].sort((a2, b2) => (b2.comissao || 0) - (a2.comissao || 0))
   const blocoComissoes = porComissao.length
     ? '<div style="padding:18px 20px">' + porComissao.map((p2) =>
-      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f6f6f4">'
+      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f4f5f7">'
       + '<span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:#111">' + esc(p2.nome)
       + '<span style="font-size:11.5px;color:#9ca3af;font-weight:600"> · ' + esc(p2.pedidos) + ' pedido(s)</span></span>'
       + '<span style="font-size:13px;font-weight:800;color:var(--acento-texto)">' + esc(brl(p2.comissao)) + '</span></div>').join('')
@@ -408,7 +408,7 @@ function htmlFidelidade(dados, estado) {
     + ABAS_FIDELIDADE.map((a) => '<button type="button" data-aba-fidelidade="' + esc(a.chave) + '"'
       + ' class="echip" style="cursor:pointer;height:32px;' + (a.chave === aba
         ? 'background:var(--acento);color:#fff;font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
 
   const cabecalho = topo('Fidelidade',
     'O cliente acumula pontos a cada compra e troca por prêmios. '
@@ -443,7 +443,7 @@ function htmlFidelidade(dados, estado) {
     + PERIODOS_FID.map((p) => '<button type="button" data-periodo-fid="' + esc(p.chave) + '" class="echip"'
       + ' style="cursor:pointer;height:30px;' + (p.chave === periodo
         ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#f0f0ee;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('')
+        : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('')
     + '<span style="margin-left:auto;font-size:12px;color:#9ca3af;font-weight:600">' + esc(dados.intervalo || '') + '</span></div>'
 
   const kpis = faixaKpis([
@@ -462,7 +462,7 @@ function htmlFidelidade(dados, estado) {
   const ranking = (titulo, lista, campo2) => cartao(titulo, '',
     (lista || []).length
       ? '<div style="padding:8px 0">' + lista.map((c, i) =>
-        '<div style="display:flex;align-items:center;gap:12px;padding:9px 20px;border-bottom:1px solid #f6f6f4">'
+        '<div style="display:flex;align-items:center;gap:12px;padding:9px 20px;border-bottom:1px solid #f4f5f7">'
         + '<span style="font-size:12px;font-weight:800;color:' + (i < 3 ? 'var(--acento-texto)' : '#9ca3af') + '">' + (i + 1) + '</span>'
         + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#111">' + esc(c.nome) + '</div>'
         + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">' + esc(c.telefone || '') + '</div></div>'

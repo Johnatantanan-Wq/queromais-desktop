@@ -33,7 +33,7 @@ function linha(series, labels, opts) {
   const yOf = (v) => yBottom - ((v - min) / span) * (yBottom - yTop)
 
   const grade = [yTop, (yTop + yBottom) / 2, yBottom].map((y) =>
-    '<line x1="' + (mx / 2).toFixed(1) + '" y1="' + y.toFixed(1) + '" x2="' + (w - mx / 2).toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#f0f0ee" stroke-width="1"></line>'
+    '<line x1="' + (mx / 2).toFixed(1) + '" y1="' + y.toFixed(1) + '" x2="' + (w - mx / 2).toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#eef0f3" stroke-width="1"></line>'
   ).join('')
 
   const corpo = series.map((s, si) => {
@@ -81,7 +81,7 @@ function linha(series, labels, opts) {
   const rodape = '<line x1="' + (mx / 2).toFixed(1) + '" y1="' + baseY.toFixed(1) + '" x2="' + (w - mx / 2).toFixed(1) + '" y2="' + baseY.toFixed(1) + '" stroke="#eceae4" stroke-width="1.5"></line>'
     + labels.map((lb, i) => {
       const x = xOf(i), anchor = i === 0 ? 'start' : (i === qtd - 1 ? 'end' : 'middle')
-      const tick = '<circle cx="' + x.toFixed(1) + '" cy="' + baseY.toFixed(1) + '" r="2.5" fill="#c9c6bd"></circle>'
+      const tick = '<circle cx="' + x.toFixed(1) + '" cy="' + baseY.toFixed(1) + '" r="2.5" fill="#c4c8cf"></circle>'
       if (!mostraRotulo(i)) return tick
       return tick
         + '<text x="' + x.toFixed(1) + '" y="' + (baseY + 17).toFixed(1) + '" text-anchor="' + anchor + '" font-size="11.5" font-weight="700" fill="#6b7280" font-family="' + FONTE + '">' + esc(lb) + '</text>'
@@ -106,7 +106,7 @@ function barras(linhas, opts) {
     const largura = max > 0 && v > 0 ? Math.max(2, (v / max) * 100) : 0
     return '<div style="display:grid;grid-template-columns:' + (opts.colRotulo || '150px') + ' minmax(0,1fr) 90px;gap:14px;align-items:center;padding:3px 0">'
       + '<span style="font-size:13px;font-weight:600;color:#4b5563;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.label) + '</span>'
-      + '<div style="height:10px;border-radius:5px;background:#f0f0ee;overflow:hidden">'
+      + '<div style="height:10px;border-radius:5px;background:#eef0f3;overflow:hidden">'
       + '<div style="height:100%;width:' + largura.toFixed(1) + '%;background:' + (r.color || '#14CE6B') + ';border-radius:5px"></div></div>'
       + '<span style="font-size:13.5px;font-weight:800;color:#111111;text-align:right">' + esc(fmt(v)) + '</span></div>'
   }).join('')
@@ -148,7 +148,7 @@ function donut(fatias, tamanho, traco) {
   const total = fatias.reduce((s, x) => s + (Number(x.value) || 0), 0)
   if (!total) {
     return '<svg width="' + tamanho + '" height="' + tamanho + '" viewBox="0 0 ' + tamanho + ' ' + tamanho + '">'
-      + '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="#f0f0ee" stroke-width="' + traco + '"></circle></svg>'
+      + '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="#eef0f3" stroke-width="' + traco + '"></circle></svg>'
   }
   let offset = 0, arcos = ''
   fatias.forEach((s) => {

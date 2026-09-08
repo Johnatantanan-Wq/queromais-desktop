@@ -92,14 +92,14 @@ function botao(acao, rotulo, primaria, largo) {
 function cartao(titulo, corpo, direita) {
   return '<div class="ecard" style="padding:0;overflow:hidden">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;'
-    + 'border-bottom:1px solid #f0f0ee"><div style="font-size:14.5px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
+    + 'border-bottom:1px solid #eef0f3"><div style="font-size:14.5px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + (direita || '') + '</div><div style="padding:18px">' + corpo + '</div></div>'
 }
 
 function trilhaEtapas(atual) {
   return '<div style="display:flex;gap:6px;flex-wrap:wrap">' + ETAPAS.map((e, i) =>
     '<span style="font-size:11.5px;font-weight:800;padding:5px 12px;border-radius:20px;'
-    + (e.chave === atual ? 'background:var(--acento);color:#fff' : 'background:#f0f0ee;color:#9ca3af')
+    + (e.chave === atual ? 'background:var(--acento);color:#fff' : 'background:#eef0f3;color:#9ca3af')
     + '">' + (i + 1) + '. ' + esc(e.rotulo) + '</span>').join('') + '</div>'
 }
 
@@ -139,7 +139,7 @@ function etapaCliente(venda, dados) {
   const sugestoes = clientes.length
     ? cartao('Clientes que batem', clientes.map((c) =>
       '<div data-venda-cliente="' + esc(c.telefone || c.nome) + '" style="display:flex;align-items:center;gap:10px;'
-      + 'padding:10px 0;border-bottom:1px solid #f6f6f4;cursor:pointer">'
+      + 'padding:10px 0;border-bottom:1px solid #f4f5f7;cursor:pointer">'
       + '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:700;color:#111">' + esc(c.nome) + '</span>'
       + '<span style="font-size:12px;color:#9ca3af;font-weight:600">' + esc(c.bairro || '') + ' · '
       + esc(c.telefone || '') + '</span></div>').join(''))
@@ -161,7 +161,7 @@ function etapaProdutos(venda, dados) {
 
   const catalogo = categorias.length
     ? categorias.map((c) => '<div style="margin-bottom:18px">'
-      + '<div style="font-size:11px;font-weight:800;color:#b3b2ac;text-transform:uppercase;letter-spacing:.1em;'
+      + '<div style="font-size:11px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.1em;'
       + 'margin-bottom:10px">' + esc(c.nome) + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">'
       + c.itens.map((i) => '<button type="button" data-venda-add="' + esc(i.nome) + '"'
@@ -175,7 +175,7 @@ function etapaProdutos(venda, dados) {
   const t = totais(venda, dados.taxasBairro)
   const carrinho = (venda.itens || []).length
     ? (venda.itens || []).map((i) => '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;'
-      + 'border-bottom:1px solid #f6f6f4">'
+      + 'border-bottom:1px solid #f4f5f7">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-size:13px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;'
       + 'white-space:nowrap">' + esc(i.nome) + '</div>'
@@ -214,7 +214,7 @@ function etapaPagamento(venda, dados) {
 
   const resumo = linha('Produtos', brl(t.produtos))
     + (venda.tipo === 'entrega' ? linha('Taxa de entrega', brl(t.entrega)) : '')
-    + '<div style="height:1px;background:#f0f0ee;margin:6px 0"></div>'
+    + '<div style="height:1px;background:#eef0f3;margin:6px 0"></div>'
     + linha('Total', brl(t.total), true, 'var(--acento-texto)')
     + (t.troco > 0 ? linha('Troco a separar', brl(t.troco), false, '#8a6508') : '')
 
@@ -236,7 +236,7 @@ function etapaPagamento(venda, dados) {
     ? '<div style="font-size:12.5px;font-weight:700;color:#8a6508;background:#fff9e8;border-radius:9px;'
       + 'padding:10px 12px;margin-bottom:12px">⚠ ' + esc(falta) + '</div>'
       + '<button type="button" disabled style="width:100%;height:44px;border-radius:10px;border:none;'
-      + 'background:#f0f0ee;color:#9ca3af;font-family:inherit;font-size:14px;font-weight:800">Fechar venda</button>'
+      + 'background:#eef0f3;color:#9ca3af;font-family:inherit;font-size:14px;font-weight:800">Fechar venda</button>'
     : '<button type="button" data-acao="venda:fechar" style="width:100%;height:44px;border-radius:10px;border:none;'
       + 'background:var(--acento);color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">'
       + 'Fechar venda · ' + esc(brl(t.total)) + '</button>'

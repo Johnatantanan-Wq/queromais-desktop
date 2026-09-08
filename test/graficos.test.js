@@ -42,9 +42,9 @@ test('donut: um arco por fatia com valor', () => {
   assert.strictEqual((svg.match(/<circle/g) || []).length, 2)
 })
 
-test('donut: total zero desenha o anel vazio', () => {
+test('donut: total zero desenha o anel vazio, no cinza do sistema', () => {
   const svg = g.donut([{ value: 0, color: '#14CE6B' }])
-  assert.ok(svg.includes('#f0f0ee'))
+  assert.ok(svg.includes('#eef0f3'), 'o anel vazio usa o mesmo neutro das linhas: ' + svg.slice(0, 160))
 })
 
 test('formata número em pt-BR', () => {

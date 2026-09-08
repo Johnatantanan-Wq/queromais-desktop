@@ -48,7 +48,7 @@ function abas(lista, atual, attr) {
   return '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px">'
     + lista.map((a) => '<button type="button" ' + attr + '="' + esc(a.chave) + '" class="echip'
       + (a.chave === atual ? ' is-on' : '') + '" style="cursor:pointer;height:34px;'
-      + (a.chave === atual ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#f0f0ee;color:#4b5563')
+      + (a.chave === atual ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563')
       + '">' + esc(a.rotulo) + (a.contador != null ? ' (' + esc(a.contador) + ')' : '') + '</button>').join('') + '</div>'
 }
 function cabecalho(titulo, sub, acoes) {
@@ -124,7 +124,7 @@ function htmlClientes(dados, estado) {
     ], 4)
     + '<div class="ecard" style="padding:24px">'
     + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
-    + '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;min-width:280px">'
+    + '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafbfc;min-width:280px">'
     + '<span style="color:#9ca3af">🔎</span><input id="listaBusca" placeholder="Buscar por nome ou telefone…" value="' + esc(estado.termo || '') + '"'
     + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
     + '<button type="button" data-acao="segmentos" class="echip" style="height:38px;background:#fff;border:1px solid #e5e7eb;color:#111;cursor:pointer">'
@@ -175,7 +175,7 @@ function htmlCarrinhos(dados, estado) {
     + [['todos', 'Todos', (dados.itens || []).length], ['identificados', 'Identificados', k.identificados || 0],
        ['abandonados', '+5 min', k.abandonados || 0]].map((f) =>
       '<button type="button" data-filtro-carrinho="' + f[0] + '" class="echip' + (filtro === f[0] ? ' is-on' : '') + '"'
-      + ' style="cursor:pointer;' + (filtro === f[0] ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#f0f0ee;color:#4b5563')
+      + ' style="cursor:pointer;' + (filtro === f[0] ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563')
       + '">' + f[1] + ' (' + f[2] + ')</button>').join('') + '</div></div>'
     + L.apenasGrade({ colunas: ['Cliente', 'Telefone', 'Itens', 'Parado', 'Total', 'Ações'],
         grade: '1fr 170px 90px 130px 140px 130px', direita: [2, 3, 4] }, linhas)
@@ -211,7 +211,7 @@ function htmlFinanceiroVisao(d, estado) {
   const filtros = '<div class="ecard" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:12px 14px;margin-bottom:14px">'
     + PERIODOS_FIN.map((p) => '<button type="button" data-periodo-fin="' + p.chave + '" class="echip'
       + (p.chave === periodo ? ' is-on' : '') + '" style="cursor:pointer;'
-      + (p.chave === periodo ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#f0f0ee;color:#4b5563')
+      + (p.chave === periodo ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563')
       + '">' + esc(p.rotulo) + '</button>').join('')
     + '<span style="display:flex;gap:6px;margin-left:auto">'
     + ['Todos os canais', 'Todas as formas', 'Todos os funcionários'].map((s) =>
@@ -311,7 +311,7 @@ function htmlSalao(dados, estado) {
     + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
     + '<button type="button" class="echip is-on" style="background:var(--acento-suave);color:var(--acento-texto);font-weight:800;cursor:pointer">Todos os setores</button>'
     + '<span style="display:flex;gap:8px;margin-left:auto;align-items:center">'
-    + '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;min-width:240px">'
+    + '<div style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafbfc;min-width:240px">'
     + '<span style="color:#9ca3af">🔎</span><input placeholder="Buscar mesa, cliente, garçom…"'
     + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
     + botao('expandir-salao', '⤢ Expandir') + '</span></div>'

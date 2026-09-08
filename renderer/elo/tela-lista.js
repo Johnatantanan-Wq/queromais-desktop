@@ -9,7 +9,7 @@ const ETIQUETAS = {
   verde:    { bg: '#E7FAF0', c: '#0A7A3E' },
   amarelo:  { bg: '#fff3cc', c: '#8a6508' },
   vermelho: { bg: '#fdeaea', c: '#b42318' },
-  cinza:    { bg: '#f0f0ee', c: '#4b5563' },
+  cinza:    { bg: '#eef0f3', c: '#4b5563' },
   azul:     { bg: '#eef4ff', c: '#1d4ed8' },
 }
 
@@ -64,12 +64,12 @@ function apenasGrade(def, linhas) {
   const grade = def.grade || def.colunas.map(() => '1fr').join(' ')
   const direita = def.direita || []
   const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';font-size:10.5px;font-weight:700;color:#6b7280;'
-    + 'text-transform:uppercase;letter-spacing:.05em;background:#f6f6f4;border-bottom:1px solid #e5e7eb">'
+    + 'text-transform:uppercase;letter-spacing:.05em;background:#f4f5f7;border-bottom:1px solid #e5e7eb">'
     + def.colunas.map((c, i) => '<span style="padding:8px 10px' + (i < nCols - 1 ? ';border-right:1px solid #e5e7eb' : '')
       + (direita.indexOf(i) >= 0 ? ';text-align:right' : '') + '">' + esc(c) + '</span>').join('') + '</div>'
   const corpo = (linhas && linhas.length)
     ? linhas.map((l, i) => '<div data-linha="' + esc(l.chave) + '" data-rownav-idx="' + i + '"'
-        + ' style="display:grid;grid-template-columns:' + grade + ';background:' + (i % 2 ? '#fafafa' : '#fff')
+        + ' style="display:grid;grid-template-columns:' + grade + ';background:' + (i % 2 ? '#fafbfc' : '#fff')
         + ';border-bottom:1px solid #ececec">'
         + l.celulas.map((c, ci) => '<div style="min-width:0;padding:7px 10px;display:flex;align-items:center'
           + (direita.indexOf(ci) >= 0 ? ';justify-content:flex-end' : '')
@@ -102,13 +102,13 @@ function htmlLista(def, linhas, estado) {
         '<button type="button" data-filtro="' + esc(f.chave) + '" class="echip' + (f.chave === estado.filtro ? ' is-on' : '') + '"'
         + ' style="cursor:pointer;' + (f.chave === estado.filtro
           ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-          : 'background:#f0f0ee;color:#4b5563') + '">' + esc(f.rotulo)
+          : 'background:#eef0f3;color:#4b5563') + '">' + esc(f.rotulo)
         + (f.contador != null ? ' <b style="font-weight:800">' + esc(f.contador) + '</b>' : '') + '</button>').join('')
       + '</div>'
     : ''
 
   const busca = def.busca
-    ? '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafafa;margin-bottom:14px;max-width:420px">'
+    ? '<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fafbfc;margin-bottom:14px;max-width:420px">'
       + '<span style="color:#9ca3af">🔎</span>'
       + '<input id="listaBusca" placeholder="' + esc(def.busca) + '" value="' + esc(estado.termo || '') + '" autocomplete="off"'
       + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
@@ -125,14 +125,14 @@ function htmlLista(def, linhas, estado) {
   const nCols = def.colunas.length
   const grade = def.grade || def.colunas.map(() => '1fr').join(' ')
   const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';font-size:10.5px;font-weight:700;color:#6b7280;'
-    + 'text-transform:uppercase;letter-spacing:.05em;background:#f6f6f4;border-bottom:1px solid #e5e7eb">'
+    + 'text-transform:uppercase;letter-spacing:.05em;background:#f4f5f7;border-bottom:1px solid #e5e7eb">'
     + def.colunas.map((c, i) => '<span style="padding:8px 10px' + (i < nCols - 1 ? ';border-right:1px solid #e5e7eb' : '')
       + ((def.direita || []).indexOf(i) >= 0 ? ';text-align:right' : '') + '">' + esc(c) + '</span>').join('')
     + '</div>'
 
   const corpo = linhas.length
     ? linhas.map((l, i) => '<div data-linha="' + esc(l.chave) + '" data-rownav-idx="' + i + '"'
-        + ' style="display:grid;grid-template-columns:' + grade + ';background:' + (i % 2 ? '#fafafa' : '#fff')
+        + ' style="display:grid;grid-template-columns:' + grade + ';background:' + (i % 2 ? '#fafbfc' : '#fff')
         + ';border-bottom:1px solid #ececec;cursor:pointer">'
         + l.celulas.map((c, ci) => '<div style="min-width:0;padding:7px 10px;display:flex;align-items:center'
           + ((def.direita || []).indexOf(ci) >= 0 ? ';justify-content:flex-end' : '')

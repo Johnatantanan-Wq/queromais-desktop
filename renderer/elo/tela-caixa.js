@@ -61,7 +61,7 @@ function barra(itens, atual, attr) {
     '<button type="button" ' + attr + '="' + esc(i.chave) + '" class="echip' + (i.chave === atual ? ' is-on' : '') + '"'
     + ' style="cursor:pointer;height:32px;' + (i.chave === atual
       ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(i.rotulo)
+      : 'background:#eef0f3;color:#4b5563') + '">' + esc(i.rotulo)
     + (i.contador != null ? ' <b>' + esc(i.contador) + '</b>' : '') + '</button>').join('') + '</div>'
 }
 
@@ -88,7 +88,7 @@ function subabaMesas(dados) {
   }
   const cartoes = mesas.map((m) => {
     const demorada = m.abertaHa > 90
-    return '<div data-mesa="' + esc(m.mesa) + '" style="border:1.5px solid ' + (demorada ? '#f3c0bb' : '#ebebe8')
+    return '<div data-mesa="' + esc(m.mesa) + '" style="border:1.5px solid ' + (demorada ? '#f3c0bb' : '#e8eaee')
       + ';border-radius:14px;padding:14px;background:#fff;min-width:0;cursor:pointer">'
       + (m.garcom ? '<div style="font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">'
         + 'Garçom: ' + esc(m.garcom) + '</div>' : '')
@@ -121,7 +121,7 @@ const COR_ENTREGA = {
   preparo: { bg: '#EFF6FF', borda: '#93C5FD', texto: '#1D4ED8', rotulo: 'Em preparo' },
   pronto: { bg: '#F0FDF4', borda: '#86EFAC', texto: '#166534', rotulo: 'Pronto' },
   transito: { bg: '#F5F3FF', borda: '#C4B5FD', texto: '#7B2FF7', rotulo: 'Em trânsito' },
-  fechado: { bg: '#f6f6f4', borda: '#d5d3cc', texto: '#6b7280', rotulo: 'Fechado' },
+  fechado: { bg: '#f4f5f7', borda: '#d0d4db', texto: '#6b7280', rotulo: 'Fechado' },
 }
 
 /**
@@ -262,16 +262,16 @@ function htmlDoCaixa(dados, estado) {
     + 'background:#fff;border:1px solid var(--linha);border-left-width:3px;border-radius:12px;padding:12px 16px;margin-bottom:18px">'
     + '<span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;color:var(--acento-texto)">'
     + '<span style="width:9px;height:9px;border-radius:50%;background:var(--acento);display:inline-block"></span>CAIXA ABERTO</span>'
-    + '<span style="color:#ebebe8">|</span>'
+    + '<span style="color:#e8eaee">|</span>'
     + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">Por <b style="color:#111">' + esc(a.abertoPor || '—') + '</b></span>'
-    + (a.abertoHaMin != null ? '<span style="color:#ebebe8">|</span><span style="font-size:12.5px;color:#6b7280;font-weight:600">'
+    + (a.abertoHaMin != null ? '<span style="color:#e8eaee">|</span><span style="font-size:12.5px;color:#6b7280;font-weight:600">'
       + esc(tempoLongo(a.abertoHaMin)) + ' aberto</span>' : '')
     + '<span style="margin-left:auto;font-size:12.5px;color:#9ca3af;font-weight:600">Desde ' + esc(fmtHora(a.abertoEm)) + '</span></div>'
 
   const resumoLinha = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px">'
     + [['Fundo inicial', fmtBRL(a.fundoInicial), ''], ['Sangrias', fmtBRL((dados.resumo || {}).sangrias), '− '],
        ['Suprimentos', fmtBRL((dados.resumo || {}).suprimentos), '+ ']].map((x) =>
-      '<span class="echip" style="background:#f0f0ee;color:#4b5563">' + esc(x[0]) + ': <b style="color:#111">' + esc(x[2]) + 'R$ ' + esc(x[1]) + '</b></span>').join('')
+      '<span class="echip" style="background:#eef0f3;color:#4b5563">' + esc(x[0]) + ': <b style="color:#111">' + esc(x[2]) + 'R$ ' + esc(x[1]) + '</b></span>').join('')
     + '<span style="display:flex;gap:8px;align-items:center;margin-left:auto">'
     + '<button type="button" data-acao="caixa:suprimento" style="height:34px;padding:0 14px;border:1px solid #e5e7eb;border-radius:10px;'
     + 'background:#fff;color:#111;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">+ Suprimento</button>'
@@ -325,7 +325,7 @@ function movimentacoesHtml(dados, selo) {
   }).join('')
 
   const cabecalho = '<div style="display:grid;grid-template-columns:70px 120px 150px 1fr 130px;font-size:10.5px;font-weight:700;color:#6b7280;'
-    + 'text-transform:uppercase;letter-spacing:.05em;background:#f6f6f4;border-bottom:1px solid #e5e7eb">'
+    + 'text-transform:uppercase;letter-spacing:.05em;background:#f4f5f7;border-bottom:1px solid #e5e7eb">'
     + ['Hora', 'Tipo', 'Forma', 'Descrição', 'Valor'].map((c, i, a) =>
         '<span style="padding:8px 10px' + (i < a.length - 1 ? ';border-right:1px solid #e5e7eb' : '') + (i === a.length - 1 ? ';text-align:right' : '') + '">' + c + '</span>').join('')
     + '</div>'

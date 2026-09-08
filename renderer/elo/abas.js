@@ -19,7 +19,7 @@ function barraDeAbas(abas, escolhida) {
     '<button type="button" data-aba="' + esc(a.chave) + '" class="echip' + (a.chave === atual ? ' is-on' : '') + '"'
     + ' style="cursor:pointer;height:32px;' + (a.chave === atual
       ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
+      : 'background:#eef0f3;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
 }
 
 module.exports = { barraDeAbas, abaAtual, esc }

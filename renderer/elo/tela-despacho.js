@@ -29,7 +29,7 @@ function chip(attr, chave, rotulo, ligado) {
   return '<button type="button" ' + attr + '="' + esc(chave) + '" class="echip' + (ligado ? ' is-on' : '') + '"'
     + ' style="cursor:pointer;height:32px;' + (ligado
       ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(rotulo) + '</button>'
+      : 'background:#eef0f3;color:#4b5563') + '">' + esc(rotulo) + '</button>'
 }
 function botao(acao, rotulo, primaria, pequeno) {
   return '<button type="button" data-acao="' + esc(acao) + '" style="height:' + (pequeno ? 30 : 36) + 'px;padding:0 '
@@ -61,10 +61,10 @@ function linhaPedido(p, entregadores, estado) {
       + (e === escolhido ? ' selected' : '') + '>' + esc(e) + '</option>')).join('')
   return '<div data-linha="' + esc(p.pedido) + '" style="display:grid;'
     + 'grid-template-columns:34px 16px 70px 1fr 90px 190px 120px 190px 120px;align-items:center;gap:10px;'
-    + 'padding:10px 14px;border-bottom:1px solid #f0f0ee;background:' + (marcado ? 'var(--acento-suave)' : '#fff') + '">'
+    + 'padding:10px 14px;border-bottom:1px solid #eef0f3;background:' + (marcado ? 'var(--acento-suave)' : '#fff') + '">'
     + '<input type="checkbox" data-sel="' + esc(p.pedido) + '"' + (marcado ? ' checked' : '')
     + ' style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
-    + '<span style="width:9px;height:9px;border-radius:50%;background:' + (atrasado ? '#b42318' : '#c9c6bd') + ';display:inline-block"></span>'
+    + '<span style="width:9px;height:9px;border-radius:50%;background:' + (atrasado ? '#b42318' : '#c4c8cf') + ';display:inline-block"></span>'
     + '<span style="font-size:13px;font-weight:800;color:#111">#' + esc(p.pedido) + '</span>'
     + '<span style="font-size:13px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.cliente) + '</span>'
     + '<span style="font-size:12.5px;font-weight:800;color:' + (atrasado ? '#b42318' : '#6b7280') + '">' + esc(p.esperaMin) + ' min</span>'
@@ -112,7 +112,7 @@ function htmlDespacho(dados, estado) {
       const lista = porBairro[bairro]
       const total = lista.reduce((s, p) => s + (Number(p.valor) || 0), 0)
       const todosDoBairro = lista.every((p) => (estado.selecionados || []).indexOf(String(p.pedido)) >= 0)
-      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f6f6f4;border-bottom:1px solid #ebebe8">'
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f4f5f7;border-bottom:1px solid #e8eaee">'
         + '<input type="checkbox" data-sel-bairro="' + esc(bairro) + '"' + (todosDoBairro ? ' checked' : '')
         + ' style="width:16px;height:16px;accent-color:var(--acento);cursor:pointer">'
         + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(bairro) + '</span>'
@@ -131,7 +131,7 @@ function htmlDespacho(dados, estado) {
   // ── em trânsito: um cartão por entregador, com o acerto ──
   const cartoesRua = transito.length
     ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">'
-      + transito.map((t) => '<div style="border:1px solid #ebebe8;border-radius:14px;padding:16px;background:#fff">'
+      + transito.map((t) => '<div style="border:1px solid #e8eaee;border-radius:14px;padding:16px;background:#fff">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
         + '<span style="font-size:14px;font-weight:800;color:#111">🛵 ' + esc(t.entregador) + '</span>'
         + '<span style="font-size:11.5px;color:#9ca3af;font-weight:700">' + esc(t.entregas) + ' entrega(s)</span></div>'

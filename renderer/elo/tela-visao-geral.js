@@ -86,7 +86,7 @@ function botoesPeriodo(atual) {
     '<button type="button" data-periodo="' + p.chave + '" class="echip' + (p.chave === atual ? ' is-on' : '') + '"'
     + ' style="cursor:pointer;' + (p.chave === atual
       ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#f0f0ee;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+      : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
 }
 
 function bloco(titulo, subtitulo, conteudo, atraso, acao) {
@@ -121,7 +121,7 @@ function htmlVisaoGeral(dados, estado) {
   const grafico = G.linha(
     [
       { values: s.atual || [], color: 'var(--acento, #14CE6B)', labelColor: '#0A7A3E' },
-      { values: s.anterior || [], color: '#c9c6bd', labelColor: '#9ca3af', tracejada: true },
+      { values: s.anterior || [], color: '#c4c8cf', labelColor: '#9ca3af', tracejada: true },
     ],
     s.labels || [],
     {
@@ -133,7 +133,7 @@ function htmlVisaoGeral(dados, estado) {
 
   const legenda = '<div style="display:flex;gap:16px;align-items:center;font-size:12px;font-weight:600;color:#6b7280;margin-top:6px">'
     + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:3px;background:var(--acento);border-radius:2px;display:inline-block"></i>período atual</span>'
-    + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:3px;background:#c9c6bd;border-radius:2px;display:inline-block"></i>período anterior</span></div>'
+    + '<span style="display:inline-flex;align-items:center;gap:6px"><i style="width:14px;height:3px;background:#c4c8cf;border-radius:2px;display:inline-block"></i>período anterior</span></div>'
 
   const paleta = G.PALETA
   const comCor = (lista) => (lista || []).map((r, i) => ({ ...r, color: paleta[i % paleta.length] }))

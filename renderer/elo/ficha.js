@@ -15,11 +15,11 @@ const naoAchou = (o) => '<div class="evazio">' + o + ' não encontrado.</div>'
 
 function bloco(titulo, conteudo) {
   return '<div style="margin-bottom:20px">'
-    + '<div style="font-size:11px;font-weight:800;color:#b3b2ac;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px">' + esc(titulo) + '</div>'
+    + '<div style="font-size:11px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px">' + esc(titulo) + '</div>'
     + conteudo + '</div>'
 }
 function linha(rotulo, valor, forte) {
-  return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f6f6f4">'
+  return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f4f5f7">'
     + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">' + esc(rotulo) + '</span>'
     + '<span style="font-size:13px;color:#111;font-weight:' + (forte ? 800 : 600) + ';text-align:right">' + esc(valor) + '</span></div>'
 }
@@ -34,9 +34,9 @@ function botao(acao, rotulo, primaria) {
 function painel(titulo, conteudo) {
   return '<div id="eloFicha" style="position:fixed;inset:0;z-index:900;display:flex;justify-content:flex-end">'
     + '<div data-fechar-ficha="1" style="position:absolute;inset:0;background:rgba(17,17,17,.28)"></div>'
-    + '<div style="position:relative;width:460px;max-width:92vw;height:100%;background:#fff;border-left:1px solid #ebebe8;'
+    + '<div style="position:relative;width:460px;max-width:92vw;height:100%;background:#fff;border-left:1px solid #e8eaee;'
     + 'box-shadow:-8px 0 32px rgba(17,17,17,.10);display:flex;flex-direction:column;animation:eloFadeUp .25s ease both">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid #ebebe8">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid #e8eaee">'
     + '<div style="font-size:16px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + '<button type="button" data-fechar-ficha="1" style="width:32px;height:32px;border:1px solid #e5e7eb;border-radius:9px;'
     + 'background:#fff;color:#6b7280;cursor:pointer;font-family:inherit;font-size:14px">✕</button></div>'
@@ -48,7 +48,7 @@ const ETAPAS = { aguardando: 'Em análise', producao: 'Em produção', pronto: '
 function fichaPedido(p) {
   if (!p) return naoAchou('Pedido')
   const itens = (p.itens || []).map((i) =>
-    '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f6f6f4">'
+    '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f4f5f7">'
     + '<span style="font-size:13px;color:#111;font-weight:600">' + esc(i) + '</span></div>').join('')
   const subtotal = Number(p.valor || 0) - Number(p.taxa || 0) + Number(p.desconto || 0)
   const conta = linha('Subtotal', brl(subtotal))
@@ -77,7 +77,7 @@ function fichaPedido(p) {
 function fichaCliente(c) {
   if (!c) return naoAchou('Cliente')
   const ultimos = (c.ultimos || []).map((p) =>
-    '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f6f6f4">'
+    '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #f4f5f7">'
     + '<span style="font-size:13px;color:#111;font-weight:700">#' + esc(p.numero) + '</span>'
     + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">' + esc(p.data) + '</span>'
     + '<span style="font-size:13px;color:#111;font-weight:800">' + brl(p.valor) + '</span></div>').join('')
@@ -98,7 +98,7 @@ function fichaProduto(p) {
   if (!p) return naoAchou('Produto')
   const margem = p.custo && p.preco ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null
   const insumos = (p.insumos || []).map((i) =>
-    '<div style="padding:6px 0;border-bottom:1px solid #f6f6f4;font-size:13px;color:#111;font-weight:600">' + esc(i) + '</div>').join('')
+    '<div style="padding:6px 0;border-bottom:1px solid #f4f5f7;font-size:13px;color:#111;font-weight:600">' + esc(i) + '</div>').join('')
   return bloco('Produto',
       linha('Nome', p.nome || '—') + linha('Categoria', p.categoria || '—') + linha('Situação', p.situacao || '—'))
     + bloco('Preço e custo',

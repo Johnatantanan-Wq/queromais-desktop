@@ -26,7 +26,7 @@ function botao(acao, rotulo, primaria, pequeno) {
 
 function cabecalhoCartao(titulo, sub, direita) {
   return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;'
-    + 'padding:16px 20px;border-bottom:1px solid #f0f0ee">'
+    + 'padding:16px 20px;border-bottom:1px solid #eef0f3">'
     + '<div><div style="font-size:15px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + (sub ? '<div style="font-size:12px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(sub) + '</div>' : '')
     + '</div>' + (direita || '') + '</div>'
@@ -44,7 +44,7 @@ function linhaReposicao(i) {
   const previsto = i.custo ? Number(i.custo) * sugestao : 0
   return '<div data-linha="' + esc(i.nome) + '" style="display:grid;'
     + 'grid-template-columns:1fr 190px 150px 150px 110px;align-items:center;gap:12px;'
-    + 'padding:11px 20px;border-bottom:1px solid #f0f0ee">'
+    + 'padding:11px 20px;border-bottom:1px solid #eef0f3">'
     + '<span style="font-size:13.5px;font-weight:700;color:#111;min-width:0">' + esc(i.nome)
     + (zerado ? '<span style="margin-left:8px;font-size:10.5px;font-weight:800;color:#b42318;background:#fdeaea;'
       + 'border-radius:5px;padding:2px 6px">SEM ESTOQUE</span>' : '') + '</span>'
@@ -77,8 +77,8 @@ function htmlCompras(dados, estado) {
     + botao('compras:relatorio-reposicao', '🖨 Relatório de reposição', false) + '</div>'
 
   const cabecalhoTabela = '<div style="display:grid;grid-template-columns:1fr 190px 150px 150px 110px;gap:12px;'
-    + 'padding:9px 20px;background:#f6f6f4;border-bottom:1px solid #ebebe8;font-size:10.5px;font-weight:800;'
-    + 'color:#b3b2ac;text-transform:uppercase;letter-spacing:.06em">'
+    + 'padding:9px 20px;background:#f4f5f7;border-bottom:1px solid #e8eaee;font-size:10.5px;font-weight:800;'
+    + 'color:#a9aeb8;text-transform:uppercase;letter-spacing:.06em">'
     + '<span>Produto</span><span>Estoque</span><span>Comprar</span><span>Custo previsto</span><span></span></div>'
 
   const cartaoRepor = '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:16px;'
@@ -92,7 +92,7 @@ function htmlCompras(dados, estado) {
     + '</div>'
 
   const formulario = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:16px 20px'
-    + (avulsos.length ? ';border-bottom:1px solid #f0f0ee' : '') + '">'
+    + (avulsos.length ? ';border-bottom:1px solid #eef0f3' : '') + '">'
     + '<label style="flex:2;min-width:180px"><span style="display:block;font-size:11px;font-weight:700;color:#9ca3af;'
     + 'margin-bottom:5px">ITEM</span><input data-compra-avulsa="nome" placeholder="Ex.: Saco de lixo 100L"'
     + ' value="' + esc(estado.avulsoNome || '') + '" autocomplete="off" style="width:100%;height:34px;'
@@ -108,7 +108,7 @@ function htmlCompras(dados, estado) {
     + botao('compras:adicionar-avulso', '+ Adicionar', true) + '</div>'
 
   const listaAvulsos = avulsos.map((a) => '<div data-linha="' + esc(a.nome) + '" style="display:flex;align-items:center;'
-    + 'gap:12px;padding:11px 20px;border-bottom:1px solid #f0f0ee">'
+    + 'gap:12px;padding:11px 20px;border-bottom:1px solid #eef0f3">'
     + '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:700;color:#111">' + esc(a.nome) + '</span>'
     + '<span style="font-size:12.5px;color:#9ca3af;font-weight:600">' + esc(a.qtd + ' ' + (a.unidade || 'un')) + '</span>'
     + botao('compras:comprado:' + a.nome, 'Comprado', true, true)
@@ -124,7 +124,7 @@ function htmlCompras(dados, estado) {
     ? '<div class="ecard" style="padding:0;overflow:hidden;animation:eloFadeUp .5s ease .09s both">'
       + cabecalhoCartao('Comprados recentes', '', '')
       + comprados.map((c) => '<div style="display:flex;align-items:center;gap:12px;padding:11px 20px;'
-        + 'border-bottom:1px solid #f0f0ee">'
+        + 'border-bottom:1px solid #eef0f3">'
         + '<span style="flex:1;min-width:0;font-size:13px;color:#9ca3af;font-weight:600">'
         + esc(c.nome + ' · ' + c.qtd + ' ' + (c.unidade || 'un')) + '</span>'
         + botao('compras:voltar-lista:' + c.nome, 'Voltar p/ lista', false, true) + '</div>').join('')
