@@ -169,6 +169,32 @@ function campos(fonte, pares) {
  * Estado do WhatsApp. O painel devolve o estado do Evolution; o modo "web" não tem
  * estado no servidor — quem sabe se a conversa está aberta é a própria janela.
  */
+/** Conversas do WhatsApp. Aceita lista pura ou objeto com `conversas`. */
+function conversas({ conversasResp }) {
+  if (!conversasResp) return null
+  const lista = Array.isArray(conversasResp) ? conversasResp : (conversasResp.conversas || [])
+  return {
+    agora: Date.now(),
+    estado: conversasResp.estado || null,
+    provedor: conversasResp.provedor || null,
+    conversas: lista.map((c) => ({
+      id: c.id || c.telefone || c.nome,
+      nome: c.nome || c.cliente_nome || c.telefone || 'Sem nome',
+      telefone: c.telefone || '',
+      pedido: c.pedido || c.pedido_numero || null,
+      naoLidas: Number(c.nao_lidas || c.naoLidas) || 0,
+      ultima: c.ultima || c.ultima_mensagem || '',
+      ultimaEm: c.ultima_em || c.ultimaEm || null,
+      mensagens: (c.mensagens || []).map((m) => ({
+        de: m.de || (m.direcao === 'saida' ? 'loja' : 'cliente'),
+        texto: m.texto || m.corpo || '',
+        em: m.em || m.criado_em || null,
+        automatica: !!(m.automatica || m.template),
+      })),
+    })),
+  }
+}
+
 function whatsapp({ statusResp, configResp }) {
   if (!statusResp && !configResp) return null
   const s = statusResp || {}
@@ -657,6 +683,7 @@ function fidelidade({ dashboardResp, atividadesResp, configResp }) {
 
 module.exports = {
   whatsapp,
+  conversas,
   filaDeProducao, juntarAcessoTv, salao, atendimento, configuracoes, clientes,
   estoque, parceiros, campanhas, fidelidade,
   horaDe, diaDe, minutosDesde, campos, horariosDaLoja, segmentoPor, rotuloUltimo,

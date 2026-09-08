@@ -41,6 +41,7 @@ function responder(canal, args) {
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
   if (canal === 'caixa-carregar') return ok(caixaLocal.aplicar(demo.caixa()))
   if (canal === 'whatsapp-carregar') return ok(whatsDoTeste)
+  if (canal === 'conversas-carregar') return ok({ ...demo.conversas(), estado: whatsDoTeste.estado, provedor: whatsDoTeste.provedor })
   if (canal === 'whatsapp-salvar') {
     whatsDoTeste = { ...whatsDoTeste, ...(args.campos || {}), provedor: args.provedor,
       ativo: args.provedor !== 'desativado', estado: args.provedor === 'evolution' ? 'close' : 'indisponivel' }
@@ -655,41 +656,58 @@ test('WhatsApp: o item está no menu, logo abaixo de Clientes', async () => {
   assert.strictEqual(hrefs[i + 1], '/admin/whatsapp', 'WhatsApp vem logo depois: ' + hrefs.slice(0, 8).join(' '))
 })
 
-test('WhatsApp: escolher o caminho e salvar', async () => {
+test('WhatsApp no menu: são as CONVERSAS, não a configuração', async () => {
   await abrirApp()
   await irPara('/admin/whatsapp')
-  assert.ok(/Evolution API/.test(conteudo()) && /App Desktop/.test(conteudo()), 'os cinco caminhos aparecem')
+  assert.ok(/Marina Prado/.test(conteudo()), 'a lista de conversas aparece')
+  assert.ok(/Configurar WhatsApp/.test(conteudo()), 'e um atalho para a configuração')
+  assert.ok(!/Meta Cloud API/.test(conteudo()), 'a escolha de provedor NÃO fica aqui')
+})
+
+test('clicar numa conversa abre as mensagens dela', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('[data-conversa="c2"]'))
+  await esperar(60)
+  assert.ok(/Boa noite!/.test(conteudo()), 'as mensagens da conversa escolhida')
+  // "Chegou quentinha" continua na tela: é a PRÉVIA da outra conversa na lista.
+  // O que não pode aparecer é o miolo dela.
+  assert.ok(!/já avisei a cozinha/.test(conteudo()), 'as mensagens da outra conversa não vazam')
+})
+
+test('o atalho da conversa leva à configuração, na aba certa', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('[data-acao="conversa:configurar"]'))
+  await esperar(90)
+  assert.ok(chamadas.some((c) => c.canal === 'configuracoes-carregar'), 'foi para Configurações')
+  assert.ok(/Meta Cloud API/.test(conteudo()), 'e já na aba WhatsApp: ' + conteudo().slice(0, 160))
+})
+
+test('Configurações › WhatsApp: escolher o caminho e salvar', async () => {
+  await abrirApp()
+  await irPara('/admin/configuracoes')
+  clicar(doc.querySelector('[data-aba-cfg="whatsapp"]'))
+  await esperar(60)
   clicar(doc.querySelector('#econtent [data-provedor-whats="evolution"]'))
   await esperar(50)
-  assert.ok(conteudo().includes('data-acao="whatsapp:salvar:evolution"'), 'o Salvar aparece ao trocar')
   clicar(doc.querySelector('#econtent [data-acao="whatsapp:salvar:evolution"]'))
   await esperar(90)
   assert.ok(chamadas.some((c) => c.canal === 'whatsapp-salvar'), 'o clique grava a escolha')
   assert.ok(/configurado/i.test(aviso().textContent), aviso().textContent)
 })
 
-test('WhatsApp: conectar traz o QR para a tela', async () => {
+test('Configurações › WhatsApp: conectar traz o QR', async () => {
   await abrirApp()
-  await irPara('/admin/whatsapp')
+  await irPara('/admin/configuracoes')
+  clicar(doc.querySelector('[data-aba-cfg="whatsapp"]'))
+  await esperar(60)
   clicar(doc.querySelector('#econtent [data-provedor-whats="evolution"]'))
   await esperar(50)
   clicar(doc.querySelector('#econtent [data-acao="whatsapp:conectar"]'))
   await esperar(90)
-  assert.ok(chamadas.some((c) => c.canal === 'whatsapp-conectar'), 'o clique pede a conexão')
+  assert.ok(chamadas.some((c) => c.canal === 'whatsapp-conectar'))
   assert.ok(/QR do WhatsApp/.test(conteudo()), 'o QR entra na tela')
-  assert.ok(/DEMO-2026/.test(conteudo()), 'e o código de pareamento também')
-})
-
-test('WhatsApp: App Desktop embute a conversa e o botão troca', async () => {
-  await abrirApp()
-  await irPara('/admin/whatsapp')
-  clicar(doc.querySelector('#econtent [data-provedor-whats="wabot"]'))
-  await esperar(50)
-  clicar(doc.querySelector('#econtent [data-acao="whatsapp:abrir-web"]'))
-  await esperar(80)
-  const pedido = chamadas.find((c) => c.canal === 'change-view')
-  assert.ok(pedido && pedido.args.view === 'whatsapp', 'a janela do WhatsApp vem para a frente')
-  assert.ok(doc.querySelector('#econtent [data-acao="whatsapp:fechar-web"]'), 'o botão passa a oferecer fechar')
 })
 
 test('Configurações › Impressora mostra a impressora DESTE computador', async () => {

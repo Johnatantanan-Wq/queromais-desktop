@@ -1035,5 +1035,48 @@ function qrFicticio() {
   return 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64')
 }
 
+/** Conversas de DEMONSTRAÇÃO — para ver como a tela do WhatsApp fica em uso. */
+function conversas() {
+  const agora = Date.now()
+  const min = (n) => new Date(agora - n * 60000).toISOString()
+  return {
+    agora,
+    estado: 'open',
+    provedor: 'evolution',
+    conversas: [
+      { id: 'c1', nome: 'Marina Prado', telefone: '(75) 98811-0001', pedido: '1042', naoLidas: 0,
+        ultima: 'Chegou quentinha, obrigada!', ultimaEm: min(4),
+        mensagens: [
+          { de: 'loja', texto: 'Pedido #1042 confirmado! Previsão de entrega: 45 min.', em: min(52), automatica: true },
+          { de: 'cliente', texto: 'Perfeito, obrigada', em: min(50) },
+          { de: 'cliente', texto: 'Consegue mandar sem cebola?', em: min(44) },
+          { de: 'loja', texto: 'Consigo sim, já avisei a cozinha 👍', em: min(41) },
+          { de: 'loja', texto: 'Seu pedido saiu para entrega com o Ícaro.', em: min(9), automatica: true },
+          { de: 'cliente', texto: 'Chegou quentinha, obrigada!', em: min(4) },
+        ] },
+      { id: 'c2', nome: 'João Pereira', telefone: '(75) 99120-3344', naoLidas: 2,
+        ultima: 'Tem promoção de pizza hoje?', ultimaEm: min(26),
+        mensagens: [
+          { de: 'cliente', texto: 'Boa noite!', em: min(28) },
+          { de: 'cliente', texto: 'Tem promoção de pizza hoje?', em: min(26) },
+        ] },
+      { id: 'c3', nome: 'Carla Nunes', telefone: '(75) 98444-7788', pedido: '1040', naoLidas: 1,
+        ultima: 'O entregador já saiu?', ultimaEm: min(74),
+        mensagens: [
+          { de: 'loja', texto: 'Pedido #1040 confirmado! Previsão: 45 min.', em: min(96), automatica: true },
+          { de: 'cliente', texto: 'O entregador já saiu?', em: min(74) },
+        ] },
+      { id: 'c4', nome: 'Rafael Souza', telefone: '(75) 98120-5566', naoLidas: 0,
+        ultima: 'Beleza, valeu!', ultimaEm: min(60 * 26),
+        mensagens: [
+          { de: 'cliente', texto: 'Vocês entregam na Praia de Guaibim?', em: min(60 * 27) },
+          { de: 'loja', texto: 'Entregamos sim! Taxa de R$ 5,00.', em: min(60 * 26.5) },
+          { de: 'cliente', texto: 'Beleza, valeu!', em: min(60 * 26) },
+        ] },
+    ],
+  }
+}
+
 module.exports = {
+  conversas,
   qrFicticio, menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal, telasComAbas }

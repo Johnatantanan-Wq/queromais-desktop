@@ -651,6 +651,12 @@ async function createWindow() {
       // fictício — dá para ver a tela inteira sem servidor.
       let whatsDemo = { estado: 'sem_config', provedor: 'evolution', ativo: false }
       ipcMain.handle('whatsapp-carregar', () => ({ dados: whatsDemo, offline: false, ts: Date.now(), demo: true }))
+      // As conversas em demonstração mostram como a tela fica em uso: cliente à
+      // esquerda, loja à direita, automáticas marcadas.
+      ipcMain.handle('conversas-carregar', () => ({
+        dados: { ...dadosDemo.conversas(), estado: whatsDemo.estado, provedor: whatsDemo.provedor },
+        offline: false, ts: Date.now(), demo: true,
+      }))
       ipcMain.handle('whatsapp-conectar', () => {
         whatsDemo = { ...whatsDemo, estado: 'connecting', provedor: 'evolution', ativo: true }
         return { ok: true, estado: 'connecting', qr: dadosDemo.qrFicticio(), pairingCode: 'DEMO-2026', demo: true }

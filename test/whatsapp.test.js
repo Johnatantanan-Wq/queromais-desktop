@@ -1,10 +1,10 @@
 const { test } = require('node:test')
 const assert = require('node:assert')
-const T = require('../renderer/elo/tela-whatsapp')
+const T = require('../renderer/elo/config-whatsapp')
 const A = require('../src-electron/adaptadores')
 
 test('a tela traz os cinco caminhos do painel, com o em uso marcado', () => {
-  const h = T.htmlWhatsapp({ provedor: 'evolution', estado: 'open' }, {})
+  const h = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'open' }, {})
   for (const nome of ['Desativado', 'App Desktop', 'Evolution API', 'Z-API', 'Meta Cloud API']) {
     assert.ok(h.includes(nome), 'falta o caminho ' + nome)
   }
@@ -15,7 +15,7 @@ test('a tela traz os cinco caminhos do painel, com o em uso marcado', () => {
 })
 
 test('só o provedor escolhido pede credencial, e segredo não volta do servidor', () => {
-  const h = T.htmlWhatsapp({
+  const h = T.htmlConfigWhatsapp({
     provedor: 'evolution', estado: 'close',
     evolution_url: 'https://ev.exemplo', evolution_instance: 'loja1', tem_evolution_api_key: true,
   }, {})
@@ -29,37 +29,37 @@ test('só o provedor escolhido pede credencial, e segredo não volta do servidor
 })
 
 test('servidor da plataforma dispensa credencial — só o QR', () => {
-  const h = T.htmlWhatsapp({ provedor: 'evolution', estado: 'close', evolution_gerenciada: true }, {})
+  const h = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'close', evolution_gerenciada: true }, {})
   assert.ok(/servidor próprio/.test(h))
   assert.ok(!h.includes('data-campo-whats="evolution_url"'), 'não pede o que a plataforma já tem')
   assert.ok(h.includes('data-acao="whatsapp:conectar"'))
 })
 
 test('o botão diz o que falta em cada caminho', () => {
-  const evoDesligado = T.htmlWhatsapp({ provedor: 'evolution', estado: 'close' }, {})
+  const evoDesligado = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'close' }, {})
   assert.ok(evoDesligado.includes('Conectar por QR'))
-  const evoLigado = T.htmlWhatsapp({ provedor: 'evolution', estado: 'open' }, {})
+  const evoLigado = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'open' }, {})
   assert.ok(evoLigado.includes('data-acao="whatsapp:desconectar"'))
 
   // App Desktop é o WhatsApp Web desta janela: "conectar" é abrir a conversa
-  const web = T.htmlWhatsapp({ provedor: 'wabot' }, {})
+  const web = T.htmlConfigWhatsapp({ provedor: 'wabot' }, {})
   assert.ok(web.includes('data-acao="whatsapp:abrir-web"'))
-  const webAberto = T.htmlWhatsapp({ provedor: 'wabot', webAberto: true }, {})
+  const webAberto = T.htmlConfigWhatsapp({ provedor: 'wabot', webAberto: true }, {})
   assert.ok(webAberto.includes('data-acao="whatsapp:fechar-web"'))
 })
 
 test('escolher outro caminho faz aparecer o Salvar, sem gravar antes da hora', () => {
-  const h = T.htmlWhatsapp({ provedor: 'desativado' }, { provedorWhats: 'wabot' })
+  const h = T.htmlConfigWhatsapp({ provedor: 'desativado' }, { provedorWhats: 'wabot' })
   assert.ok(h.includes('data-acao="whatsapp:salvar:wabot"'), 'o Salvar é do caminho escolhido')
   const depois = h.split('data-provedor-whats="wabot"')[1].slice(0, 900)
   assert.ok(/✓ em uso/.test(depois), 'a marcação segue o clique, não o servidor')
 })
 
 test('o QR só aparece durante o pareamento, e data URI não é embrulhado de novo', () => {
-  assert.ok(!/QR do WhatsApp/.test(T.htmlWhatsapp({ provedor: 'evolution', estado: 'open' }, {})))
-  const h = T.htmlWhatsapp({ provedor: 'evolution', estado: 'connecting', qr: 'iVBOR', pairingCode: 'ABCD' }, {})
+  assert.ok(!/QR do WhatsApp/.test(T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'open' }, {})))
+  const h = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'connecting', qr: 'iVBOR', pairingCode: 'ABCD' }, {})
   assert.ok(h.includes('data:image/png;base64,iVBOR') && h.includes('ABCD'))
-  const j = T.htmlWhatsapp({ provedor: 'evolution', estado: 'connecting', qr: 'data:image/svg+xml;base64,PHN2Zw==' }, {})
+  const j = T.htmlConfigWhatsapp({ provedor: 'evolution', estado: 'connecting', qr: 'data:image/svg+xml;base64,PHN2Zw==' }, {})
   assert.ok(j.includes('src="data:image/svg+xml;base64,PHN2Zw=="'))
   assert.ok(!j.includes('base64,data:'))
 })
@@ -71,8 +71,8 @@ test('o ponto pulsa só quando há o que acompanhar', () => {
 })
 
 test('estado desconhecido e tela sem dado não quebram', () => {
-  assert.ok(T.htmlWhatsapp({ estado: 'coisa_nova' }, {}).includes('Evolution API'))
-  const vazio = T.htmlWhatsapp(null, {})
+  assert.ok(T.htmlConfigWhatsapp({ estado: 'coisa_nova' }, {}).includes('Evolution API'))
+  const vazio = T.htmlConfigWhatsapp(null, {})
   assert.ok(vazio.includes('App Desktop') && !vazio.includes('undefined'))
 })
 

@@ -1,7 +1,8 @@
-// renderer/elo/tela-whatsapp.js — WhatsApp: a conexão e a configuração.
+// renderer/elo/config-whatsapp.js — a CONFIGURAÇÃO do WhatsApp.
 //
-// Espelha Configurações › WhatsApp do painel, que é a MESMA tela (lá a aba de
-// Configurações aponta para /admin/whatsapp). São cinco caminhos, e a loja usa um:
+// Mora em Configurações › WhatsApp, onde o dono mandou (08/09). A tela do menu
+// WhatsApp é outra coisa: é a conversa (tela-conversas.js). Aqui se escolhe por onde
+// a loja fala, entre os cinco caminhos do painel:
 //
 //   Desativado     — nada sai automático
 //   App Desktop    — envia pelo WhatsApp Web deste computador (precisa do app aberto)
@@ -146,18 +147,17 @@ function acoesDoProvedor(p, dados) {
   return ''
 }
 
-function htmlWhatsapp(dados, estado) {
+function htmlConfigWhatsapp(dados, estado) {
   dados = dados || {}
   estado = estado || {}
   const escolhido = estado.provedorWhats || dados.provedor || 'desativado'
   const p = PROVEDORES.find((x) => x.id === escolhido) || PROVEDORES[0]
   const mudou = escolhido !== (dados.provedor || 'desativado')
 
-  const cabecalho = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;'
-    + 'flex-wrap:wrap;margin-bottom:18px">'
-    + '<div><div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em">WhatsApp</div>'
-    + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;margin-top:4px">'
-    + 'Por onde a loja fala com o cliente — é a mesma configuração de Configurações › WhatsApp</div></div>'
+  const cabecalho = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
+    + 'flex-wrap:wrap;margin-bottom:16px">'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:500">'
+    + 'Por onde a loja fala com o cliente. As conversas ficam no menu WhatsApp.</div>'
     + selo(dados.estado || 'indisponivel') + '</div>'
 
   const coluna1 = '<div>'
@@ -182,4 +182,4 @@ function htmlWhatsapp(dados, estado) {
     + 'animation:eloFadeUp .4s ease both">' + coluna1 + coluna2 + '</div></div>'
 }
 
-module.exports = { htmlWhatsapp, PROVEDORES, ESTADO, selo }
+module.exports = { htmlConfigWhatsapp, PROVEDORES, ESTADO, selo }

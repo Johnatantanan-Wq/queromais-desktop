@@ -112,7 +112,8 @@ if (typeof document !== 'undefined') {
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
   const TelaQuadro = require('./tela-quadro')
-  const TelaWhatsapp = require('./tela-whatsapp')
+  const TelaConversas = require('./tela-conversas')
+  const ConfigWhatsapp = require('./config-whatsapp')
   const Busca = require('./busca-global')
   const Avisos = require('./avisos')
   const CaixaAcoes = require('../../src-electron/caixa-acoes')
@@ -228,11 +229,9 @@ if (typeof document !== 'undefined') {
       erro: 'Não deu para carregar os números agora.',
     },
     '/admin/whatsapp': {
-      canal: 'whatsapp-carregar',
-      desenhar: (dados, estado) => TelaWhatsapp.htmlWhatsapp(
-        { ...(dados || {}), webAberto: VIEW === 'whatsapp', qr: QR_WHATS, pairingCode: CODIGO_WHATS },
-        { ...estado, provedorWhats: PROVEDOR_WHATS }),
-      erro: 'Não deu para saber como está a conexão do WhatsApp.',
+      canal: 'conversas-carregar',
+      desenhar: (dados, estado) => TelaConversas.htmlConversas(dados, { ...estado, conversa: CONVERSA_ABERTA }),
+      erro: 'Não deu para carregar as conversas agora.',
     },
     '/admin/caixa': {
       canal: 'caixa-carregar',
@@ -390,7 +389,14 @@ if (typeof document !== 'undefined') {
   }
   NATIVAS['/admin/configuracoes'] = {
     canal: 'configuracoes-carregar',
-    desenhar: (d, e) => Finais.htmlConfiguracoes(comImpressora(d), { ...e, abaCfg: ABA_CFG, subCfg: SUB_CFG }),
+    desenhar: (d, e) => Finais.htmlConfiguracoes(comImpressora(d), {
+      ...e, abaCfg: ABA_CFG, subCfg: SUB_CFG,
+      // A aba WhatsApp não é ficha de leitura: é onde se ESCOLHE o caminho e se
+      // conecta. O painel dela vem pronto de config-whatsapp.js.
+      corpoWhatsapp: ConfigWhatsapp.htmlConfigWhatsapp(
+        { ...((d && d.whatsapp) || {}), webAberto: VIEW === 'whatsapp', qr: QR_WHATS, pairingCode: CODIGO_WHATS },
+        { provedorWhats: PROVEDOR_WHATS }),
+    }),
     erro: 'Não deu para carregar as configurações agora.',
   }
 
@@ -939,6 +945,12 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    const btConversa = e.target.closest ? e.target.closest('[data-conversa]') : null
+    if (btConversa) {
+      CONVERSA_ABERTA = btConversa.getAttribute('data-conversa')
+      redesenharTelaAtual()
+      return
+    }
     const btAviso = e.target.closest ? e.target.closest('[data-aviso]') : null
     if (btAviso) {
       const rota = btAviso.getAttribute('data-aviso')
@@ -984,6 +996,13 @@ if (typeof document !== 'undefined') {
         return
       }
       // WhatsApp: dois caminhos, e o botão de cada cartão diz o que falta nele.
+      if (acao === 'conversa:configurar') {
+        ABA_CFG = 'whatsapp'
+        ROTA = '/admin/configuracoes'
+        pintar()
+        abrirRota(ROTA)
+        return
+      }
       if (acao === 'whatsapp:abrir-web') {
         VIEW = 'whatsapp'
         ipcRenderer.send('change-view', { view: VIEW })
@@ -1395,6 +1414,8 @@ if (typeof document !== 'undefined') {
   // O provedor que o lojista clicou, antes de salvar. Sem isto, clicar num cartão
   // não mudaria nada até o servidor responder.
   let PROVEDOR_WHATS = null
+  // Qual conversa está aberta na tela do WhatsApp.
+  let CONVERSA_ABERTA = null
 
   // ── ficha do caixa ──
   let MOTIVO_CAIXA = null

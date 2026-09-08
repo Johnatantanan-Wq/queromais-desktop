@@ -354,6 +354,14 @@ function htmlConfiguracoes(dados, estado) {
   const cabecalho = barra(ABAS_CFG, aba, 'data-aba-cfg', 'suave')
     + (aba === 'geral' ? barra(SUB_CFG_GERAL, sub, 'data-sub-cfg', 'cheia') : '')
 
+  // A aba WhatsApp não é ficha de leitura: é onde se escolhe o caminho e se conecta.
+  // O shell manda o painel pronto (config-whatsapp.js) — aqui só se dá o lugar a ele.
+  if (aba === 'whatsapp' && estado.corpoWhatsapp) {
+    return cabecalho
+      + '<div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em;margin:6px 0 14px">WhatsApp</div>'
+      + estado.corpoWhatsapp
+  }
+
   const secoes = ((dados.abas || {})[aba === 'geral' ? sub : aba]) || []
   const titulo = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
     + 'flex-wrap:wrap;margin:6px 0 14px">'
