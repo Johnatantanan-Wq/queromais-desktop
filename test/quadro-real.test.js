@@ -103,3 +103,28 @@ test('coluna vazia diz que não há pedido (menos a de análise, que tem a confi
   assert.ok(/Nenhum pedido no momento/.test(h))
   assert.ok(/aceitos automaticamente/i.test(h), 'a configuração continua na coluna de análise')
 })
+
+test('cada coluna corre uma faixa na cor do título por trás dos cartões', () => {
+  const h = Q.htmlQuadro(dados, {})
+  for (const c of Q.COLUNAS) {
+    const claro = Q.clarear(c.cor, 0.86)
+    assert.ok(h.includes('background:' + claro), c.titulo + ' precisa da faixa ' + claro)
+    // a faixa fecha o cartão da coluna: cabeçalho colorido em cima, faixa clara embaixo
+    assert.ok(h.indexOf('background:' + c.cor + ';padding:11px 14px') < h.indexOf('background:' + claro),
+      'a faixa vem depois do cabeçalho em ' + c.titulo)
+  }
+})
+
+test('a faixa é clara o bastante para o cartão branco continuar na frente', () => {
+  for (const c of Q.COLUNAS) {
+    const claro = Q.clarear(c.cor, 0.86)
+    const n = parseInt(claro.slice(1), 16)
+    const luz = (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255
+    assert.ok(luz > 0.85, c.titulo + ': faixa escura demais (' + claro + ', luz ' + luz.toFixed(2) + ')')
+  }
+})
+
+test('clarear: 100% vira branco, 0% devolve a própria cor', () => {
+  assert.strictEqual(Q.clarear('#2563eb', 1), '#ffffff')
+  assert.strictEqual(Q.clarear('#2563eb', 0), '#2563eb')
+})

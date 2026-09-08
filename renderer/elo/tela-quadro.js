@@ -18,6 +18,19 @@ const COLUNAS = [
   { id: 'transito', titulo: 'Em trânsito', cor: '#6d28d9', limite: 45 },
   { id: 'entregue', titulo: 'Entregue', cor: '#16a34a', limite: null },
 ]
+/**
+ * Versão clara da cor da coluna, para a faixa que corre por trás dos cards. Pedido do
+ * dono (07/09): a cor do título tem que continuar visível na coluna inteira, não só no
+ * cabeçalho — é ela que diz, de longe, em que etapa aquele bloco de pedidos está.
+ * Clara de propósito: se competir com o cartão branco, o número do pedido perde a vez.
+ */
+function clarear(hex, peso) {
+  const n = parseInt(('' + hex).replace('#', ''), 16)
+  const canal = (d) => Math.round(((n >> d) & 255) + (255 - ((n >> d) & 255)) * peso)
+  const p2 = (v) => ('0' + v.toString(16)).slice(-2)
+  return '#' + p2(canal(16)) + p2(canal(8)) + p2(canal(0))
+}
+
 // Rótulos de consumo local: "prontos para entrega" não existe para quem come na mesa.
 const TITULOS_LOCAL = { pronto: 'Prontos para servir', transito: 'Servidos', entregue: 'Fechados' }
 const ACAO = { analise: 'Aceitar', producao: 'Marcar pronto', pronto: 'Entregar', transito: 'Confirmar entrega', entregue: null }
@@ -183,12 +196,13 @@ function htmlQuadro(dados, estado) {
     const cartoes = doColuna.length
       ? doColuna.map((p) => cartao(p, c, estado.consumoLocal)).join('')
       : (c.id === 'analise' ? '' : '<div style="padding:20px 12px;text-align:center;color:#9ca3af;font-size:12.5px">Nenhum pedido no momento.</div>')
-    return '<div style="display:flex;flex-direction:column;gap:10px;min-width:0">'
+    return '<div style="display:flex;flex-direction:column;min-width:0">'
       + '<div style="border-radius:12px 12px 0 0;background:' + c.cor + ';padding:11px 14px;display:flex;align-items:center;justify-content:space-between">'
       + '<span style="font-size:13px;font-weight:800;color:#fff">' + esc(titulo) + '</span>'
       + '<span style="font-size:15px;font-weight:800;color:#fff">' + doColuna.length + '</span></div>'
-      + (c.id === 'analise' ? painelAnalise(dados) : '')
-      + '<div style="display:flex;flex-direction:column;gap:10px">' + cartoes + '</div></div>'
+      + '<div style="background:' + clarear(c.cor, 0.86) + ';border-radius:0 0 12px 12px;'
+      + 'padding:10px;display:flex;flex-direction:column;gap:10px;min-height:60px">'
+      + (c.id === 'analise' ? painelAnalise(dados) : '') + cartoes + '</div></div>'
   }).join('')
 
   return '<div>' + faixaIndicadores(dados.kpis || {}) + barraAcoes(dados) + barraFiltros(filtro, estado.termoPedido)
@@ -198,4 +212,4 @@ function htmlQuadro(dados, estado) {
     + 'aceitar, imprimir e despachar ainda são pelo painel</div></div>'
 }
 
-module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, COLUNAS, ACAO, FILTROS }
+module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, COLUNAS, ACAO, FILTROS }
