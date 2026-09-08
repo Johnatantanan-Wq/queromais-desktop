@@ -190,6 +190,9 @@ function reconhecer(telefone, cadastro, pedidos) {
   const ativo = dele.find((p) => p.etapa && p.etapa !== 'entregue') || null
   return {
     emAndamento: ativo ? {
+      // O id é o que permite CORRIGIR o pedido pelo popup da conversa.
+      id: ativo.id || null,
+      enderecoCampos: ativo.enderecoCampos || null,
       numero: ativo.numero, etapa: ativo.etapa, status: ativo.status || '',
       valor: Number(ativo.valor) || 0, taxa: Number(ativo.taxa) || 0, desconto: Number(ativo.desconto) || 0,
       canal: ativo.canal || '', forma: ativo.forma || ativo.pagamento || '',

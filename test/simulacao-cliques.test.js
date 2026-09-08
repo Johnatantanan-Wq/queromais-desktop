@@ -88,6 +88,10 @@ function responder(canal, args) {
   if (canal === 'atendimento-abas-carregar') return ok(demo.telasComAbas().atendimento)
   if (canal === 'estoque-abas-carregar') return ok(demo.telasComAbas().estoque)
   if (canal === 'pedidos-carregar') return ok(etapasDeTeste.aplicar(demo.listas().pedidos))
+  if (canal === 'pedido-corrigir') {
+    const d = require('../src-electron/pedido-acoes').correcao(args.pedido, args.campos)
+    return d.ok ? { ok: true, trocouBairro: d.trocouBairro } : { ok: false, erro: d.motivo }
+  }
   if (canal === 'pedido-avancar') {
     const nova = etapasDeTeste.avancar(args.pedido.numero, args.etapa)
     return nova ? { ok: true, status: nova, numero: args.pedido.numero } : { ok: false, erro: 'última etapa' }
@@ -820,4 +824,50 @@ test('o pedido em andamento aparece ao lado da conversa', async () => {
   clicar(doc.querySelector('[data-conversa="c3"]'))
   await esperar(60)
   assert.ok(!/Abrir o pedido/.test(conteudo()), 'sem pedido ativo, sem coluna')
+})
+
+test('o pedido abre em popup SOBRE a conversa, sem sair da tela', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('#econtent [data-acao="conversa:pedido:1042"]'))
+  await esperar(60)
+  const ficha = doc.getElementById('eloFicha')
+  assert.ok(ficha, 'o popup abre')
+  assert.ok(/Pizza Calabresa G/.test(ficha.innerHTML), 'com os itens do pedido')
+  assert.ok(/align-items:center;justify-content:center/.test(ficha.outerHTML), 'centralizado')
+  // e a conversa continua atrás
+  assert.ok(/Maria Silva/.test(conteudo()), 'a conversa não foi embora')
+  assert.ok(!chamadas.some((c) => c.canal === 'pedidos-carregar'), 'não trocou de tela')
+})
+
+test('editar o pedido pela conversa: corrige o endereço e avisa da taxa', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('#econtent [data-acao="conversa:pedido:1042"]'))
+  await esperar(60)
+  clicar(doc.querySelector('#eloFicha [data-acao="pedido-conversa:editar"]'))
+  await esperar(60)
+  const bairro = doc.querySelector('#eloFicha [data-campo-pedido="bairro"]')
+  assert.ok(bairro, 'o formulário traz o endereço em campos')
+  assert.strictEqual(bairro.value, 'Centro', 'já preenchido com o que está lá')
+  bairro.value = 'Praia de Guaibim'
+  clicar(doc.querySelector('#eloFicha [data-acao^="pedido-conversa:salvar"]'))
+  await esperar(90)
+  assert.ok(chamadas.some((c) => c.canal === 'pedido-corrigir'), 'a correção sai')
+  assert.ok(/taxa de entrega foi recalculada/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.getElementById('eloFicha'), 'e o popup fecha')
+})
+
+test('correção inválida é recusada na hora, sem fechar o popup', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('#econtent [data-acao="conversa:pedido:1042"]'))
+  await esperar(60)
+  clicar(doc.querySelector('#eloFicha [data-acao="pedido-conversa:editar"]'))
+  await esperar(60)
+  doc.querySelector('#eloFicha [data-campo-pedido="cidade"]').value = ''
+  clicar(doc.querySelector('#eloFicha [data-acao^="pedido-conversa:salvar"]'))
+  await esperar(80)
+  assert.ok(/Falta preencher: cidade/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'o popup fica aberto para corrigir')
 })

@@ -115,6 +115,7 @@ if (typeof document !== 'undefined') {
   const TelaConversas = require('./tela-conversas')
   const ConfigWhatsapp = require('./config-whatsapp')
   const Busca = require('./busca-global')
+  const FichaPedidoConversa = require('./ficha-pedido-conversa')
   const Avisos = require('./avisos')
   const CaixaAcoes = require('../../src-electron/caixa-acoes')
   const TelaVisaoGeral = require('./tela-visao-geral')
@@ -996,21 +997,59 @@ if (typeof document !== 'undefined') {
         return
       }
       // WhatsApp: dois caminhos, e o botão de cada cartão diz o que falta nele.
-      // Da conversa para a ficha — o vínculo veio do telefone. A ficha mora na tela
-      // do dado (Clientes, Gestão de pedido), então vai-se até lá e abre-se ali: é
-      // onde o lojista continua trabalhando depois de ver.
-      if (acao.indexOf('conversa:cliente:') === 0 || acao.indexOf('conversa:pedido:') === 0) {
-        const cliente = acao.indexOf('conversa:cliente:') === 0
-        const chave = acao.slice(cliente ? 'conversa:cliente:'.length : 'conversa:pedido:'.length)
-        const destino = cliente ? '/admin/clientes' : '/admin/pedidos'
-        ROTA = destino
+      // O pedido abre AQUI, num popup sobre a conversa: quem está falando com o
+      // cliente não pode perder a conversa de vista para conferir o pedido.
+      if (acao.indexOf('conversa:pedido:') === 0) {
+        const numero = acao.slice('conversa:pedido:'.length)
+        const daConversa = (DADOS_TELA && DADOS_TELA.conversas) || []
+        const dono = daConversa.find((c) => c.cliente && c.cliente.emAndamento
+          && String(c.cliente.emAndamento.numero) === String(numero))
+        PEDIDO_NA_CONVERSA = dono ? { ...dono.cliente.emAndamento, telefone: dono.telefone } : null
+        EDITANDO_PEDIDO = false
+        if (!PEDIDO_NA_CONVERSA) { avisar('Não achei esse pedido na tela — recarregue.', 'erro'); return }
+        abrirPopupPedido()
+        return
+      }
+      if (acao === 'pedido-conversa:editar' || acao === 'pedido-conversa:ver') {
+        EDITANDO_PEDIDO = acao === 'pedido-conversa:editar'
+        abrirPopupPedido()
+        return
+      }
+      if (acao.indexOf('pedido-conversa:salvar:') === 0) {
+        const campos = {}
+        for (const el of document.querySelectorAll('#eloFicha [data-campo-pedido]')) {
+          campos[el.getAttribute('data-campo-pedido')] = el.value
+        }
+        btAcao.disabled = true
+        ipcRenderer.invoke('pedido-corrigir', { pedido: PEDIDO_NA_CONVERSA, campos }).then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) {
+            fecharFicha()
+            avisar(r.trocouBairro
+              ? 'Endereço corrigido — a taxa de entrega foi recalculada.'
+              : 'Pedido corrigido.', 'ok')
+            carregarTelaNativa(ROTA)
+          } else {
+            avisar((r && r.erro) || 'Não deu para corrigir.', 'erro')
+          }
+        }).catch(() => {
+          btAcao.disabled = false
+          avisar('Não deu para falar com o painel. Nada foi salvo.', 'erro')
+        })
+        return
+      }
+
+      // Da conversa para a ficha do cliente — o vínculo veio do telefone. Essa mora
+      // na tela de Clientes, onde o lojista continua trabalhando depois de ver.
+      if (acao.indexOf('conversa:cliente:') === 0) {
+        const chave = acao.slice('conversa:cliente:'.length)
+        ROTA = '/admin/clientes'
         pintar()
-        abrirRota(destino)
-        // A ficha só abre depois que a tela trouxe o dado dela.
+        abrirRota(ROTA)
         setTimeout(() => {
           abrirFichaDe(chave)
           if (!document.getElementById('eloFicha')) {
-            avisar('Abri ' + (cliente ? 'Clientes' : 'Gestão de pedido') + ' — não achei esse registro na lista.', 'erro')
+            avisar('Abri Clientes — não achei esse registro na lista.', 'erro')
           }
         }, 320)
         return
@@ -1390,6 +1429,12 @@ if (typeof document !== 'undefined') {
     if (e.key === 'Escape') fecharFicha()
   })
 
+  function abrirPopupPedido() {
+    const p = PEDIDO_NA_CONVERSA
+    if (!p) return
+    abrirPopup('Pedido #' + p.numero, FichaPedidoConversa.corpoPedido(p, EDITANDO_PEDIDO), 560)
+  }
+
   // ── busca do topo (⌘K) ──
   let BUSCA_TERMO = ''
   let BUSCA_ATIVO = 0
@@ -1435,6 +1480,9 @@ if (typeof document !== 'undefined') {
   let PROVEDOR_WHATS = null
   // Qual conversa está aberta na tela do WhatsApp.
   let CONVERSA_ABERTA = null
+  // O pedido aberto no popup da conversa, e se está em modo de edição.
+  let PEDIDO_NA_CONVERSA = null
+  let EDITANDO_PEDIDO = false
 
   // ── ficha do caixa ──
   let MOTIVO_CAIXA = null

@@ -3,7 +3,7 @@
 // Espelha venda-envio.js: a regra do que mandar mora em pedido-acoes.js (pura,
 // testável); aqui só se conversa com o painel e se traduz a resposta para a tela.
 // Recusa do painel chega ao lojista com a frase dele, não com um código.
-const { avanco } = require('./pedido-acoes')
+const { avanco, correcao } = require('./pedido-acoes')
 
 function registrar({ ipcMain, enviar, log }) {
   ipcMain.handle('pedido-avancar', async (evento, args) => {
@@ -26,6 +26,23 @@ function registrar({ ipcMain, enviar, log }) {
     if (resposta.error) return { ok: false, erro: String(resposta.error) }
 
     return { ok: true, status: decidido.status, numero: pedido.numero }
+  })
+
+  // Correção de telefone e endereço, o que se descobre conversando com o cliente.
+  ipcMain.handle('pedido-corrigir', async (evento, args) => {
+    const decidido = correcao(args && args.pedido, args && args.campos)
+    if (!decidido.ok) return { ok: false, erro: decidido.motivo }
+
+    let resposta = null
+    try {
+      resposta = await enviar(decidido.caminho, decidido.corpo)
+    } catch (e) {
+      if (log) log.warn('[PEDIDO] correção falhou:', e && e.message)
+      return { ok: false, erro: 'Não deu para falar com o painel agora. Nada foi salvo.' }
+    }
+    if (!resposta) return { ok: false, erro: 'Sem resposta do painel. Nada foi salvo.' }
+    if (resposta.error) return { ok: false, erro: String(resposta.error) }
+    return { ok: true, trocouBairro: decidido.trocouBairro }
   })
 }
 

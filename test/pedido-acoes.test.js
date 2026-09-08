@@ -75,3 +75,59 @@ test('sem nenhuma mudança, a lista volta igualzinha', () => {
   const dados = { itens: [{ numero: '12', etapa: 'analise' }] }
   assert.strictEqual(reg.aplicar(dados), dados)
 })
+
+// ── correção pelo popup da conversa ──
+const { correcao } = require('../src-electron/pedido-acoes')
+const pedidoBase = {
+  id: 'ped-1042', telefone: '(75) 98811-0001',
+  enderecoCampos: { rua: 'Rua das Flores', numero: '120', complemento: '', bairro: 'Centro',
+    cidade: 'Valença', uf: 'BA', cep: '45400-000', referencia: '' },
+}
+
+test('sem mudar nada, não se manda nada ao painel', () => {
+  assert.strictEqual(correcao(pedidoBase, {}).ok, false)
+  assert.strictEqual(correcao(pedidoBase, { bairro: 'Centro' }).ok, false, 'o mesmo valor não é mudança')
+})
+
+test('mudar o bairro manda o endereço INTEIRO — o painel recusa pela metade', () => {
+  const r = correcao(pedidoBase, { bairro: 'Praia de Guaibim' })
+  assert.strictEqual(r.ok, true)
+  assert.deepStrictEqual(Object.keys(r.corpo.endereco).sort(),
+    ['bairro', 'cep', 'cidade', 'complemento', 'numero', 'referencia', 'rua', 'uf'])
+  assert.strictEqual(r.corpo.endereco.rua, 'Rua das Flores', 'o que não mudou vai junto')
+  assert.strictEqual(r.trocouBairro, true, 'e avisa que a taxa muda')
+})
+
+test('campo obrigatório apagado é recusado AQUI, com o nome do campo', () => {
+  const r = correcao(pedidoBase, { cidade: '' })
+  assert.strictEqual(r.ok, false)
+  assert.ok(/Falta preencher: cidade/.test(r.motivo), r.motivo)
+  const semDois = correcao(pedidoBase, { cidade: '', cep: '' })
+  assert.ok(/cidade, CEP/.test(semDois.motivo), semDois.motivo)
+})
+
+test('UF e CEP são conferidos antes de sair', () => {
+  assert.ok(/duas letras/.test(correcao(pedidoBase, { uf: 'BAH' }).motivo))
+  assert.ok(/8 dígitos/.test(correcao(pedidoBase, { cep: '4540' }).motivo))
+  assert.strictEqual(correcao(pedidoBase, { cep: '45400000' }).ok, true, 'CEP sem hífen vale')
+})
+
+test('telefone: só vai se mudou, e precisa de DDD', () => {
+  assert.strictEqual(correcao(pedidoBase, { telefone: '(75) 98811-0001' }).ok, false, 'igual não é mudança')
+  assert.ok(/DDD/.test(correcao(pedidoBase, { telefone: '98811' }).motivo))
+  const r = correcao(pedidoBase, { telefone: '(75) 98811-9999' })
+  assert.strictEqual(r.corpo.cliente_telefone, '(75) 98811-9999')
+  assert.ok(!r.corpo.endereco, 'sem mexer no endereço, ele não vai')
+})
+
+test('pedido sem endereço (balcão) só aceita correção de telefone', () => {
+  const balcao = { id: 'p', telefone: '(75) 98811-0001', enderecoCampos: null }
+  assert.strictEqual(correcao(balcao, { bairro: 'Praia' }).ok, false, 'não há endereço para corrigir')
+  assert.strictEqual(correcao(balcao, { telefone: '(75) 98811-9999' }).ok, true)
+})
+
+test('pedido sem id não vira chamada com "undefined" na URL', () => {
+  const r = correcao({ telefone: '(75) 98811-0001' }, { telefone: '(75) 98811-9999' })
+  assert.strictEqual(r.ok, false)
+  assert.ok(!/undefined/.test(r.motivo || ''))
+})

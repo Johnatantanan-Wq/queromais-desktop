@@ -700,6 +700,12 @@ async function createWindow() {
         const d = acoesCaixa.abertura({ ...(args || {}), caixaAberto: false })
         return d.ok ? { ok: true, resumo: d.resumo, demo: true } : { ok: false, erro: d.motivo }
       })
+      // Correção pelo popup da conversa também funciona em demonstração: a mudança
+      // fica na sessão, como as etapas.
+      ipcMain.handle('pedido-corrigir', (e, args) => {
+        const d = require('./pedido-acoes').correcao(args && args.pedido, args && args.campos)
+        return d.ok ? { ok: true, trocouBairro: d.trocouBairro, demo: true } : { ok: false, erro: d.motivo }
+      })
       ipcMain.handle('pedido-avancar', (e, args) => {
         const pedido = (args && args.pedido) || {}
         const nova = registroEtapas.avancar(pedido.numero, args && args.etapa)
