@@ -1015,4 +1015,25 @@ function telasComAbas() {
   }
 }
 
-module.exports = { menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal, telasComAbas }
+/**
+ * QR de DEMONSTRAÇÃO. De propósito não é um QR válido: quem apontar a câmera não
+ * conecta nada. É um quadriculado com o aviso escrito no meio — dado falso que se
+ * passa por verdadeiro é pior do que tela vazia.
+ */
+function qrFicticio() {
+  const c = []
+  for (let y = 0; y < 21; y++) {
+    for (let x = 0; x < 21; x++) {
+      if ((x * 7 + y * 13 + x * y) % 3 === 0) c.push('<rect x="' + x * 10 + '" y="' + y * 10 + '" width="10" height="10"/>')
+    }
+  }
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 210" width="210" height="210">'
+    + '<rect width="210" height="210" fill="#fff"/><g fill="#111">' + c.join('') + '</g>'
+    + '<rect x="35" y="88" width="140" height="34" rx="8" fill="#fff" stroke="#111" stroke-width="2"/>'
+    + '<text x="105" y="110" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold"'
+    + ' fill="#111">DEMONSTRAÇÃO</text></svg>'
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64')
+}
+
+module.exports = {
+  qrFicticio, menu, caixa, visaoGeral, listas, operacao, listasApoio, apoioFinal, telasComAbas }

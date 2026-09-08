@@ -645,6 +645,18 @@ async function createWindow() {
       // O caixa também anda em demonstração: sangria e suprimento entram nas
       // movimentações do turno e mudam o dinheiro esperado na gaveta.
       const registroCaixa = require('./caixa-local').criarRegistro()
+      // WhatsApp em demonstração: começa desconectado, e "Conectar" devolve um QR
+      // fictício — dá para ver a tela inteira sem servidor.
+      let whatsDemo = { estado: 'sem_config', provedor: 'evolution', ativo: false }
+      ipcMain.handle('whatsapp-carregar', () => ({ dados: whatsDemo, offline: false, ts: Date.now(), demo: true }))
+      ipcMain.handle('whatsapp-conectar', () => {
+        whatsDemo = { estado: 'connecting', provedor: 'evolution', ativo: true }
+        return { ok: true, estado: 'connecting', qr: dadosDemo.qrFicticio(), pairingCode: 'DEMO-2026', demo: true }
+      })
+      ipcMain.handle('whatsapp-desconectar', () => {
+        whatsDemo = { estado: 'close', provedor: 'evolution', ativo: false }
+        return { ok: true, demo: true }
+      })
       const acoesCaixa = require('./caixa-acoes')
       ipcMain.handle('caixa-movimentacao', (e, args) => {
         const d = acoesCaixa.movimentacao({ ...(args || {}), caixaAberto: true })
@@ -741,6 +753,7 @@ async function createWindow() {
     // logada. Em demonstração o quadro anda sozinho, sem rede — ver mais acima.
     if (!DEMO) require('./pedido-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./whatsapp-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

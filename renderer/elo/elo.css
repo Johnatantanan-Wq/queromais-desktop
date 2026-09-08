@@ -107,3 +107,40 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tinta);
 #eaviso.ok{background:var(--acento-suave);color:var(--acento-texto);border:1px solid var(--acento-linha)}
 #eaviso.aviso{background:#fff9e8;color:#8a6508;border:1px solid #eed571}
 #eaviso.erro{background:#fdeaea;color:#b42318;border:1px solid #f3c0bb}
+
+/* ── vida na interface ──────────────────────────────────────────────────────
+   O app é operado o dia inteiro, de pé, às vezes com pressa. O que se move tem
+   de dizer alguma coisa: um cartão que responde ao mouse mostra que é clicável,
+   e um ponto que pulsa mostra que a conexão está viva agora — não há como saber
+   isso de um círculo parado. Nada aqui pisca por enfeite. */
+
+@keyframes eloPulso {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1 }
+  70%  { box-shadow: 0 0 0 6px transparent; opacity: .85 }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1 }
+}
+.epulso { animation: eloPulso 2s ease-out infinite }
+
+/* Cartão que responde ao mouse: sobe de leve e ganha sombra. */
+.ecard-vivo { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease }
+.ecard-vivo:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(17,17,17,.09) }
+
+/* Botões e chips: resposta imediata ao passar e ao apertar. */
+button { transition: filter .15s ease, background .15s ease, transform .08s ease }
+button:hover:not(:disabled) { filter: brightness(.96) }
+button:active:not(:disabled) { transform: translateY(1px) }
+button:disabled { opacity: .55; cursor: default }
+
+/* Linha de lista: destaca a que está sob o mouse, para não errar de linha. */
+[data-linha] { transition: background .12s ease }
+[data-linha]:hover { background: #f4f6f8 !important }
+
+/* Cartão de pedido: o mesmo, mais discreto — são muitos na tela. */
+[data-pedido] { transition: transform .14s ease, box-shadow .14s ease }
+[data-pedido]:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(17,17,17,.08) }
+
+/* Quem prefere menos movimento não recebe nenhum. */
+@media (prefers-reduced-motion: reduce) {
+  .epulso, .ecard-vivo, button, [data-linha], [data-pedido] { animation: none !important; transition: none !important }
+  .ecard-vivo:hover, [data-pedido]:hover { transform: none }
+}

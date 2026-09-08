@@ -20,6 +20,7 @@ const pedidosLocais = require('../src-electron/pedidos-locais')
 // começaria com o quadro no fim.
 let etapasDeTeste = pedidosLocais.criarRegistro()
 let caixaLocal = require('../src-electron/caixa-local').criarRegistro()
+let whatsDoTeste = { estado: 'sem_config', provedor: 'evolution', ativo: false }
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -39,6 +40,15 @@ function responder(canal, args) {
   if (canal === 'rede-status') return { online: true, demo: true }
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
   if (canal === 'caixa-carregar') return ok(caixaLocal.aplicar(demo.caixa()))
+  if (canal === 'whatsapp-carregar') return ok(whatsDoTeste)
+  if (canal === 'whatsapp-conectar') {
+    whatsDoTeste = { estado: 'connecting', provedor: 'evolution', ativo: true }
+    return { ok: true, estado: 'connecting', qr: demo.qrFicticio(), pairingCode: 'DEMO-2026' }
+  }
+  if (canal === 'whatsapp-desconectar') {
+    whatsDoTeste = { estado: 'close', provedor: 'evolution', ativo: false }
+    return { ok: true }
+  }
   if (canal === 'caixa-movimentacao') {
     const d = require('../src-electron/caixa-acoes').movimentacao({ ...args, caixaAberto: true })
     if (!d.ok) return { ok: false, erro: d.motivo }
@@ -161,7 +171,8 @@ async function irParaVenda() {
   await esperar(60)
 }
 
-beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro() })
+beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
+  whatsDoTeste = { estado: 'sem_config', provedor: 'evolution', ativo: false } })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -629,4 +640,34 @@ test('avançar de novo continua andando, sem travar no primeiro clique', async (
   }
   const avancos = chamadas.filter((c) => c.canal === 'pedido-avancar').length
   assert.ok(avancos >= 2, 'esperava pelo menos 2 avanços, veio ' + avancos)
+})
+
+test('WhatsApp: o item está no menu, logo abaixo de Clientes', async () => {
+  await abrirApp()
+  const hrefs = [...doc.querySelectorAll('.erailitem')].map((x) => x.getAttribute('data-href'))
+  const i = hrefs.indexOf('/admin/clientes')
+  assert.ok(i >= 0, 'Clientes tem de estar no menu')
+  assert.strictEqual(hrefs[i + 1], '/admin/whatsapp', 'WhatsApp vem logo depois: ' + hrefs.slice(0, 8).join(' '))
+})
+
+test('WhatsApp: conectar traz o QR para a tela', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  assert.ok(/Evolution \(API\)/.test(conteudo()) && /WhatsApp Web/.test(conteudo()), 'os dois caminhos aparecem')
+  assert.ok(!/QR do WhatsApp/.test(conteudo()), 'ainda não há QR')
+  clicar(doc.querySelector('#econtent [data-acao="whatsapp:conectar"]'))
+  await esperar(90)
+  assert.ok(chamadas.some((c) => c.canal === 'whatsapp-conectar'), 'o clique pede a conexão')
+  assert.ok(/QR do WhatsApp/.test(conteudo()), 'o QR entra na tela')
+  assert.ok(/DEMO-2026/.test(conteudo()), 'e o código de pareamento também')
+})
+
+test('WhatsApp: abrir a conversa embute a janela e o botão troca', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('#econtent [data-acao="whatsapp:abrir-web"]'))
+  await esperar(80)
+  const pedido = chamadas.find((c) => c.canal === 'change-view')
+  assert.ok(pedido && pedido.args.view === 'whatsapp', 'a janela do WhatsApp precisa vir para a frente')
+  assert.ok(doc.querySelector('#econtent [data-acao="whatsapp:fechar-web"]'), 'o botão passa a oferecer fechar')
 })

@@ -27,7 +27,7 @@ const TELAS_MARKETING = ['/admin/cupons', '/admin/vendedores', '/admin/fidelidad
 const TELAS_DO_APP = ['/app/impressao']
 // Venda manual: existe no painel (/admin/venda) e agora TAMBÉM no app, fechando de verdade.
 const TELA_VENDA = ['/admin/venda']
-const TELAS_NATIVAS = ['/admin', '/admin/caixa'].concat(Object.keys(CATALOGO_LISTAS))
+const TELAS_NATIVAS = ['/admin', '/admin/caixa', '/admin/whatsapp'].concat(Object.keys(CATALOGO_LISTAS))
   .concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_MARKETING).concat(TELA_VENDA).concat(TELAS_DO_APP)
 
 function ehNativa(rota) {
@@ -112,6 +112,7 @@ if (typeof document !== 'undefined') {
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
   const TelaQuadro = require('./tela-quadro')
+  const TelaWhatsapp = require('./tela-whatsapp')
   const CaixaAcoes = require('../../src-electron/caixa-acoes')
   const TelaVisaoGeral = require('./tela-visao-geral')
   const Acoes = require('./acoes')
@@ -215,6 +216,12 @@ if (typeof document !== 'undefined') {
     }),
       argumentos: () => ({ periodo: PERIODO }),
       erro: 'Não deu para carregar os números agora.',
+    },
+    '/admin/whatsapp': {
+      canal: 'whatsapp-carregar',
+      desenhar: (dados, estado) => TelaWhatsapp.htmlWhatsapp(
+        { ...(dados || {}), webAberto: VIEW === 'whatsapp', qr: QR_WHATS, pairingCode: CODIGO_WHATS }, estado),
+      erro: 'Não deu para saber como está a conexão do WhatsApp.',
     },
     '/admin/caixa': {
       canal: 'caixa-carregar',
@@ -600,9 +607,26 @@ if (typeof document !== 'undefined') {
 
   // O menu vem do servidor, mas o app acrescenta o que é dele: impressão só existe
   // aqui. Entra no grupo Sistema, junto de Configurações.
+  // As telas que são DO APP entram no menu que veio do painel — senão elas sumiriam
+  // assim que o servidor respondesse, porque o menu dele manda.
+  const ICONE_WHATS = '<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>'
+
   function comTelasDoApp(menu) {
     if (!menu || !menu.secoes) return menu
     const copia = { ...menu, secoes: menu.secoes.map((s) => ({ ...s, itens: s.itens.slice() })) }
+
+    // WhatsApp logo abaixo de Clientes, onde o dono pediu (08/09).
+    if (!copia.secoes.some((s) => s.itens.some((i) => i.href === '/admin/whatsapp'))) {
+      for (const s2 of copia.secoes) {
+        const i2 = s2.itens.findIndex((x) => x.href === '/admin/clientes')
+        if (i2 >= 0) {
+          s2.itens.splice(i2 + 1, 0, {
+            id: 'whatsapp', href: '/admin/whatsapp', label: 'WhatsApp', icone: ICONE_WHATS,
+          })
+          break
+        }
+      }
+    }
     let sistema = copia.secoes.find((s) => /sistema/i.test(s.titulo))
     if (!sistema) { sistema = { titulo: 'Sistema', itens: [] }; copia.secoes.push(sistema) }
     if (!sistema.itens.some((i) => i.href === '/app/impressao')) {
@@ -913,6 +937,41 @@ if (typeof document !== 'undefined') {
         abrirPopup('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA), 560)
         return
       }
+      // WhatsApp: dois caminhos, e o botão de cada cartão diz o que falta nele.
+      if (acao === 'whatsapp:abrir-web') {
+        VIEW = 'whatsapp'
+        ipcRenderer.send('change-view', { view: VIEW })
+        avisar('WhatsApp Web aberto aqui dentro.', 'ok')
+        carregarTelaNativa(ROTA)
+        return
+      }
+      if (acao === 'whatsapp:fechar-web') {
+        VIEW = 'cardapio'
+        ipcRenderer.send('change-view', { view: VIEW })
+        carregarTelaNativa(ROTA)
+        return
+      }
+      if (acao === 'whatsapp:conectar' || acao === 'whatsapp:desconectar') {
+        const conectando = acao === 'whatsapp:conectar'
+        btAcao.disabled = true
+        ipcRenderer.invoke(conectando ? 'whatsapp-conectar' : 'whatsapp-desconectar').then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) {
+            QR_WHATS = r.qr || null
+            CODIGO_WHATS = r.pairingCode || null
+            avisar(conectando
+              ? (r.qr ? 'Leia o código no celular para conectar.' : 'WhatsApp conectado.')
+              : 'WhatsApp desconectado.', 'ok')
+            carregarTelaNativa(ROTA)
+          } else {
+            avisar((r && r.erro) || 'Não deu para falar com o WhatsApp agora.', 'erro')
+          }
+        }).catch(() => {
+          btAcao.disabled = false
+          avisar('Não deu para falar com o painel. Nada mudou.', 'erro')
+        })
+        return
+      }
       if (acao === 'caixa:abrir') { abrirPopup('Abrir caixa', Ficha.fichaAbertura()); return }
       if (acao === 'caixa:abrir:confirmar') {
         mandarAoCaixa(btAcao, 'caixa-abrir', {
@@ -1180,6 +1239,11 @@ if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') fecharFicha()
   })
+
+  // ── WhatsApp ──
+  // O QR vive só enquanto o pareamento não termina: é da sessão, não do cache.
+  let QR_WHATS = null
+  let CODIGO_WHATS = null
 
   // ── ficha do caixa ──
   let MOTIVO_CAIXA = null

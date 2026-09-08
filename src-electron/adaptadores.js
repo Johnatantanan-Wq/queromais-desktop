@@ -165,7 +165,24 @@ function campos(fonte, pares) {
 }
 
 // ── Configurações ───────────────────────────────────────────────────────────
-function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp }) {
+/**
+ * Estado do WhatsApp. O painel devolve o estado do Evolution; o modo "web" não tem
+ * estado no servidor — quem sabe se a conversa está aberta é a própria janela.
+ */
+function whatsapp({ statusResp }) {
+  if (!statusResp) return null
+  const s = statusResp
+  return {
+    estado: s.estado || 'indisponivel',
+    provedor: s.provedor || 'desativado',
+    ativo: s.ativo !== false,
+    numero: s.numero || null,
+    // O modo em uso: Evolution quando o provedor está de pé; senão, quem manda é a janela.
+    modo: (s.provedor === 'evolution' && s.estado === 'open') ? 'evolution' : null,
+  }
+}
+
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
@@ -220,6 +237,7 @@ function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, plan
       usuario: usuariosDaLoja(usuariosResp),
       plano: planoDaLoja(planoResp),
       gestor: appGestor(l),
+      whatsapp: whatsappDaLoja(whatsappResp),
     },
   }
 }
@@ -291,6 +309,26 @@ function planoDaLoja(r) {
       { rotulo: 'Excedente', valor: prox.excedenteQtd != null ? String(prox.excedenteQtd) + ' pedidos' : '' },
     ] },
   ]
+}
+
+const ESTADO_WHATS = {
+  open: 'conectado', connecting: 'conectando…', close: 'desconectado',
+  sem_config: 'não configurado', indisponivel: 'desligado',
+}
+const PROVEDOR_WHATS = {
+  evolution: 'Evolution (API da plataforma)', cloud_api: 'WhatsApp Cloud API',
+  z_api: 'Z-API', wabot: 'WABOT', desativado: 'nenhum',
+}
+
+/** WhatsApp: qual caminho está em uso e como está a conexão. */
+function whatsappDaLoja(r) {
+  if (!r) return []
+  return [{ titulo: 'Conexão', colunas: 3, campos: [
+    { rotulo: 'Caminho', valor: PROVEDOR_WHATS[r.provedor] || texto(r.provedor) },
+    { rotulo: 'Situação', valor: ESTADO_WHATS[r.estado] || texto(r.estado) },
+    { rotulo: 'Envio automático', valor: r.ativo === false ? 'desligado' : 'ligado' },
+    { rotulo: 'Onde conectar', valor: 'menu WhatsApp — escolha entre Evolution (API) e WhatsApp Web' },
+  ] }]
 }
 
 /** App Gestor: não tem API — o endereço sai da marca, como no painel. */
@@ -536,6 +574,7 @@ function fidelidade({ dashboardResp, atividadesResp, configResp }) {
 }
 
 module.exports = {
+  whatsapp,
   filaDeProducao, juntarAcessoTv, salao, atendimento, configuracoes, clientes,
   estoque, parceiros, campanhas, fidelidade,
   horaDe, diaDe, minutosDesde, campos, horariosDaLoja, segmentoPor, rotuloUltimo,

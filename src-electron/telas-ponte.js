@@ -59,6 +59,12 @@ const TELAS = [
     valida: (r) => Array.isArray(r.lista),
   },
   {
+    canal: 'whatsapp-carregar', cache: 'whatsapp',
+    rotas: { statusResp: '/api/admin/whatsapp/status' },
+    adaptar: (r) => A.whatsapp(r),
+    valida: (r) => r.statusResp && r.statusResp.estado,
+  },
+  {
     canal: 'configuracoes-carregar', cache: 'configuracoes',
     // Uma rota por aba. `buscarVarias` já garante que uma que falhe (permissão,
     // rota fora do ar) não derruba a tela inteira — as outras abas continuam.
@@ -67,6 +73,7 @@ const TELAS = [
       bairrosResp: '/api/admin/bairros',
       usuariosResp: '/api/admin/usuarios',
       planoResp: '/api/admin/plano',
+      whatsappResp: '/api/admin/whatsapp/status',
     },
     adaptar: (r) => A.configuracoes(r),
     valida: (r) => r.lojaResp && r.lojaResp.id,
