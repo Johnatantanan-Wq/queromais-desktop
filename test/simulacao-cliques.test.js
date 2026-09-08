@@ -26,6 +26,7 @@ let despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
 let cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
 let comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
 let contasDoTeste = require('../src-electron/contas-local').criarRegistro()
+let estoqueDoTeste = require('../src-electron/estoque-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -140,7 +141,14 @@ function responder(canal, args) {
     contasDoTeste.criar(d.corpo); return { ok: true, resumo: d.resumo }
   }
   if (canal === 'atendimento-abas-carregar') return ok(demo.telasComAbas().atendimento)
-  if (canal === 'estoque-abas-carregar') return ok(demo.telasComAbas().estoque)
+  if (canal === 'estoque-abas-carregar') return ok(estoqueDoTeste.aplicar(demo.telasComAbas().estoque))
+  if (canal === 'estoque-sincronizar') return { ok: true, resumo: 'Sincronizado: 0 criado(s), 3 vinculado(s).' }
+  if (canal === 'estoque-novo-insumo' || canal === 'estoque-nova-categoria' || canal === 'estoque-novo-fornecedor') {
+    const A = require('../src-electron/estoque-acoes')
+    const fn = { 'estoque-novo-insumo': ['novoInsumo', 'insumo'], 'estoque-nova-categoria': ['novaCategoria', 'categoria'], 'estoque-novo-fornecedor': ['novoFornecedor', 'fornecedor'] }[canal]
+    const d = A[fn[0]](args); if (!d.ok) return { ok: false, erro: d.motivo }
+    estoqueDoTeste[fn[1]](d.corpo); return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'pedidos-carregar') return ok(etapasDeTeste.aplicar(demo.listas().pedidos))
   if (canal === 'pedido-corrigir') {
     const d = require('../src-electron/pedido-acoes').correcao(args.pedido, args.campos)
@@ -278,7 +286,8 @@ beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.cria
   despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
   cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
   comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
-  contasDoTeste = require('../src-electron/contas-local').criarRegistro() })
+  contasDoTeste = require('../src-electron/contas-local').criarRegistro()
+  estoqueDoTeste = require('../src-electron/estoque-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -1273,4 +1282,47 @@ test('Contas a pagar: lançar conta nova entra na lista', async () => {
   assert.ok(chamadas.some((c) => c.canal === 'conta-nova'), 'a conta sai')
   assert.ok(/Conta a pagar lançada: Conta de luz/.test(aviso().textContent), aviso().textContent)
   assert.ok(/Conta de luz/.test(conteudo()), 'e aparece na lista')
+})
+
+test('Gestão: sincronizar com o cardápio responde com o que fez', async () => {
+  await abrirApp()
+  await irPara('/admin/estoque')
+  clicar($('#econtent [data-acao="estoque:sincronizar-cardapio"]'))
+  await esperar(90)
+  assert.ok(chamadas.some((c) => c.canal === 'estoque-sincronizar'))
+  assert.ok(/Sincronizado: .*vinculado/.test(aviso().textContent), aviso().textContent)
+})
+
+test('Gestão: novo item abre o popup do grupo e entra na lista', async () => {
+  await abrirApp()
+  await irPara('/admin/estoque')
+  const bt = $('#econtent [data-acao^="estoque:adicionar:"]')
+  assert.ok(bt, 'a aba tem o botão de adicionar')
+  const grupo = bt.getAttribute('data-acao').slice('estoque:adicionar:'.length)
+  clicar(bt)
+  await esperar(60)
+  assert.ok(doc.querySelector('#eloFicha [data-campo="unidade"]'), 'o popup pede a unidade')
+  doc.querySelector('#eloFicha [data-campo="nome"]').value = 'Azeitona preta'
+  doc.querySelector('#eloFicha [data-campo="qtd"]').value = '2'
+  clicar(doc.querySelector('#eloFicha [data-acao="estoque:insumo:confirmar:' + grupo + '"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'estoque-novo-insumo')
+  assert.ok(ch && ch.args.grupo === grupo, 'o cadastro sai com o grupo da aba')
+  assert.ok(/Azeitona preta cadastrado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.getElementById('eloFicha'), 'o popup fecha')
+})
+
+test('Gestão: fornecedor com CNPJ curto é recusado sem fechar o popup', async () => {
+  await abrirApp()
+  await irPara('/admin/estoque')
+  clicar($('[data-aba="fornecedores"]'))
+  await esperar(60)
+  clicar($('#econtent [data-acao="estoque:novo-fornecedor"]'))
+  await esperar(60)
+  doc.querySelector('#eloFicha [data-campo="nome"]').value = 'ACME'
+  doc.querySelector('#eloFicha [data-campo="cnpj"]').value = '123'
+  clicar(doc.querySelector('#eloFicha [data-acao="estoque:fornecedor:confirmar"]'))
+  await esperar(80)
+  assert.ok(/14 dígitos/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'fica aberto para corrigir')
 })

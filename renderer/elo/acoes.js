@@ -57,9 +57,6 @@ const DESTINOS = {
   'ordenar-clientes': { app: 'ordenar-clientes' },
 
   // ── Gestão / estoque ──
-  'estoque:adicionar': { rota: '/admin/estoque', o: 'cadastrar produto' },
-  'estoque:nova-categoria': { rota: '/admin/estoque', o: 'criar categoria de estoque' },
-  'estoque:sincronizar-cardapio': { rota: '/admin/estoque', o: 'sincronizar com o cardápio' },
   'estoque:sincronizar-massas': { rota: '/admin/estoque', o: 'sincronizar as massas' },
   'estoque:menu': { rota: '/admin/estoque', o: 'abrir as ações do produto' },
   'entrada:nova': { app: 'entrada-menu' },
@@ -75,7 +72,6 @@ const DESTINOS = {
   'entrada:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas no período' },
   'estoque:nova-entrada': { rota: '/admin/estoque', o: 'lançar entrada' },
   'estoque:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas' },
-  'estoque:novo-fornecedor': { rota: '/admin/estoque', o: 'cadastrar fornecedor' },
   'nf:emitir-manual': { rota: '/admin/nf', o: 'emitir nota manualmente' },
   'nf:gerar': { rota: '/admin/nf', o: 'gerar a nota' },
   'nf:atualizar-status': { rota: '/admin/nf', o: 'atualizar o status fiscal' },

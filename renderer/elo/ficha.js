@@ -118,6 +118,46 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+const UNIDADES_ESTOQUE = ['un', 'kg', 'g', 'l', 'ml', 'cx', 'pct']
+const NOME_GRUPO_ESTOQUE = { insumos: 'Insumos', producao: 'Produção própria', revenda: 'Revenda' }
+
+/** Novo insumo na Gestão: o grupo vem da aba; o resto é o mínimo que o painel exige. */
+function fichaNovoInsumo(grupo) {
+  const unidades = '<label style="display:block;margin-bottom:14px">'
+    + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Unidade</span>'
+    + '<select data-campo="unidade" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;font-family:inherit;font-size:14px;font-weight:600;color:#111;background:#fff">'
+    + UNIDADES_ESTOQUE.map((u) => '<option value="' + u + '"' + (u === 'un' ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></label>'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Entra em <b style="color:#111">' + esc(NOME_GRUPO_ESTOQUE[grupo] || grupo) + '</b>. Ligar ao produto do cardápio e ficha técnica ainda são pelo painel.</div>'
+    + campo('Nome do item', 'nome', '', 'Ex.: Azeitona preta')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + unidades + campo('Custo unitário', 'custo', '', 'Pode ser zero.') + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('Quantidade atual', 'qtd', '0') + campo('Estoque mínimo', 'minimo', '0', 'Abaixo disso entra na lista de Compras.') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('estoque:cadastro:cancelar', 'Cancelar', false)
+    + botaoFicha('estoque:insumo:confirmar:' + esc(grupo), 'Cadastrar', true) + '</div>'
+}
+
+function fichaNovaCategoriaEstoque() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Uma categoria de topo da Gestão. Subcategoria e categoria de venda ainda são pelo painel.</div>'
+    + campo('Nome', 'nome', '', 'Ex.: Descartáveis')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('estoque:cadastro:cancelar', 'Cancelar', false)
+    + botaoFicha('estoque:categoria:confirmar', 'Criar categoria', true) + '</div>'
+}
+
+function fichaNovoFornecedor() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Só o nome é obrigatório. CNPJ e telefone ajudam a casar a nota fiscal de compra depois.</div>'
+    + campo('Nome', 'nome', '')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('CNPJ ou CPF (opcional)', 'cnpj', '') + campo('Telefone (opcional)', 'telefone', '') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('estoque:cadastro:cancelar', 'Cancelar', false)
+    + botaoFicha('estoque:fornecedor:confirmar', 'Cadastrar', true) + '</div>'
+}
+
 const FORMAS_CAIXA_FICHA = [['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['cartao', 'Cartão'], ['credito', 'Crédito'], ['debito', 'Débito']]
 function seletorFormaCaixa(escolhida, rotulo) {
   return '<label style="display:block;margin-bottom:14px">'
@@ -389,4 +429,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

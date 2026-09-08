@@ -1003,6 +1003,30 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Gestão: os cadastros de um passo. Nota fiscal de entrada continua pelo painel.
+      if (acao === 'estoque:sincronizar-cardapio') { mandarCompras(btAcao, 'estoque-sincronizar', {}); return }
+      if (acao.indexOf('estoque:adicionar:') === 0) {
+        const grupo = acao.slice('estoque:adicionar:'.length)
+        abrirPopup('Novo item', Ficha.fichaNovoInsumo(grupo), 520)
+        const c = document.querySelector('#eloFicha [data-campo="nome"]'); if (c) c.focus()
+        return
+      }
+      if (acao === 'estoque:nova-categoria') { abrirPopup('Nova categoria', Ficha.fichaNovaCategoriaEstoque(), 440); return }
+      if (acao === 'estoque:novo-fornecedor') { abrirPopup('Novo fornecedor', Ficha.fichaNovoFornecedor(), 520); return }
+      if (acao === 'estoque:cadastro:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('estoque:insumo:confirmar:') === 0) {
+        mandarCompras(btAcao, 'estoque-novo-insumo', {
+          grupo: acao.slice('estoque:insumo:confirmar:'.length), nome: campoDaFicha('nome'), unidade: campoDaFicha('unidade'),
+          qtd: campoDaFicha('qtd'), minimo: campoDaFicha('minimo'), custo: campoDaFicha('custo'),
+        }, fecharFicha)
+        return
+      }
+      if (acao === 'estoque:categoria:confirmar') { mandarCompras(btAcao, 'estoque-nova-categoria', { nome: campoDaFicha('nome') }, fecharFicha); return }
+      if (acao === 'estoque:fornecedor:confirmar') {
+        mandarCompras(btAcao, 'estoque-novo-fornecedor', { nome: campoDaFicha('nome'), cnpj: campoDaFicha('cnpj'), telefone: campoDaFicha('telefone') }, fecharFicha)
+        return
+      }
+
       // Caixa › Delivery e Mesas: concluir entrega, confirmar recebimento, retirada
       // entregue e fechar a conta da mesa. O painel lança a venda, baixa estoque e
       // oferece a nota — o app confere a forma e manda.

@@ -667,6 +667,22 @@ async function createWindow() {
       const registroCompras = require('./compras-local').criarRegistro()
       // Contas em demonstração: baixa e conta nova ficam na sessão.
       const registroContas = require('./contas-local').criarRegistro()
+      // Gestão em demonstração: o cadastro entra na lista, a sincronização responde.
+      const registroEstoque = require('./estoque-local').criarRegistro()
+      const acoesEstoque = require('./estoque-acoes')
+      ipcMain.handle('estoque-sincronizar', () => ({ ok: true, resumo: 'Sincronizado: 0 criado(s), 3 vinculado(s).', demo: true }))
+      ipcMain.handle('estoque-novo-insumo', (e, a) => {
+        const d = acoesEstoque.novoInsumo(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroEstoque.insumo(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('estoque-nova-categoria', (e, a) => {
+        const d = acoesEstoque.novaCategoria(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroEstoque.categoria(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('estoque-novo-fornecedor', (e, a) => {
+        const d = acoesEstoque.novoFornecedor(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroEstoque.fornecedor(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
       const acoesContas = require('./contas-acoes')
       ipcMain.handle('conta-baixar', (e, a) => {
         const d = acoesContas.baixa(a && a.conta, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
@@ -836,7 +852,8 @@ async function createWindow() {
         const chave = CANAIS_ABAS[canal]
         ipcMain.handle(canal, () => {
           const dadosBrutos = dadosDemo.telasComAbas()[chave]
-          const dados = chave === 'financeiro' ? registroContas.aplicar(dadosBrutos) : dadosBrutos
+          const dados = chave === 'financeiro' ? registroContas.aplicar(dadosBrutos)
+            : chave === 'estoque' ? registroEstoque.aplicar(dadosBrutos) : dadosBrutos
           // Financeiro: a venda do app aparece no extrato e no livro caixa, como no painel.
           if (chave === 'financeiro' && registroVendas.listar().length) {
             const movs = registroVendas.listar().map(registroVendas.comoMovimento)
@@ -902,6 +919,7 @@ async function createWindow() {
     if (!DEMO) require('./cardapio-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./compras-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./contas-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./estoque-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
