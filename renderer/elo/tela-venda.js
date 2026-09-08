@@ -103,6 +103,57 @@ function trilhaEtapas(atual) {
     + '">' + (i + 1) + '. ' + esc(e.rotulo) + '</span>').join('') + '</div>'
 }
 
+// ── teclado de tela ─────────────────────────────────────────────────────────
+//
+// O balcão é operado em tela sensível: teclado físico nem sempre existe, e quando
+// existe está ocupado. São dois, como no painel — 123 digita no TELEFONE, ABC digita
+// no NOME. O modo escolhido diz para onde a tecla vai, e a tela mostra isso escrito:
+// sem essa linha, o operador digita o nome no telefone e só descobre depois.
+
+const TECLAS_NUMERICAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '(', '0', ')']
+const TECLAS_LETRAS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+]
+
+function tecla(rotulo, valor, opcoes) {
+  const o = opcoes || {}
+  return '<button type="button" data-tecla="' + esc(valor) + '"'
+    + ' style="height:' + (o.baixa ? 40 : 46) + 'px;' + (o.largura ? 'flex:' + o.largura + ';' : '')
+    + 'border-radius:10px;font-family:inherit;font-size:' + (o.baixa ? 14 : 17) + 'px;font-weight:800;'
+    + 'cursor:pointer;user-select:none;' + (o.apagar
+      ? 'border:none;background:#fdeaea;color:#b42318'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
+}
+
+function tecladoDeTela(modo) {
+  const numerico = modo !== 'texto'
+  const aba = (chave, rotulo) => '<button type="button" data-modo-teclado="' + chave + '"'
+    + ' style="flex:1;height:36px;border-radius:9px;font-family:inherit;font-size:14px;font-weight:800;'
+    + 'cursor:pointer;' + ((numerico ? 'numerico' : 'texto') === chave
+      ? 'border:none;background:var(--acento);color:#fff'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#4b5563') + '">' + rotulo + '</button>'
+
+  const corpo = numerico
+    ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'
+      + TECLAS_NUMERICAS.map((d) => tecla(d, d)).join('')
+      + tecla('+', '+') + tecla('⌫', '\u0008', { apagar: true }) + tecla('—', '-')
+      + '</div>'
+    : '<div style="display:flex;flex-direction:column;gap:6px">'
+      + TECLAS_LETRAS.map((linha) => '<div style="display:flex;gap:5px;justify-content:center">'
+        + linha.map((l) => tecla(l, l, { baixa: true })).join('') + '</div>').join('')
+      + '<div style="display:flex;gap:6px;margin-top:4px">'
+      + tecla('espaço', ' ', { baixa: true, largura: 3 })
+      + tecla('⌫', '\u0008', { baixa: true, apagar: true, largura: 1 })
+      + '</div></div>'
+
+  return '<div style="display:flex;gap:8px;margin-bottom:10px">' + aba('numerico', '123') + aba('texto', 'ABC') + '</div>'
+    + '<div style="font-size:11.5px;font-weight:700;color:var(--acento-texto);margin-bottom:10px">'
+    + (numerico ? '→ digitando telefone' : '→ digitando nome') + '</div>'
+    + corpo
+}
+
 // ── etapa 1: cliente ────────────────────────────────────────────────────────
 function etapaCliente(venda, dados) {
   const bairros = Object.keys(dados.taxasBairro || {})
@@ -147,8 +198,10 @@ function etapaCliente(venda, dados) {
       + 'Digite o telefone ou o nome e o app procura no cadastro. '
       + 'Sem achar, a venda entra como cliente novo — o que o balcão faz o dia todo.</div>')
 
-  return '<div style="display:grid;grid-template-columns:minmax(320px,460px) 1fr;gap:18px;align-items:start">'
-    + cartao('Quem está comprando', formulario) + sugestoes + '</div>'
+  return '<div style="display:grid;grid-template-columns:minmax(300px,1fr) minmax(240px,300px);gap:18px;'
+    + 'align-items:start">'
+    + '<div>' + cartao('Quem está comprando', formulario) + '<div style="height:16px"></div>' + sugestoes + '</div>'
+    + cartao('Teclado', tecladoDeTela(venda.modoTeclado)) + '</div>'
 }
 
 // ── etapa 2: produtos ───────────────────────────────────────────────────────
@@ -305,4 +358,5 @@ function htmlVenda(dados, estado) {
   return topo + corpo + barra
 }
 
-module.exports = { htmlVenda, vendaVazia, totais, oQueFalta, TIPOS, FORMAS, ETAPAS }
+module.exports = {
+  tecladoDeTela, TECLAS_NUMERICAS, TECLAS_LETRAS, htmlVenda, vendaVazia, totais, oQueFalta, TIPOS, FORMAS, ETAPAS }

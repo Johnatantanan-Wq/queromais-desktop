@@ -877,3 +877,28 @@ test('correção inválida é recusada na hora, sem fechar o popup', async () =>
   assert.ok(/Falta preencher: cidade/.test(aviso().textContent), aviso().textContent)
   assert.ok(doc.getElementById('eloFicha'), 'o popup fica aberto para corrigir')
 })
+
+test('teclado de tela: 123 digita no telefone, ABC digita no nome', async () => {
+  await abrirApp()
+  await irParaVenda()
+  const teclar = (v) => clicar(doc.querySelector('#eloFicha [data-tecla="' + v + '"]'))
+
+  // numérico é o padrão: telefone
+  teclar('7'); await esperar(30)
+  teclar('5'); await esperar(30)
+  assert.strictEqual(doc.querySelector('[data-venda-campo="telefone"]').value, '75')
+
+  // ABC passa a digitar no nome
+  clicar(doc.querySelector('#eloFicha [data-modo-teclado="texto"]'))
+  await esperar(40)
+  assert.ok(/digitando nome/.test(vendaNaTela()), 'a tela diz para onde vai')
+  teclar('A'); await esperar(30)
+  teclar('N'); await esperar(30)
+  assert.strictEqual(doc.querySelector('[data-venda-campo="nome"]').value, 'AN')
+  assert.strictEqual(doc.querySelector('[data-venda-campo="telefone"]').value, '75', 'o telefone nao foi tocado')
+
+  // apagar tira do campo do modo atual
+  clicar(doc.querySelector('#eloFicha [data-tecla="' + String.fromCharCode(8) + '"]'))
+  await esperar(40)
+  assert.strictEqual(doc.querySelector('[data-venda-campo="nome"]').value, 'A')
+})

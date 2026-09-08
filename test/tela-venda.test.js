@@ -111,3 +111,48 @@ test('a venda vira linha do quadro de pedidos e do extrato', () => {
   assert.strictEqual(mov.valor, 67)
   assert.match(mov.origem, /#1044/)
 })
+
+// ── teclado de tela ──
+// O balcão é operado em tela sensível: sem teclado na tela, não se preenche o cliente.
+const APAGAR = String.fromCharCode(8)
+
+test('o teclado numérico tem os dígitos e o apagar', () => {
+  const h = V.tecladoDeTela('numerico')
+  for (const d of ['1', '5', '9', '0']) {
+    assert.ok(h.includes('data-tecla="' + d + '"'), 'falta a tecla ' + d)
+  }
+  assert.ok(h.includes('data-tecla="' + APAGAR + '"'), 'apagar')
+  assert.ok(/background:#fdeaea/.test(h), 'o apagar e o unico vermelho - errar nele doi')
+})
+
+test('o teclado de letras e QWERTY, com espaco', () => {
+  const h = V.tecladoDeTela('texto')
+  for (const l of ['Q', 'W', 'M', 'L']) assert.ok(h.includes('data-tecla="' + l + '"'), 'falta ' + l)
+  assert.ok(h.includes('data-tecla=" "'), 'espaco')
+  assert.strictEqual(V.TECLAS_LETRAS[0].join(''), 'QWERTYUIOP')
+})
+
+test('a tela DIZ para onde a tecla vai - senao digita-se nome no telefone', () => {
+  assert.ok(/digitando telefone/.test(V.tecladoDeTela('numerico')))
+  assert.ok(/digitando nome/.test(V.tecladoDeTela('texto')))
+})
+
+test('o modo escolhido fica marcado nos botoes 123 / ABC', () => {
+  const num = V.tecladoDeTela('numerico')
+  const depoisNum = num.split('data-modo-teclado="numerico"')[1].slice(0, 200)
+  assert.ok(/background:var\(--acento\)/.test(depoisNum), '123 marcado')
+  const depoisTxt = num.split('data-modo-teclado="texto"')[1].slice(0, 200)
+  assert.ok(!/background:var\(--acento\)/.test(depoisTxt), 'e ABC nao')
+})
+
+test('sem modo escolhido, comeca no numerico - telefone e o primeiro a digitar', () => {
+  assert.ok(/digitando telefone/.test(V.tecladoDeTela(undefined)))
+  assert.ok(/digitando telefone/.test(V.tecladoDeTela(null)))
+})
+
+test('o teclado aparece na etapa do cliente, ao lado do formulario', () => {
+  const h = V.htmlVenda({ categorias: [], clientes: [], taxasBairro: {} },
+    { venda: { ...V.vendaVazia(), etapa: 'cliente' } })
+  assert.ok(h.includes('data-tecla='), 'o teclado esta na tela')
+  assert.ok(h.includes('data-modo-teclado='), 'com as duas abas')
+})

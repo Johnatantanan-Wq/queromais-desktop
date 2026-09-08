@@ -808,6 +808,23 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    // Teclado de tela da venda: 123 digita no telefone, ABC no nome.
+    const btModoTeclado = e.target.closest ? e.target.closest('[data-modo-teclado]') : null
+    if (btModoTeclado) {
+      VENDA.modoTeclado = btModoTeclado.getAttribute('data-modo-teclado')
+      redesenharTelaAtual()
+      return
+    }
+    const btTecla = e.target.closest ? e.target.closest('[data-tecla]') : null
+    if (btTecla) {
+      const t = btTecla.getAttribute('data-tecla')
+      const campo = VENDA.modoTeclado === 'texto' ? 'nome' : 'telefone'
+      const atual = '' + (VENDA[campo] || '')
+      // \u0008 é o apagar: uma tecla só, sem inventar um atributo à parte.
+      VENDA[campo] = t === '\u0008' ? atual.slice(0, -1) : atual + t
+      redesenharTelaAtual()
+      return
+    }
     const btAdd = e.target.closest ? e.target.closest('[data-venda-add]') : null
     if (btAdd) { mexerNoItem(btAdd.getAttribute('data-venda-add'), +1); return }
     const btMenos = e.target.closest ? e.target.closest('[data-venda-menos]') : null
