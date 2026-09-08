@@ -60,7 +60,14 @@ const TELAS = [
   },
   {
     canal: 'configuracoes-carregar', cache: 'configuracoes',
-    rotas: { lojaResp: '/api/admin/loja' },
+    // Uma rota por aba. `buscarVarias` já garante que uma que falhe (permissão,
+    // rota fora do ar) não derruba a tela inteira — as outras abas continuam.
+    rotas: {
+      lojaResp: '/api/admin/loja',
+      bairrosResp: '/api/admin/bairros',
+      usuariosResp: '/api/admin/usuarios',
+      planoResp: '/api/admin/plano',
+    },
     adaptar: (r) => A.configuracoes(r),
     valida: (r) => r.lojaResp && r.lojaResp.id,
   },

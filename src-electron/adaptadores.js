@@ -165,7 +165,7 @@ function campos(fonte, pares) {
 }
 
 // ── Configurações ───────────────────────────────────────────────────────────
-function configuracoes({ lojaResp, horariosResp }) {
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
@@ -210,8 +210,109 @@ function configuracoes({ lojaResp, horariosResp }) {
           { rotulo: 'Fuso da loja', valor: texto(l.timezone) },
         ]) },
       ],
+      rotas: rotasDeEntrega(bairrosResp),
+      usuario: usuariosDaLoja(usuariosResp),
+      plano: planoDaLoja(planoResp),
+      gestor: appGestor(l),
     },
   }
+}
+
+/** Rotas de entrega: os bairros atendidos, a taxa de cada um e a entrega grátis. */
+function rotasDeEntrega(r) {
+  if (!r || !Array.isArray(r.bairros)) return []
+  const taxas = r.taxas_bairro || {}
+  const daTaxa = (nome) => {
+    const t = taxas[nome]
+    if (t == null) return null
+    return typeof t === 'object' ? t : { taxa: t, ativo: true }
+  }
+  const campos = r.bairros.map((nome) => {
+    const t = daTaxa(nome)
+    // Bairro com taxa desligada não cobra — é o que o painel diz no próprio texto.
+    const valor = !t ? 'usa a taxa padrão'
+      : (t.ativo === false ? 'sem taxa' : brl(t.taxa))
+    return { rotulo: nome, valor }
+  })
+  const geral = [
+    { rotulo: 'Taxa padrão', valor: brl(r.taxa_padrao) },
+    { rotulo: 'Entrega grátis acima de',
+      valor: r.entrega_gratis_valor_min != null ? brl(r.entrega_gratis_valor_min) : 'não usa' },
+    { rotulo: 'Bairros atendidos', valor: String(r.bairros.length) },
+  ]
+  return [
+    { titulo: 'Como a taxa é cobrada', colunas: 3, campos: geral },
+  ].concat(campos.length ? [{ titulo: 'Taxa por bairro', colunas: 3, campos }] : [])
+}
+
+const PAPEL = {
+  admin: 'Administrador', dono: 'Administrador', financeiro: 'Financeiro', ti: 'TI',
+  contador: 'Contador', garcom: 'Garçom', caixa: 'Caixa', atendente: 'Atendente',
+  cozinheiro: 'Cozinheiro', entregador: 'Entregador',
+}
+
+/** Quem tem acesso, com a função e por onde entra (e-mail ou CPF). */
+function usuariosDaLoja(r) {
+  const lista = (r && r.usuarios) || []
+  if (!lista.length) return []
+  const campos = lista.map((u) => ({
+    rotulo: u.nome || 'Sem nome',
+    valor: (PAPEL[u.papel] || u.papel || '—') + ' · ' + (u.email || (u.cpf ? 'CPF ' + u.cpf : 'sem acesso ao painel')),
+  }))
+  return [{ titulo: 'Quem tem acesso (' + lista.length + ')', colunas: 2, campos }]
+}
+
+/** Plano da loja: o que se paga, quando vence e quanto do pacote já foi usado. */
+function planoDaLoja(r) {
+  if (!r || !r.plano) return []
+  const p = r.plano, a = r.assinatura || {}, uso = r.uso || {}, prox = r.proximaFatura || {}
+  const centavos = (v) => (v == null ? '' : brl(Number(v) / 100))
+  const franquia = p.limites && p.limites.franquiaPedidos
+  return [
+    { titulo: 'Plano', colunas: 3, campos: [
+      { rotulo: 'Nome', valor: texto(p.nome) },
+      { rotulo: 'Mensalidade', valor: centavos(p.valorCentavos) },
+      { rotulo: 'Situação', valor: a.existe ? texto(a.status) : 'sem assinatura' },
+    ] },
+    { titulo: 'Cobrança', colunas: 3, campos: [
+      { rotulo: 'Próximo vencimento', valor: dataBR(a.proximoVenc) },
+      { rotulo: 'Em teste até', valor: dataBR(a.trialAte) },
+      { rotulo: 'Próxima fatura', valor: prox.mensalidade != null ? brl(prox.mensalidade) : '' },
+    ] },
+    { titulo: 'Uso do ciclo', colunas: 3, campos: [
+      { rotulo: 'Pedidos no ciclo', valor: uso.pedidos != null ? String(uso.pedidos) : '' },
+      { rotulo: 'Franquia do plano', valor: franquia != null ? String(franquia) + ' pedidos' : 'sem limite' },
+      { rotulo: 'Excedente', valor: prox.excedenteQtd != null ? String(prox.excedenteQtd) + ' pedidos' : '' },
+    ] },
+  ]
+}
+
+/** App Gestor: não tem API — o endereço sai da marca, como no painel. */
+function appGestor(l) {
+  const dominio = (require('./brand').dominio_cardapio || '').replace(/^https?:\/\//, '')
+  return [{ titulo: 'App Gestor (PWA)', colunas: 2, campos: [
+    { rotulo: 'Endereço', valor: dominio ? dominio + '/gestor' : '' },
+    { rotulo: 'Como entrar', valor: 'mesmo login e senha do painel' },
+    { rotulo: 'Instalação', valor: 'não precisa de loja de aplicativos — salve na tela inicial' },
+    { rotulo: 'O que mostra', valor: 'Financeiro, Venda do dia, Fechamento do mês, Estoque, Usuários e Mesas' },
+  ] }]
+}
+
+function brl(v) {
+  const n = Number(v)
+  return 'R$ ' + (isFinite(n) ? n : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+/**
+ * Data de vencimento é DIA, não instante. `new Date('2026-10-01T00:00:00Z')` no fuso
+ * do Brasil vira 30/09 — o lojista leria o vencimento um dia antes do que é. Então a
+ * parte da data é lida como texto, sem passar por fuso nenhum.
+ */
+function dataBR(iso) {
+  if (!iso) return ''
+  const m = ('' + iso).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return m[3] + '/' + m[2] + '/' + m[1]
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR')
 }
 function modalidades(l) {
   const m = []
