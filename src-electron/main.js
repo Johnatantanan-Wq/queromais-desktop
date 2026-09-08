@@ -24,10 +24,11 @@ const { calcularBounds } = SHELL_ELO ? require('./layout-views') : {}
 const { makeStore } = SHELL_ELO ? require('./cache-store') : {}
 const { criarMonitor } = SHELL_ELO ? require('./rede') : {}
 const ponte = SHELL_ELO ? require('./ponte') : null
-// Modo DEMONSTRAÇÃO: `open -a "<app>" --args --demo` (ou PEDIU_DEMO=1). Serve para
-// trabalhar nas telas sem depender de login/servidor. Nunca liga sozinho, e a topbar
+// Modo DEMONSTRAÇÃO (ver src-electron/modo.js): padrão no beta. Para falar com o
+// painel de verdade: `open -a "<app>" --args --conectado` (ou PEDIU_DEMO=0). Serve para
+// trabalhar nas telas sem depender de login/servidor. A topbar
 // mostra um selo permanente — dado fictício não pode se passar por real.
-const DEMO = SHELL_ELO && (process.argv.includes('--demo') || process.env.PEDIU_DEMO === '1')
+const DEMO = require('./modo').modoDemonstracao({ shellElo: SHELL_ELO, argv: process.argv, env: process.env })
 const dadosDemo = DEMO ? require('./demo-dados') : null
 initConfig()
 
