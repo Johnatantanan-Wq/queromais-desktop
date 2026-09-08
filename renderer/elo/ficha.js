@@ -43,6 +43,89 @@ function painel(titulo, conteudo) {
     + '<div style="flex:1;overflow:auto;padding:22px 24px">' + conteudo + '</div></div></div>'
 }
 
+/** Campo de formulário da ficha — rótulo em cima, caixa embaixo. */
+function campo(rotulo, attr, valor, dica) {
+  return '<label style="display:block;margin-bottom:14px">'
+    + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+    + 'letter-spacing:.06em;margin-bottom:6px">' + esc(rotulo) + '</span>'
+    + '<input data-campo="' + esc(attr) + '" value="' + esc(valor || '') + '" autocomplete="off"'
+    + ' style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px;'
+    + 'font-family:inherit;font-size:14px;font-weight:600;color:#111;box-sizing:border-box">'
+    + (dica ? '<span style="display:block;font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:5px">'
+      + esc(dica) + '</span>' : '')
+    + '</label>'
+}
+
+function botaoFicha(acao, rotulo, primaria) {
+  return '<button type="button" data-acao="' + esc(acao) + '" style="height:40px;padding:0 18px;border-radius:10px;'
+    + 'font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (primaria
+      ? 'border:none;background:var(--acento);color:#fff'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
+}
+
+/**
+ * Sangria / suprimento. O valor é o único campo obrigatório — o motivo o painel usa
+ * para decidir se a sangria vira despesa no financeiro, então vale oferecer os mesmos
+ * motivos que ele conhece em vez de texto livre.
+ */
+function fichaMovimentacao(tipo, motivos) {
+  const sangria = tipo === 'sangria'
+  const opcoes = (motivos || []).map((m) =>
+    '<button type="button" data-motivo-caixa="' + esc(m) + '" class="echip" style="cursor:pointer;height:30px;'
+    + 'background:#eef0f3;color:#4b5563">' + esc(m) + '</button>').join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:18px;line-height:1.5">'
+    + (sangria
+      ? 'Tirar dinheiro da gaveta. O lançamento entra nas movimentações do turno e, conforme o motivo, vira despesa no financeiro.'
+      : 'Pôr dinheiro na gaveta — troco, reforço do caixa.') + '</div>'
+    + campo('Valor', 'valor', '', 'Pode digitar 12,50 ou 12.50.')
+    + (sangria && opcoes
+      ? '<div style="margin-bottom:6px"><span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;'
+        + 'text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Motivo</span>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + opcoes + '</div></div>'
+      : '')
+    + campo('Observação (opcional)', 'descricao', '')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:mov:cancelar', 'Cancelar', false)
+    + botaoFicha('caixa:mov:confirmar:' + tipo, sangria ? 'Lançar sangria' : 'Lançar suprimento', true)
+    + '</div>'
+}
+
+/** Abertura: o fundo de troco é o único campo, e zero é resposta válida. */
+function fichaAbertura() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:18px;line-height:1.5">'
+    + 'Quanto vai na gaveta para começar o turno. Pode ser zero — o caixa abre do mesmo jeito.</div>'
+    + campo('Fundo de troco', 'fundo', '0', 'Pode digitar 100 ou 100,00.')
+    + campo('Observação (opcional)', 'observacao', '')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:mov:cancelar', 'Cancelar', false)
+    + botaoFicha('caixa:abrir:confirmar', 'Abrir caixa', true)
+    + '</div>'
+}
+
+/** Fechamento: os três contados são obrigatórios — é o que o painel exige. */
+function fichaFechamento(caixa) {
+  const r = (caixa && caixa.resumo) || {}
+  const esperado = (rotulo, v) => '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0">'
+    + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">' + esc(rotulo) + '</span>'
+    + '<span style="font-size:12.5px;color:#111;font-weight:700">' + brl(v) + '</span></div>'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Conte o que está na gaveta e na maquininha. A diferença contra o esperado aparece na conferência do painel.</div>'
+    + '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:18px">'
+    + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em;'
+    + 'margin-bottom:6px">Esperado pelo sistema</div>'
+    + esperado('Dinheiro', caixa && caixa.esperadoDinheiro)
+    + esperado('Pix', r.vendaPix)
+    + esperado('Cartão', r.vendaCartao) + '</div>'
+    + campo('Dinheiro contado', 'dinheiro', '')
+    + campo('Pix conferido', 'pix', '')
+    + campo('Cartão conferido', 'cartao', '')
+    + campo('Observação (opcional)', 'observacao', '')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:mov:cancelar', 'Cancelar', false)
+    + botaoFicha('caixa:fechar:confirmar', 'Fechar caixa', true)
+    + '</div>'
+}
+
 const ETAPAS = { aguardando: 'Em análise', producao: 'Em produção', pronto: 'Pronto', transito: 'Em trânsito', entregue: 'Entregue' }
 
 function fichaPedido(p) {
@@ -135,4 +218,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

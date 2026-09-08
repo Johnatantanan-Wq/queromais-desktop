@@ -15,9 +15,8 @@
 /** Prefixo da ação (antes do primeiro ':') → para onde ela leva. */
 const DESTINOS = {
   // ── Caixa ──
-  'caixa:suprimento': { rota: '/admin/caixa', o: 'lançar suprimento' },
-  'caixa:sangria': { rota: '/admin/caixa', o: 'lançar sangria' },
-  'caixa:fechar': { rota: '/admin/caixa', o: 'fechar o caixa' },
+  // sangria, suprimento e fechar saíram do mapa: o app FAZ (shell.js → caixa-*).
+  // Se ficassem aqui, o clique abriria o painel em vez de abrir a ficha.
   'mesa:fechar': { rota: '/admin/caixa', o: 'fechar a conta da mesa' },
   'mesa:imprimir': { app: 'comanda' },
   'entrega:confirmar': { rota: '/admin/caixa', o: 'confirmar o recebimento' },

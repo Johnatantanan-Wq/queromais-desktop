@@ -244,8 +244,10 @@ function htmlDoCaixa(dados, estado) {
     return '<div>' + barraAbas
       + '<div style="display:flex;justify-content:flex-end;margin-bottom:14px">' + selo + '</div>'
       + '<div class="ecard"><div class="evazio"><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:6px">Caixa fechado</div>'
-      + 'Nenhum caixa aberto agora. Abra o caixa para fechar contas de mesa e confirmar recebimentos de entrega.<br>'
-      + 'Abrir e fechar o caixa ainda é pelo painel.</div></div></div>'
+      + 'Nenhum caixa aberto agora. Abra o caixa para fechar contas de mesa e confirmar recebimentos de entrega.'
+      + '<div style="margin-top:16px"><button type="button" data-acao="caixa:abrir" style="height:38px;padding:0 20px;'
+      + 'border:none;border-radius:10px;background:var(--acento);color:#fff;font-family:inherit;font-size:13px;'
+      + 'font-weight:800;cursor:pointer">Abrir caixa</button></div></div></div></div>'
   }
 
   // Subabas: Mesas só existe em loja que tem mesa (o painel faz o mesmo).
@@ -339,7 +341,7 @@ function movimentacoesHtml(dados, selo) {
     + '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">' + cabecalho
     + (linhas || '<div class="evazio">Nenhuma movimentação neste caixa ainda.</div>') + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
-    + (dados.movimentacoes || []).length + ' movimentações · sangria e fechamento ainda são pelo painel</div></div>'
+    + (dados.movimentacoes || []).length + ' movimentações · estornar movimentação ainda é pelo painel</div></div>'
 }
 
 module.exports = { htmlDoCaixa, fmtBRL, fmtHora, idadeDoDado, rotuloTipo, rotuloForma, tempoLongo, esc }

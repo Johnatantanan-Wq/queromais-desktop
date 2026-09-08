@@ -112,6 +112,7 @@ if (typeof document !== 'undefined') {
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
   const TelaQuadro = require('./tela-quadro')
+  const CaixaAcoes = require('../../src-electron/caixa-acoes')
   const TelaVisaoGeral = require('./tela-visao-geral')
   const Acoes = require('./acoes')
 
@@ -857,6 +858,19 @@ if (typeof document !== 'undefined') {
         .then(() => carregarTelaNativa(ROTA))
       return
     }
+    // Motivo da sangria: o painel usa para decidir se ela vira despesa no financeiro.
+    const btMotivo = e.target.closest ? e.target.closest('[data-motivo-caixa]') : null
+    if (btMotivo) {
+      MOTIVO_CAIXA = btMotivo.getAttribute('data-motivo-caixa')
+      const todos = document.querySelectorAll('#eloFicha [data-motivo-caixa]')
+      for (const b of todos) {
+        const escolhido = b.getAttribute('data-motivo-caixa') === MOTIVO_CAIXA
+        b.style.background = escolhido ? 'var(--acento-suave)' : '#eef0f3'
+        b.style.color = escolhido ? 'var(--acento-texto)' : '#4b5563'
+        b.style.fontWeight = escolhido ? '800' : '600'
+      }
+      return
+    }
     const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
     if (btAcao) {
       const acao = btAcao.getAttribute('data-acao')
@@ -876,6 +890,51 @@ if (typeof document !== 'undefined') {
       }
       if (acao === 'impressao:teste' || acao === 'impressao:comanda') {
         imprimirComanda(btAcao, null, acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda')
+        return
+      }
+
+      // Caixa: sangria, suprimento e fechamento. O painel continua lançando a
+      // movimentação, decidindo se a sangria vira despesa e gravando a auditoria —
+      // o app abre a ficha, confere o que dá para conferir aqui e manda.
+      if (acao === 'caixa:sangria' || acao === 'caixa:suprimento') {
+        const tipo = acao.split(':')[1]
+        abrirFicha(tipo === 'sangria' ? 'Sangria' : 'Suprimento',
+          Ficha.fichaMovimentacao(tipo, CaixaAcoes.MOTIVOS_SANGRIA))
+        return
+      }
+      if (acao === 'caixa:fechar') {
+        abrirFicha('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA))
+        return
+      }
+      if (acao === 'caixa:abrir') { abrirFicha('Abrir caixa', Ficha.fichaAbertura()); return }
+      if (acao === 'caixa:abrir:confirmar') {
+        mandarAoCaixa(btAcao, 'caixa-abrir', {
+          fundo: campoDaFicha('fundo'),
+          observacao: campoDaFicha('observacao'),
+          caixaAberto: !!(DADOS_TELA && DADOS_TELA.aberto),
+        })
+        return
+      }
+      if (acao === 'caixa:mov:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('caixa:mov:confirmar:') === 0) {
+        const tipo = acao.split(':').pop()
+        mandarAoCaixa(btAcao, 'caixa-movimentacao', {
+          tipo,
+          valor: campoDaFicha('valor'),
+          motivo: MOTIVO_CAIXA,
+          descricao: campoDaFicha('descricao'),
+          caixaAberto: !!(DADOS_TELA && DADOS_TELA.aberto),
+        })
+        return
+      }
+      if (acao === 'caixa:fechar:confirmar') {
+        mandarAoCaixa(btAcao, 'caixa-fechar', {
+          dinheiro: campoDaFicha('dinheiro'),
+          pix: campoDaFicha('pix'),
+          cartao: campoDaFicha('cartao'),
+          observacao: campoDaFicha('observacao'),
+          caixaAberto: !!(DADOS_TELA && DADOS_TELA.aberto),
+        })
         return
       }
 
@@ -1114,6 +1173,32 @@ if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') fecharFicha()
   })
+
+  // ── ficha do caixa ──
+  let MOTIVO_CAIXA = null
+  const campoDaFicha = (nome) => {
+    const el = document.querySelector('#eloFicha [data-campo="' + nome + '"]')
+    return el ? el.value : ''
+  }
+
+  /** Manda a ação do caixa e devolve o resultado para a tela — nunca finge sucesso. */
+  function mandarAoCaixa(bt, canal, args) {
+    bt.disabled = true
+    ipcRenderer.invoke(canal, args).then((r) => {
+      if (r && r.ok) {
+        fecharFicha()
+        MOTIVO_CAIXA = null
+        avisar(r.resumo || 'Pronto.', 'ok')
+        carregarTelaNativa(ROTA)
+      } else {
+        bt.disabled = false
+        avisar((r && r.erro) || 'Não deu para lançar.', 'erro')
+      }
+    }).catch(() => {
+      bt.disabled = false
+      avisar('Não deu para falar com o painel. Nada foi lançado.', 'erro')
+    })
+  }
 
   ipcRenderer.on('rota-mudou', (e, rota) => {
     // A view por trás não manda no menu: com uma tela nativa na frente (ou em

@@ -595,7 +595,8 @@ async function createWindow() {
             criadoEm: v.criadoEm, estornada: false,
           })).concat(caixa.movimentacoes)
         }
-        return { dados: caixa, offline: false, ts: Date.now(), demo: true }
+        // E o que foi lançado no caixa pelo app (sangria/suprimento) entra por cima.
+        return { dados: registroCaixa.aplicar(caixa), offline: false, ts: Date.now(), demo: true }
       })
       ipcMain.handle('visao-geral-carregar', (e, a) => ({ dados: dadosDemo.visaoGeral(a && a.periodo), offline: false, ts: Date.now(), demo: true }))
       const listasDemo = dadosDemo.listas()
@@ -641,6 +642,24 @@ async function createWindow() {
       // Em demonstração o quadro anda de verdade: "Aceitar" move o cartão de coluna e
       // ele fica lá. Sem servidor, o registro mora na memória desta sessão.
       const registroEtapas = require('./pedidos-locais').criarRegistro()
+      // O caixa também anda em demonstração: sangria e suprimento entram nas
+      // movimentações do turno e mudam o dinheiro esperado na gaveta.
+      const registroCaixa = require('./caixa-local').criarRegistro()
+      const acoesCaixa = require('./caixa-acoes')
+      ipcMain.handle('caixa-movimentacao', (e, args) => {
+        const d = acoesCaixa.movimentacao({ ...(args || {}), caixaAberto: true })
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCaixa.lancar({ tipo: args.tipo, valor: d.corpo.valor, motivo: d.corpo.motivo })
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('caixa-fechar', (e, args) => {
+        const d = acoesCaixa.fechamento({ ...(args || {}), caixaAberto: true })
+        return d.ok ? { ok: true, resumo: d.resumo, demo: true } : { ok: false, erro: d.motivo }
+      })
+      ipcMain.handle('caixa-abrir', (e, args) => {
+        const d = acoesCaixa.abertura({ ...(args || {}), caixaAberto: false })
+        return d.ok ? { ok: true, resumo: d.resumo, demo: true } : { ok: false, erro: d.motivo }
+      })
       ipcMain.handle('pedido-avancar', (e, args) => {
         const pedido = (args && args.pedido) || {}
         const nova = registroEtapas.avancar(pedido.numero, args && args.etapa)
@@ -721,6 +740,7 @@ async function createWindow() {
     // Mexer no pedido (aceitar → produzir → pronto → entregar) passa pela mesma view
     // logada. Em demonstração o quadro anda sozinho, sem rede — ver mais acima.
     if (!DEMO) require('./pedido-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

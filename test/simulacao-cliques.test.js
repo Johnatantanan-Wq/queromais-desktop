@@ -19,6 +19,7 @@ const pedidosLocais = require('../src-electron/pedidos-locais')
 // recriado a cada teste: a varredura de botões avança tudo, e o próximo teste
 // começaria com o quadro no fim.
 let etapasDeTeste = pedidosLocais.criarRegistro()
+let caixaLocal = require('../src-electron/caixa-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -37,7 +38,17 @@ function responder(canal, args) {
   if (canal === 'app-info') return { demo: modoDemo, versao: 'teste' }
   if (canal === 'rede-status') return { online: true, demo: true }
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
-  if (canal === 'caixa-carregar') return ok(demo.caixa())
+  if (canal === 'caixa-carregar') return ok(caixaLocal.aplicar(demo.caixa()))
+  if (canal === 'caixa-movimentacao') {
+    const d = require('../src-electron/caixa-acoes').movimentacao({ ...args, caixaAberto: true })
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    caixaLocal.lancar({ tipo: args.tipo, valor: d.corpo.valor, motivo: d.corpo.motivo })
+    return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'caixa-fechar') {
+    const d = require('../src-electron/caixa-acoes').fechamento({ ...args, caixaAberto: true })
+    return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
+  }
   if (canal === 'cozinha-carregar') return ok(demo.operacao().cozinha)
   if (canal === 'bar-carregar') return ok(demo.operacao().bar)
   if (canal === 'salao-carregar') return ok(demo.operacao().salao)
@@ -150,7 +161,7 @@ async function irParaVenda() {
   await esperar(60)
 }
 
-beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro() })
+beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -165,13 +176,52 @@ test('clicar num item do menu troca a tela', async () => {
   assert.ok(chamadas.some((c) => c.canal === 'caixa-carregar'), 'a tela pede o dado dela')
 })
 
-test('botão de escrita responde: avisa e tenta abrir o painel', async () => {
+test('sangria abre a ficha com o campo de valor — não manda mais para o painel', async () => {
   await abrirApp()
   await irPara('/admin/caixa')
   clicar($('[data-acao="caixa:sangria"]'))
   await esperar(30)
-  assert.ok(aviso().className.includes('on'), 'a faixa precisa aparecer')
-  assert.ok(/lançar sangria|painel/i.test(aviso().textContent), 'e dizer o que aconteceria: ' + aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'a ficha da sangria precisa abrir')
+  assert.ok(doc.querySelector('#eloFicha [data-campo="valor"]'), 'com campo de valor')
+  assert.ok(doc.querySelector('#eloFicha [data-motivo-caixa]'), 'e os motivos que o painel conhece')
+})
+
+test('sangria sem valor é recusada na hora, com frase de gente', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  clicar($('[data-acao="caixa:sangria"]'))
+  await esperar(30)
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:mov:confirmar"]'))
+  await esperar(50)
+  assert.ok(/maior que zero/i.test(aviso().textContent), 'esperava recusa: ' + aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'e a ficha continua aberta para corrigir')
+})
+
+test('sangria com valor lança, fecha a ficha e o caixa muda', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  const antes = conteudo()
+  clicar($('[data-acao="caixa:sangria"]'))
+  await esperar(30)
+  doc.querySelector('#eloFicha [data-campo="valor"]').value = '150,50'
+  clicar(doc.querySelector('#eloFicha [data-motivo-caixa]'))
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:mov:confirmar"]'))
+  await esperar(80)
+  assert.ok(chamadas.some((c) => c.canal === 'caixa-movimentacao'), 'tem de chamar o canal do caixa')
+  assert.ok(/150,50/.test(aviso().textContent), 'o aviso diz o valor: ' + aviso().textContent)
+  assert.ok(!doc.getElementById('eloFicha'), 'a ficha fecha depois de lançar')
+  assert.notStrictEqual(conteudo(), antes, 'a tela do caixa se redesenha')
+})
+
+test('fechar caixa pede os três contados antes de deixar fechar', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  clicar($('[data-acao="caixa:fechar"]'))
+  await esperar(30)
+  assert.ok(doc.querySelector('#eloFicha [data-campo="dinheiro"]'), 'a ficha do fechamento abre')
+  clicar(doc.querySelector('#eloFicha [data-acao="caixa:fechar:confirmar"]'))
+  await esperar(50)
+  assert.ok(/dinheiro, Pix e cartão/i.test(aviso().textContent), 'esperava a recusa: ' + aviso().textContent)
 })
 
 test('na subaba Delivery, cada cartão tem o botão da sua fase e ele responde', async () => {
