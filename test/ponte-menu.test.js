@@ -65,3 +65,28 @@ test('resposta malformada do servidor não sobrescreve o cache bom', async () =>
   assert.strictEqual(r.offline, true)
   assert.strictEqual(r.dados.secoes.length, 1)
 })
+
+test('o menu guardado volta mesmo quando o config ainda não sabe a loja', async () => {
+  // O bug de 07/09: gravava em 'menu|<id>' (id vindo do servidor) e lia em
+  // 'menu|sem-loja' (config vazio até descobrirLoja rodar). O cache existia em disco
+  // e nunca voltava — a barra sumia assim que o painel parava de responder.
+  const cache = cacheFalso()
+  const doPainel = { secoes: [{ titulo: 'Principal', itens: [{ href: '/admin' }] }], loja: { id: 'loja-77' } }
+  await buscarMenu({ cache, pedirAoPainel: async () => doPainel, lojaId: null })
+
+  const depois = await buscarMenu({ cache, pedirAoPainel: async () => null, lojaId: null })
+  assert.strictEqual(depois.offline, true)
+  assert.ok(!depois.base, 'tinha cache: não é para cair no menu base')
+  assert.strictEqual(depois.dados.loja.id, 'loja-77', 'o menu guardado tem de voltar')
+})
+
+test('o config manda: trocando de loja, o cache da outra não vaza', async () => {
+  const cache = cacheFalso()
+  await buscarMenu({
+    cache, lojaId: null,
+    pedirAoPainel: async () => ({ secoes: [{ titulo: 'A', itens: [] }], loja: { id: 'loja-77' } }),
+  })
+  // agora o lojista está em outra loja e o painel não responde
+  const r = await buscarMenu({ cache, pedirAoPainel: async () => null, lojaId: 'loja-99' })
+  assert.strictEqual(r.base, true, 'sem cache da loja-99, entra o menu do app — nunca o da loja-77')
+})

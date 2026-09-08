@@ -21,6 +21,7 @@ const registroDeTeste = require('../src-electron/vendas-locais').criarRegistro({
 let modoDemo = true
 // `painelResponde` desliga para simular a sessão caída: o painel não devolve menu.
 let painelResponde = true
+let ouvintes = {}
 const chamadas = []
 function responder(canal, args) {
   chamadas.push({ canal, args })
@@ -84,7 +85,7 @@ before(() => {
         ipcRenderer: {
           invoke: (canal, args) => Promise.resolve(responder(canal, args)),
           send: (canal, args) => { chamadas.push({ canal, args }) },
-          on: () => {},
+          on: (canal, fn) => { (ouvintes[canal] = ouvintes[canal] || []).push(fn) },
         },
       }
     }
@@ -96,6 +97,7 @@ before(() => {
 async function abrirApp() {
   const html = fs.readFileSync(path.join(raiz, 'renderer', 'elo', 'index.html'), 'utf8')
     .replace('<script src="shell.js"></script>', '')
+  ouvintes = {}
   dom = new JSDOM(html, { url: 'http://localhost/', pretendToBeVisual: true, runScripts: 'outside-only' })
   win = dom.window
   doc = win.document
@@ -518,5 +520,25 @@ test('painel sem responder: a barra lateral ainda traz as telas do app', async (
     assert.ok(doc.querySelector('[data-href="/admin/pedidos"]'), 'a Gestão de pedido também')
     await irPara('/admin/caixa')
     assert.ok(chamadas.some((c) => c.canal === 'caixa-carregar'), 'e clicar nela pede o dado dela')
+  } finally { modoDemo = true; painelResponde = true }
+})
+
+/** Dispara um aviso do main para o renderer, como o ipcRenderer.on receberia. */
+function avisarDoMain(canal, args) { (ouvintes[canal] || []).forEach((fn) => fn({}, args)) }
+
+test('quando o painel fica pronto, o menu e a tela recarregam na hora', async () => {
+  // Sem este aviso o app esperava o ciclo de 30s: a barra e os números apareciam
+  // "aos poucos" depois de abrir, e era isso que se via na tela.
+  modoDemo = false
+  painelResponde = false
+  try {
+    await abrirApp()
+    assert.ok(doc.querySelectorAll('.erailitem').length >= 20, 'a barra sobe com o menu do app')
+    painelResponde = true
+    chamadas.length = 0
+    avisarDoMain('painel-pronto')
+    await esperar(60)
+    assert.ok(chamadas.some((c) => c.canal === 'menu-carregar'), 'pede o menu do painel na hora')
+    assert.ok(chamadas.some((c) => c.canal === 'visao-geral-carregar'), 'e recarrega a tela aberta')
   } finally { modoDemo = true; painelResponde = true }
 })

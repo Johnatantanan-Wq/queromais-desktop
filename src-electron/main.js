@@ -417,12 +417,21 @@ async function createWindow() {
       const data = await wc.executeJavaScript(
         "fetch('/api/admin/loja',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
       if (data && data.id) {
+        const eraOutra = getConfig().lojaId !== data.id
         setConfig({ loja_id: data.id, loja_slug: data.slug || '', loja_nome: data.nome || '' })
         log.info(`[CONFIG] loja descoberta pela sessão do admin: ${data.nome || data.id}`)
+        // Avisa a tela na hora. Sem isto o shell só descobria no tick seguinte do
+        // menu (30s): a barra e os números entravam "aos poucos" depois de abrir.
+        if (eraOutra) { try { global.mainWindow?.webContents.send('painel-pronto') } catch (e) {} }
       }
     } catch (e) { log.warn('[CONFIG] descobrirLoja falhou:', e && e.message) }
   }
-  global.cardapioView.webContents.on('did-finish-load', () => { descobrirLoja() })
+  global.cardapioView.webContents.on('did-finish-load', () => {
+    descobrirLoja()
+    // A view terminou de carregar: se há sessão, o menu e as telas do painel já
+    // respondem. Pedir agora evita a espera do ciclo de 30 segundos.
+    try { global.mainWindow?.webContents.send('painel-pronto') } catch (e) {}
+  })
   setInterval(descobrirLoja, 5 * 60 * 1000) // cobre login feito depois do boot
 
   // Captura a sessão REAL do admin (access_token/refresh_token) da mesma view

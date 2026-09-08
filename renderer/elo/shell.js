@@ -1099,6 +1099,12 @@ if (typeof document !== 'undefined') {
     ROTA = rota
     pintar()
   })
+  // O painel acabou de carregar (ou a loja foi descoberta): o menu e os números já
+  // podem vir. Sem isto o app esperava até 30s e a tela ia se preenchendo aos poucos.
+  ipcRenderer.on('painel-pronto', () => {
+    carregarMenu()
+    if (ehNativa(ROTA)) carregarTelaNativa(ROTA)
+  })
   ipcRenderer.on('rede-mudou', (e, online) => {
     ONLINE = online
     pintar()

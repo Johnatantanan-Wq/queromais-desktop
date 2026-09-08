@@ -7,6 +7,18 @@ const { TELAS, SEM_API } = require('./telas-ponte')
 // A chamada ao painel vai POR DENTRO da BrowserView já logada — mesmo caminho do
 // ping de presença (main.js:509-514): sem token novo, sem sessão paralela.
 
+/** A loja que manda na chave do cache. O `lojaId` do config só existe depois que a
+ *  sessão do painel é lida (main.js descobrirLoja) — antes disso tudo caía em
+ *  'sem-loja' e, quando o id aparecia no meio da sessão, a chave mudava e o dado
+ *  guardado antes "sumia". O ponteiro segura a última loja conhecida para que a
+ *  chave não mude embaixo do app. Ele nunca ganha do config: se o lojista trocou de
+ *  loja, o id de lá é que vale, e cache de uma loja não vaza para a outra. */
+function lojaDaVez(cache, lojaId) {
+  if (lojaId) return lojaId
+  const p = cache.get('ultima-loja')
+  return (p && p.body && p.body.id) || 'sem-loja'
+}
+
 /** Busca o menu no painel; caindo a rede, devolve o último bom do cache. */
 async function buscarMenu({ cache, pedirAoPainel, lojaId }) {
   let doServidor = null
@@ -18,10 +30,15 @@ async function buscarMenu({ cache, pedirAoPainel, lojaId }) {
   if (doServidor && Array.isArray(doServidor.secoes)) {
     const id = (doServidor.loja && doServidor.loja.id) || lojaId || 'sem-loja'
     cache.set('menu|' + id, { status: 200, body: doServidor })
+    // Ponteiro para a última loja que ESTE app viu. Sem ele o menu era GRAVADO em
+    // 'menu|<id da loja>' e LIDO em 'menu|sem-loja' — chaves diferentes, cache que
+    // nunca voltava. É o que fazia a barra sumir assim que o painel parava de
+    // responder, mesmo com o menu guardado em disco (visto 07/09).
+    cache.set('ultima-loja', { status: 200, body: { id } })
     return { dados: doServidor, offline: false, ts: Date.now() }
   }
 
-  const guardado = cache.get('menu|' + (lojaId || 'sem-loja'))
+  const guardado = cache.get('menu|' + lojaDaVez(cache, lojaId))
   if (guardado) return { dados: guardado.body, offline: true, ts: guardado.ts }
 
   // Nem servidor nem cache: o app ainda tem o menu DELE. Sem isto a barra lateral
@@ -71,7 +88,7 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   // loja não pode vazar para outra quando o lojista troca de loja.
   ipcMain.handle('caixa-carregar', () => buscarTela({
     cache,
-    chave: 'caixa|' + (lojaIdAtual() || 'sem-loja'),
+    chave: 'caixa|' + lojaDaVez(cache, lojaIdAtual()),
     pedirAoPainel: () => pedirTela('/api/admin/caixa/resumo'),
     valida: (d) => Object.prototype.hasOwnProperty.call(d, 'aberto'),
   }))
@@ -88,7 +105,7 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
       for (const k of Object.keys(tela.rotas)) rotas[k] = tela.rotas[k] + sufixo
       return buscarTela({
         cache,
-        chave: tela.cache + sufixo + '|' + (lojaIdAtual() || 'sem-loja'),
+        chave: tela.cache + sufixo + '|' + lojaDaVez(cache, lojaIdAtual()),
         pedirAoPainel: async () => {
           const bruto = await buscarVarias({ rotas, pedirTela })
           if (tela.valida && !tela.valida(bruto)) return null
@@ -108,4 +125,5 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   }
 }
 
-module.exports = { buscarMenu, buscarTela, buscarVarias, registrar }
+module.exports = {
+  lojaDaVez, buscarMenu, buscarTela, buscarVarias, registrar }
