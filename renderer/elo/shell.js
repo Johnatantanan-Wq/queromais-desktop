@@ -113,6 +113,8 @@ if (typeof document !== 'undefined') {
   const TelaCaixa = require('./tela-caixa')
   const TelaQuadro = require('./tela-quadro')
   const TelaWhatsapp = require('./tela-whatsapp')
+  const Busca = require('./busca-global')
+  const Avisos = require('./avisos')
   const CaixaAcoes = require('../../src-electron/caixa-acoes')
   const TelaVisaoGeral = require('./tela-visao-geral')
   const Acoes = require('./acoes')
@@ -168,6 +170,14 @@ if (typeof document !== 'undefined') {
 
   function pintar() {
     $('erailNav').innerHTML = htmlDoMenu(MENU, ROTA, ONLINE)
+    // Bolinha do sino: só aparece quando há o que fazer. Sino com "0" é ruído.
+    // Mora aqui, e não no view-changed, porque quem muda a conta é o MENU.
+    const pendentes = Avisos.total(MENU)
+    const bolinha = $('sinoContador')
+    if (bolinha) {
+      bolinha.textContent = pendentes > 99 ? '99+' : String(pendentes)
+      bolinha.style.display = pendentes > 0 ? 'block' : 'none'
+    }
     $('etitle').textContent = tituloDaRota(MENU, ROTA)
     $('edate').textContent = dataPorExtenso(new Date())
     const loja = (MENU && MENU.loja) || {}
@@ -929,6 +939,15 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    const btAviso = e.target.closest ? e.target.closest('[data-aviso]') : null
+    if (btAviso) {
+      const rota = btAviso.getAttribute('data-aviso')
+      fecharFicha()
+      if (rota !== ROTA) { ROTA = rota; pintar(); abrirRota(ROTA) }
+      return
+    }
+    const btBusca = e.target.closest ? e.target.closest('[data-busca-idx]') : null
+    if (btBusca) { irParaResultado(Number(btBusca.getAttribute('data-busca-idx'))); return }
     const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
     if (btAcao) {
       const acao = btAcao.getAttribute('data-acao')
@@ -1188,6 +1207,38 @@ if (typeof document !== 'undefined') {
     VIEW = VIEW === 'split' ? 'cardapio' : 'split'
     ipcRenderer.send('change-view', { view: VIEW })
   })
+  $('btnBusca').addEventListener('click', abrirBusca)
+  $('btnSino').addEventListener('click', () => {
+    abrirPopup('Avisos', Avisos.corpo(MENU), 460)
+  })
+
+  // ⌘K / Ctrl+K abre; Esc fecha; setas andam; Enter escolhe. Quem opera o balcão não
+  // larga o teclado para caçar um menu com o mouse.
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault()
+      abrirBusca()
+      return
+    }
+    const naBusca = document.getElementById('buscaGlobal')
+    if (!naBusca) {
+      if (e.key === 'Escape' && document.getElementById('eloFicha')) fecharFicha()
+      return
+    }
+    if (e.key === 'Escape') { fecharFicha(); return }
+    const achados = Busca.achar(MENU, BUSCA_TERMO)
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!achados.length) return
+      BUSCA_ATIVO = (BUSCA_ATIVO + (e.key === 'ArrowDown' ? 1 : achados.length - 1)) % achados.length
+      desenharBusca()
+      const campo = document.getElementById('buscaGlobal')
+      if (campo) { campo.focus(); campo.setSelectionRange(campo.value.length, campo.value.length) }
+      return
+    }
+    if (e.key === 'Enter') { e.preventDefault(); irParaResultado(BUSCA_ATIVO) }
+  })
+
   $('btnWhats').addEventListener('click', () => {
     VIEW = VIEW === 'whatsapp' ? 'cardapio' : 'whatsapp'
     ipcRenderer.send('change-view', { view: VIEW })
@@ -1196,6 +1247,15 @@ if (typeof document !== 'undefined') {
   // Busca: filtra o que já está na tela, sem nova consulta. O input não é recriado
   // (recriar a cada tecla faria o cursor pular), então só a grade é redesenhada.
   document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'buscaGlobal') {
+      BUSCA_TERMO = e.target.value
+      BUSCA_ATIVO = 0
+      const pos = e.target.selectionStart
+      desenharBusca()
+      const campo = document.getElementById('buscaGlobal')
+      if (campo) { campo.focus(); campo.setSelectionRange(pos, pos) }
+      return
+    }
     if (e.target && e.target.id === 'buscaCardapio') {
       TERMO['/admin/cardapio'] = e.target.value
       const pos3 = e.target.selectionStart
@@ -1291,6 +1351,42 @@ if (typeof document !== 'undefined') {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') fecharFicha()
   })
+
+  // ── busca do topo (⌘K) ──
+  let BUSCA_TERMO = ''
+  let BUSCA_ATIVO = 0
+
+  function abrirBusca() {
+    BUSCA_TERMO = ''
+    BUSCA_ATIVO = 0
+    desenharBusca()
+    const campo = document.getElementById('buscaGlobal')
+    if (campo) campo.focus()
+  }
+  function desenharBusca() {
+    // Sem título e sem ✕: a busca é uma caixa de comando, não uma ficha. Esc fecha.
+    fecharFicha()
+    const div = document.createElement('div')
+    div.innerHTML = Ficha.popup('', Busca.corpo(MENU, BUSCA_TERMO, BUSCA_ATIVO), 640)
+      .replace(/<div style="display:flex;align-items:center;justify-content:space-between[\s\S]*?<\/button><\/div>/, '')
+      .replace('padding:22px 24px', 'padding:0')
+    document.body.appendChild(div.firstChild)
+  }
+  function irParaResultado(i) {
+    const achados = Busca.achar(MENU, BUSCA_TERMO)
+    const alvo = achados[i]
+    if (!alvo) return
+    fecharFicha()
+    if (alvo.rota && alvo.rota !== ROTA) { ROTA = alvo.rota; pintar(); abrirRota(ROTA) }
+    // A ação depende da tela estar carregada: espera o desenho antes de clicar nela.
+    if (alvo.acao) {
+      setTimeout(() => {
+        const bt = document.querySelector('#econtent [data-acao="' + alvo.acao + '"]')
+        if (bt) bt.click()
+        else avisar('Abri ' + alvo.onde + ' — a ação está aqui.', 'ok')
+      }, 260)
+    }
+  }
 
   // ── WhatsApp ──
   // O QR vive só enquanto o pareamento não termina: é da sessão, não do cache.

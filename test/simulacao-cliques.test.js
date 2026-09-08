@@ -702,3 +702,59 @@ test('Configurações › Impressora mostra a impressora DESTE computador', asyn
   assert.ok(/POS-80/.test(conteudo()), 'a impressora escolhida aparece')
   assert.ok(!/ainda não veio para o app/.test(conteudo()), 'não pode mais mandar para o painel')
 })
+
+test('⌘K abre a busca, digitar filtra e Enter abre a tela', async () => {
+  await abrirApp()
+  const atalho = new win.KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true })
+  doc.dispatchEvent(atalho)
+  await esperar(40)
+  const campo = doc.getElementById('buscaGlobal')
+  assert.ok(campo, 'a busca precisa abrir com ⌘K')
+
+  campo.value = 'entregador'
+  campo.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(40)
+  assert.ok(/Entregadores/.test(doc.getElementById('buscaLista').innerHTML))
+
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+  await esperar(80)
+  assert.ok(!doc.getElementById('buscaGlobal'), 'a busca fecha ao escolher')
+  assert.ok(chamadas.some((c) => c.canal === 'entregadores-carregar'), 'e a tela escolhida carrega')
+})
+
+test('Esc fecha a busca sem levar a lugar nenhum', async () => {
+  await abrirApp()
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }))
+  await esperar(40)
+  assert.ok(doc.getElementById('buscaGlobal'))
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+  await esperar(40)
+  assert.ok(!doc.getElementById('eloFicha'), 'fechou')
+})
+
+test('a busca acha AÇÃO e executa: sangria abre a janela do caixa', async () => {
+  await abrirApp()
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true }))
+  await esperar(40)
+  const campo = doc.getElementById('buscaGlobal')
+  campo.value = 'sangria'
+  campo.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(40)
+  clicar(doc.querySelector('[data-busca-idx="0"]'))
+  await esperar(400)
+  assert.ok(chamadas.some((c) => c.canal === 'caixa-carregar'), 'foi para o Caixa')
+  assert.ok(doc.querySelector('#eloFicha [data-campo="valor"]'), 'e a janela da sangria abriu sozinha')
+})
+
+test('o sino mostra o que está esperando e leva à tela', async () => {
+  await abrirApp()
+  const bolinha = doc.getElementById('sinoContador')
+  assert.strictEqual(bolinha.textContent, '7', 'a demonstração tem 5 pedidos + 2 carrinhos')
+  assert.strictEqual(bolinha.style.display, 'block')
+  clicar(doc.getElementById('btnSino'))
+  await esperar(40)
+  assert.ok(/pedidos esperando resposta/.test(doc.getElementById('eloFicha').innerHTML))
+  clicar(doc.querySelector('[data-aviso="/admin/pedidos"]'))
+  await esperar(80)
+  assert.ok(chamadas.some((c) => c.canal === 'pedidos-carregar'), 'o aviso leva à Gestão de pedido')
+})
