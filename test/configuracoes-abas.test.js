@@ -142,3 +142,54 @@ test('numeração e tempo zero não somem da tela', () => {
   const tempos = d.abas.config.find((s) => /Pix e tempos/.test(s.titulo)).campos
   assert.strictEqual(tempos.find((c) => /delivery/.test(c.rotulo)).valor, '0', 'zero é resposta, não vazio')
 })
+
+// ── Formas de pagamento ──
+const formasBase = [
+  { metodo: 'dinheiro', habilitado: true, tipo_vencimento: 'a_vista', tipos: ['entrega', 'retirada', 'balcao'] },
+  { metodo: 'debito', habilitado: true, tipo_vencimento: 'recebivel', dias_recebimento: 1,
+    taxa_operadora_pct: 1.99, taxa_extra: 1.98, tipos: ['entrega'], conta_financeira_id: 'c1' },
+  { metodo: 'pix', habilitado: false, tipo_vencimento: 'a_vista', taxa_extra: 1, taxa_extra_tipo: 'percentual' },
+]
+const contasBase = [{ id: 'c1', nome: 'Banco Inter', tipo: 'banco' }]
+
+test('cada forma diz quando o dinheiro entra — é o que muda o caixa', () => {
+  const d = A.configuracoes({ lojaResp: loja, formasResp: formasBase, contasResp: contasBase })
+  const campos = d.abas.pagamento[0].campos
+  assert.ok(/à vista/.test(campos[0].valor), 'dinheiro é à vista')
+  assert.ok(/recebível em 1 dia útil/.test(campos[1].valor), 'débito em D+1: ' + campos[1].valor)
+})
+
+test('forma desligada continua na lista, dizendo que está desligada', () => {
+  // Sumir da lista deixaria o lojista sem entender por que o Pix não aparece no checkout.
+  const d = A.configuracoes({ lojaResp: loja, formasResp: formasBase, contasResp: contasBase })
+  const pix = d.abas.pagamento[0].campos.find((c) => c.rotulo === 'Pix')
+  assert.ok(pix, 'o Pix não pode sumir')
+  assert.ok(/^desligada/.test(pix.valor), pix.valor)
+  assert.ok(/Aceitas no cardápio \(2 de 3\)/.test(d.abas.pagamento[0].titulo))
+})
+
+test('taxa da operadora e taxa extra são coisas diferentes e aparecem separadas', () => {
+  const d = A.configuracoes({ lojaResp: loja, formasResp: formasBase, contasResp: contasBase })
+  const debito = d.abas.pagamento[0].campos[1].valor
+  assert.ok(/operadora 1,99%/.test(debito), 'o que a operadora leva: ' + debito)
+  assert.ok(/taxa extra R\$ 1,98/.test(debito), 'o que a loja cobra a mais: ' + debito)
+})
+
+test('taxa extra em percentual não é lida como reais', () => {
+  const d = A.configuracoes({ lojaResp: loja, formasResp: formasBase })
+  const pix = d.abas.pagamento[0].campos.find((c) => c.rotulo === 'Pix')
+  assert.ok(/taxa extra 1%/.test(pix.valor), pix.valor)
+  assert.ok(!/R\$/.test(pix.valor), 'percentual não vira reais')
+})
+
+test('a conta de destino aparece pelo nome, não pelo id', () => {
+  const d = A.configuracoes({ lojaResp: loja, formasResp: formasBase, contasResp: contasBase })
+  assert.ok(/cai em Banco Inter/.test(d.abas.pagamento[0].campos[1].valor))
+  assert.ok(!/c1/.test(d.abas.pagamento[0].campos[1].valor), 'o id não vaza para a tela')
+  assert.strictEqual(d.abas.pagamento[1].campos[0].valor, 'Banco')
+})
+
+test('sem formas cadastradas a aba fica vazia, sem inventar linha', () => {
+  assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, formasResp: [] }).abas.pagamento, [])
+  assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, formasResp: null }).abas.pagamento, [])
+})

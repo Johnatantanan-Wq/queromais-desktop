@@ -691,3 +691,14 @@ test('WhatsApp: App Desktop embute a conversa e o botão troca', async () => {
   assert.ok(pedido && pedido.args.view === 'whatsapp', 'a janela do WhatsApp vem para a frente')
   assert.ok(doc.querySelector('#econtent [data-acao="whatsapp:fechar-web"]'), 'o botão passa a oferecer fechar')
 })
+
+test('Configurações › Impressora mostra a impressora DESTE computador', async () => {
+  // Não vem do painel: a impressora é local. Antes a aba caía em "ainda não veio".
+  await abrirApp()
+  await irPara('/admin/configuracoes')
+  clicar(doc.querySelector('[data-aba-cfg="impressora"]'))
+  await esperar(60)
+  assert.ok(/Neste computador/.test(conteudo()), 'a aba precisa da seção local: ' + conteudo().slice(0, 200))
+  assert.ok(/POS-80/.test(conteudo()), 'a impressora escolhida aparece')
+  assert.ok(!/ainda não veio para o app/.test(conteudo()), 'não pode mais mandar para o painel')
+})

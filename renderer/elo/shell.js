@@ -380,8 +380,26 @@ if (typeof document !== 'undefined') {
   }
   NATIVAS['/admin/configuracoes'] = {
     canal: 'configuracoes-carregar',
-    desenhar: (d, e) => Finais.htmlConfiguracoes(d, { ...e, abaCfg: ABA_CFG, subCfg: SUB_CFG }),
+    desenhar: (d, e) => Finais.htmlConfiguracoes(comImpressora(d), { ...e, abaCfg: ABA_CFG, subCfg: SUB_CFG }),
     erro: 'Não deu para carregar as configurações agora.',
+  }
+
+  // A aba Impressora não vem do painel: a impressora é DESTE computador. O app já
+  // sabe qual é (a tela de Impressão pergunta ao sistema), então a aba mostra o que
+  // vale aqui, em vez de repetir uma configuração de servidor que não existe.
+  let INFO_IMPRESSAO = null
+  function comImpressora(dados) {
+    if (!dados || !INFO_IMPRESSAO) return dados
+    const i = INFO_IMPRESSAO
+    const impressoras = (i.impressoras || []).length
+    return { ...dados, abas: { ...(dados.abas || {}), impressora: [
+      { titulo: 'Neste computador', colunas: 2, campos: [
+        { rotulo: 'Impressora escolhida', valor: i.impressoraAtual || '' },
+        { rotulo: 'Impressoras encontradas', valor: impressoras ? String(impressoras) : 'nenhuma' },
+        { rotulo: 'Impressão automática', valor: i.automatica ? 'ligada' : 'desligada' },
+        { rotulo: 'Vias da comanda', valor: i.vias != null ? String(i.vias) : '' },
+      ] },
+    ] } }
   }
 
   function telaDe(rota) {
@@ -1360,6 +1378,9 @@ if (typeof document !== 'undefined') {
   // quem abria o beta caía na tela de LOGIN do painel, como se o app v2 não existisse
   // (visto 07/09). Abrir a rota manda a view para fora da área de conteúdo e desenha a
   // Visão geral; se ainda não há dado, é a própria tela que diz isso.
+  // A informação da impressora serve à tela de Impressão E à aba de Configurações,
+  // então é pedida uma vez no boot e guardada.
+  ipcRenderer.invoke('impressao-info').then((r) => { INFO_IMPRESSAO = (r && r.dados) || null }).catch(() => {})
   const abrirPrimeiraTela = () => { ROTA = '/admin'; abrirRota('/admin'); pintar() }
   ipcRenderer.invoke('app-info').then((info) => {
     DEMO = !!(info && info.demo)

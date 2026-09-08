@@ -192,7 +192,7 @@ function whatsapp({ statusResp, configResp }) {
   }
 }
 
-function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp }) {
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
@@ -248,6 +248,7 @@ function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, plan
       plano: planoDaLoja(planoResp),
       gestor: appGestor(l),
       whatsapp: whatsappDaLoja(whatsappResp),
+      pagamento: formasDePagamento(formasResp, contasResp),
     },
   }
 }
@@ -319,6 +320,74 @@ function planoDaLoja(r) {
       { rotulo: 'Excedente', valor: prox.excedenteQtd != null ? String(prox.excedenteQtd) + ' pedidos' : '' },
     ] },
   ]
+}
+
+const NOME_METODO = {
+  dinheiro: 'Dinheiro', pix: 'Pix', credito: 'Cartão de crédito', debito: 'Cartão de débito',
+  cartao: 'Cartão', cartao_entrega: 'Cartão na entrega', vale: 'Vale-refeição',
+}
+const NOME_TIPO = { entrega: 'Delivery', retirada: 'Retirada', balcao: 'Balcão', consumo_local: 'Mesa', mesa: 'Mesa' }
+
+/**
+ * Formas de pagamento. O que importa nesta tela é o que muda o dinheiro: quando ele
+ * entra (à vista ou em N dias), quanto a operadora leva, o que a loja cobra a mais e
+ * para qual conta cai. Forma desligada aparece, mas dizendo que está desligada — não
+ * some da lista, senão ninguém entende por que ela não apareceu no checkout.
+ */
+function formasDePagamento(formas, contas) {
+  if (!Array.isArray(formas) || !formas.length) return []
+  const nomeDaConta = {}
+  for (const c of (Array.isArray(contas) ? contas : [])) nomeDaConta[c.id] = c.nome
+
+  const campos = formas.map((f) => {
+    const partes = []
+    if (f.habilitado === false) partes.push('desligada')
+    partes.push(recebimentoDe(f))
+    const taxa = taxaOperadoraDe(f)
+    if (taxa) partes.push('operadora ' + taxa)
+    const extra = taxaExtraDe(f)
+    if (extra) partes.push('taxa extra ' + extra)
+    const onde = (f.tipos || []).map((t) => NOME_TIPO[t] || t).filter(Boolean)
+    if (onde.length) partes.push(onde.join(' · '))
+    const conta = f.conta_financeira_id && nomeDaConta[f.conta_financeira_id]
+    if (conta) partes.push('cai em ' + conta)
+    return { rotulo: NOME_METODO[f.metodo] || f.metodo, valor: partes.join(' · ') }
+  })
+
+  const ligadas = formas.filter((f) => f.habilitado !== false).length
+  const secoes = [{ titulo: 'Aceitas no cardápio (' + ligadas + ' de ' + formas.length + ')', colunas: 1, campos }]
+
+  if (Array.isArray(contas) && contas.length) {
+    secoes.push({ titulo: 'Contas de destino', colunas: 3, campos: contas.map((c) => ({
+      rotulo: c.nome || 'Sem nome', valor: TIPO_CONTA[c.tipo] || texto(c.tipo),
+    })) })
+  }
+  return secoes
+}
+const TIPO_CONTA = { banco: 'Banco', carteira: 'Carteira/Caixa', gateway: 'Gateway/Repasse' }
+
+/** "À vista" e "recebível em 2 dias úteis" mudam o fluxo de caixa — e a tela diz qual é. */
+function recebimentoDe(f) {
+  const dias = f.dias_recebimento
+  if (f.tipo_vencimento === 'a_vista' || dias == null) return 'à vista'
+  return dias === 0 ? 'no mesmo dia' : 'recebível em ' + dias + (dias === 1 ? ' dia útil' : ' dias úteis')
+}
+function taxaOperadoraDe(f) {
+  const p = Number(f.taxa_operadora_pct) || 0
+  const v = Number(f.taxa_operadora_fixa) || 0
+  const partes = []
+  if (p) partes.push(pct(p))
+  if (v) partes.push(brl(v))
+  return partes.join(' + ')
+}
+function taxaExtraDe(f) {
+  const v = Number(f.taxa_extra) || 0
+  if (!v) return ''
+  return f.taxa_extra_tipo === 'percentual' ? pct(v) : brl(v)
+}
+function pct(v) {
+  const n = Number(v) || 0
+  return (Number.isInteger(n) ? n : n.toFixed(2).replace('.', ',')) + '%'
 }
 
 const ESTADO_WHATS = {
