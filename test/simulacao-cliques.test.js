@@ -17,12 +17,14 @@ const demo = require('../src-electron/demo-dados')
 const registroDeTeste = require('../src-electron/vendas-locais').criarRegistro({ proximoNumero: 1044 })
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
+// `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
+let modoDemo = true
 const chamadas = []
 function responder(canal, args) {
   chamadas.push({ canal, args })
   const ok = (dados) => ({ dados, offline: false, ts: Date.now(), demo: true })
   if (canal === 'menu-carregar') return ok(demo.menu())
-  if (canal === 'app-info') return { demo: true, versao: 'teste' }
+  if (canal === 'app-info') return { demo: modoDemo, versao: 'teste' }
   if (canal === 'rede-status') return { online: true, demo: true }
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
   if (canal === 'caixa-carregar') return ok(demo.caixa())
@@ -482,4 +484,19 @@ test('todo botão de toda tela do menu responde ao clique', async () => {
     }
   }
   assert.deepStrictEqual(mudos, [], 'botões que não devolveram nada: ' + mudos.join(', '))
+})
+
+test('conectado (sem --demo), o app sobe na Visão geral — não na tela do painel', async () => {
+  // Regressão do 07/09: fora da demonstração o boot não abria rota nenhuma. O palco
+  // nativo ficava vazio e a BrowserView do painel aparecia por baixo — quem abria o
+  // beta caía na TELA DE LOGIN do painel, como se o app novo não existisse.
+  modoDemo = false
+  try {
+    await abrirApp()
+    assert.ok(chamadas.some((c) => c.canal === 'esconder-view'),
+      'a view do painel precisa sair da área de conteúdo: ' + chamadas.map((c) => c.canal).join(', '))
+    assert.ok(chamadas.some((c) => c.canal === 'visao-geral-carregar'), 'a Visão geral pede o dado dela')
+    assert.ok(!chamadas.some((c) => c.canal === 'abrir-rota'), 'nada de abrir o painel no boot')
+    assert.ok(conteudo().trim().length > 0, 'o palco nativo não pode subir vazio')
+  } finally { modoDemo = true }
 })

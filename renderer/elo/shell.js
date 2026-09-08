@@ -1132,11 +1132,17 @@ if (typeof document !== 'undefined') {
   $('tbNome').textContent = brand.nome_app
   document.title = brand.nome_app
   pintar()
+  // O app SEMPRE sobe na primeira tela nativa — não só em demonstração. Sem isto, o
+  // app conectado abria com o palco nativo vazio e a BrowserView do painel à mostra:
+  // quem abria o beta caía na tela de LOGIN do painel, como se o app v2 não existisse
+  // (visto 07/09). Abrir a rota manda a view para fora da área de conteúdo e desenha a
+  // Visão geral; se ainda não há dado, é a própria tela que diz isso.
+  const abrirPrimeiraTela = () => { ROTA = '/admin'; abrirRota('/admin'); pintar() }
   ipcRenderer.invoke('app-info').then((info) => {
     DEMO = !!(info && info.demo)
-    if (DEMO) { ONLINE = true; ROTA = '/admin'; abrirRota('/admin') }
-    pintar()
-  }).catch(() => {})
+    if (DEMO) ONLINE = true
+    abrirPrimeiraTela()
+  }).catch(abrirPrimeiraTela)
   ipcRenderer.invoke('rede-status').then((r) => { ONLINE = !!(r && r.online); pintar() }).catch(() => {})
   carregarMenu()
   setInterval(carregarMenu, 30000)
