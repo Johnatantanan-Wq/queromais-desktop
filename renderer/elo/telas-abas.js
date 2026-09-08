@@ -171,7 +171,7 @@ function linhaItemEstoque(i) {
 function blocoEstoque(id, titulo, contagem, alerta, extra, corpo, aberto) {
   return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
     + '<div data-bloco-estoque="' + esc(id) + '" style="display:flex;align-items:center;gap:10px;padding:11px 14px;'
-    + 'background:#f4f5f7;cursor:pointer' + (aberto ? ';border-bottom:1px solid #e8eaee' : '') + '">'
+    + 'background:var(--painel);cursor:pointer' + (aberto ? ';border-bottom:1px solid #e8eaee' : '') + '">'
     + '<span style="font-size:13.5px;font-weight:800;color:#111;flex:1;letter-spacing:-.01em">' + esc(titulo) + '</span>'
     + '<span style="font-size:12px;color:#9ca3af;font-weight:600;white-space:nowrap">' + contagem
     + (contagem === 1 ? ' item' : ' itens') + '</span>'
@@ -335,7 +335,7 @@ function menuNovaEntrada() {
     + '<div style="font-size:11px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(explica) + '</div></button>'
   return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">'
     + '<div style="padding:10px 14px;font-size:12.5px;font-weight:800;color:#6b7280;'
-    + 'border-bottom:1px solid #eef0f3;background:#f4f5f7">Nova entrada — de onde vem a nota?</div>'
+    + 'border-bottom:1px solid #eef0f3">Nova entrada — de onde vem a nota?</div>'
     + opcao('entrada:sefaz', '☁ Buscar da SEFAZ (automática)', 'Traz as notas de compra emitidas contra o CNPJ da loja')
     + opcao('entrada:xml', '⭱ Importar XML', 'Você já tem o arquivo da nota')
     + opcao('entrada:manual', '📄 Lançar manualmente — com nota fiscal', 'Digita fornecedor e itens; vai para a conferência normal')
@@ -620,7 +620,7 @@ function gestaoFichas(d, estado) {
     + '</span></div>'
 
   const lista = '<div class="ecard" style="padding:0;overflow:hidden">'
-    + '<div style="padding:12px 16px;border-bottom:1px solid #e8eaee;background:#f4f5f7;font-size:13.5px;font-weight:800;color:#111">'
+    + '<div style="padding:12px 16px;border-bottom:1px solid #e8eaee;font-size:13.5px;font-weight:800;color:#111">'
     + 'Produtos (' + itens.length + ')</div>'
     + (itens.length ? itens.map((i) => {
       const temFicha = (i.insumos || []).length
