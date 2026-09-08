@@ -4,16 +4,24 @@ const A = require('../renderer/elo/abas')
 
 const abas = [{ chave: 'salao', rotulo: 'Salão' }, { chave: 'gorjetas', rotulo: 'Gorjetas' }]
 
+/** O pedaço do HTML que pertence a UMA aba — até o fim do botão dela. Cortar por
+ *  número de caracteres quebrava quando o HTML encurtou: a janela passava a
+ *  alcançar a aba seguinte e via o is-on dela. */
+function trechoDaAba(html, chave) {
+  const depois = html.split('data-aba="' + chave + '"')[1] || ''
+  return depois.split('</button>')[0]
+}
+
 test('desenha uma aba por item, com a ativa marcada', () => {
   const h = A.barraDeAbas(abas, 'gorjetas')
   assert.ok(h.includes('data-aba="salao"') && h.includes('data-aba="gorjetas"'))
-  assert.ok(/is-on/.test(h.split('data-aba="gorjetas"')[1].slice(0, 90)))
-  assert.ok(!/is-on/.test(h.split('data-aba="salao"')[1].slice(0, 90)))
+  assert.ok(/is-on/.test(trechoDaAba(h, 'gorjetas')), 'a escolhida vem marcada')
+  assert.ok(!/is-on/.test(trechoDaAba(h, 'salao')), 'e só ela')
 })
 
 test('sem aba escolhida, a primeira vem marcada', () => {
   const h = A.barraDeAbas(abas, null)
-  assert.ok(/is-on/.test(h.split('data-aba="salao"')[1].slice(0, 90)))
+  assert.ok(/is-on/.test(trechoDaAba(h, 'salao')))
 })
 
 test('lista vazia não desenha barra', () => {

@@ -58,10 +58,7 @@ const ABAS = [{ chave: 'atual', rotulo: 'Caixa atual' }, { chave: 'historico', r
 
 function barra(itens, atual, attr) {
   return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">' + itens.map((i) =>
-    '<button type="button" ' + attr + '="' + esc(i.chave) + '" class="echip' + (i.chave === atual ? ' is-on' : '') + '"'
-    + ' style="cursor:pointer;height:32px;' + (i.chave === atual
-      ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#eef0f3;color:#4b5563') + '">' + esc(i.rotulo)
+    '<button type="button" ' + attr + '="' + esc(i.chave) + '" class="eaba' + (i.chave === atual ? ' is-on' : '') + '">' + esc(i.rotulo)
     + (i.contador != null ? ' <b>' + esc(i.contador) + '</b>' : '') + '</button>').join('') + '</div>'
 }
 

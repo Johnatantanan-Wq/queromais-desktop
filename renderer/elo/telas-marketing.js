@@ -406,9 +406,7 @@ function htmlFidelidade(dados, estado) {
 
   const barraAbas = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">'
     + ABAS_FIDELIDADE.map((a) => '<button type="button" data-aba-fidelidade="' + esc(a.chave) + '"'
-      + ' class="echip" style="cursor:pointer;height:32px;' + (a.chave === aba
-        ? 'background:var(--acento);color:#fff;font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
+      + ' class="eaba' + (a.chave === aba ? ' is-on' : '') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
 
   const cabecalho = topo('Fidelidade',
     'O cliente acumula pontos a cada compra e troca por prêmios. '
@@ -440,10 +438,8 @@ function htmlFidelidade(dados, estado) {
 
   const chips = '<div class="ecard" style="padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     + '<span style="font-size:12.5px;font-weight:800;color:#111">Período</span>'
-    + PERIODOS_FID.map((p) => '<button type="button" data-periodo-fid="' + esc(p.chave) + '" class="echip"'
-      + ' style="cursor:pointer;height:30px;' + (p.chave === periodo
-        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('')
+    + PERIODOS_FID.map((p) => '<button type="button" data-periodo-fid="' + esc(p.chave) + '" class="eaba'
+      + (p.chave === periodo ? ' is-on' : '') + '">' + esc(p.rotulo) + '</button>').join('')
     + '<span style="margin-left:auto;font-size:12px;color:#9ca3af;font-weight:600">' + esc(dados.intervalo || '') + '</span></div>'
 
   const kpis = faixaKpis([

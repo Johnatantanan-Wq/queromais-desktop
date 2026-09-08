@@ -236,8 +236,7 @@ function htmlPedidos(dados, estado) {
   const modo = estado.modo === 'lista' ? 'lista' : 'quadro'
 
   const botao = (chave, rotulo, ligado) =>
-    '<button type="button" data-modo="' + chave + '" class="echip' + (ligado ? ' is-on' : '') + '" style="cursor:pointer;height:32px;'
-    + (ligado ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563') + '">' + rotulo + '</button>'
+    '<button type="button" data-modo="' + chave + '" class="eaba' + (ligado ? ' is-on' : '') + '">' + rotulo + '</button>'
   const alternador = '<div style="display:flex;gap:6px;margin-bottom:14px">'
     + botao('quadro', 'Quadro', modo === 'quadro') + botao('lista', 'Lista', modo === 'lista') + '</div>'
 

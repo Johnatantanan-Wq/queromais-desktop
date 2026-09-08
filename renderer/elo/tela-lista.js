@@ -99,10 +99,7 @@ function htmlLista(def, linhas, estado) {
 
   const filtros = (def.filtros && def.filtros.length)
     ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + def.filtros.map((f) =>
-        '<button type="button" data-filtro="' + esc(f.chave) + '" class="echip' + (f.chave === estado.filtro ? ' is-on' : '') + '"'
-        + ' style="cursor:pointer;' + (f.chave === estado.filtro
-          ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-          : 'background:#eef0f3;color:#4b5563') + '">' + esc(f.rotulo)
+        '<button type="button" data-filtro="' + esc(f.chave) + '" class="eaba' + (f.chave === estado.filtro ? ' is-on' : '') + '">' + esc(f.rotulo)
         + (f.contador != null ? ' <b style="font-weight:800">' + esc(f.contador) + '</b>' : '') + '</button>').join('')
       + '</div>'
     : ''

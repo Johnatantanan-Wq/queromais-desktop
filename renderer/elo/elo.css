@@ -144,3 +144,50 @@ button:disabled { opacity: .55; cursor: default }
   .epulso, .ecard-vivo, button, [data-linha], [data-pedido] { animation: none !important; transition: none !important }
   .ecard-vivo:hover, [data-pedido]:hover { transform: none }
 }
+
+/* ── abas horizontais ────────────────────────────────────────────────────────
+   Pedido do dono (08/09, print): as abas do topo passam a ser CAIXAS BRANCAS,
+   como os cartões da coluna da esquerda — não mais chips cinzas. Branco em cima
+   de fundo cinza claro é o que faz a aba parecer clicável; cinza sobre cinza
+   some. O "leve movimento" é o hover: a aba sobe 1px e ganha sombra, do mesmo
+   jeito que os cartões. */
+
+.eaba {
+  height: 34px;
+  padding: 0 15px;
+  border: 1px solid #e8eaee;
+  border-radius: 10px;
+  background: #fff;
+  color: #4b5563;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(17, 17, 17, .04);
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, color .14s ease;
+}
+.eaba:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(17, 17, 17, .08);
+  border-color: #dfe3e8;
+  color: #111;
+}
+.eaba:active { transform: translateY(0) }
+
+/* A escolhida fica com o acento da marca — e não se move, porque já está aqui. */
+.eaba.is-on {
+  background: var(--acento-suave);
+  border-color: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 800;
+  box-shadow: none;
+}
+.eaba.is-on:hover { transform: none; box-shadow: none }
+
+/* Uma linha de abas: sempre o mesmo espaçamento, em qualquer tela. */
+.eabas { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px }
+
+@media (prefers-reduced-motion: reduce) {
+  .eaba, .eaba:hover { transition: none; transform: none }
+}

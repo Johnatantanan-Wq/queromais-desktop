@@ -45,11 +45,10 @@ function faixa(cartoes, colunas) {
     + cartoes.join('') + '</div>'
 }
 function abas(lista, atual, attr) {
-  return '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px">'
-    + lista.map((a) => '<button type="button" ' + attr + '="' + esc(a.chave) + '" class="echip'
-      + (a.chave === atual ? ' is-on' : '') + '" style="cursor:pointer;height:34px;'
-      + (a.chave === atual ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563')
-      + '">' + esc(a.rotulo) + (a.contador != null ? ' (' + esc(a.contador) + ')' : '') + '</button>').join('') + '</div>'
+  return '<div class="eabas">'
+    + lista.map((a) => '<button type="button" ' + attr + '="' + esc(a.chave) + '" class="eaba'
+      + (a.chave === atual ? ' is-on' : '') + '">' + esc(a.rotulo)
+      + (a.contador != null ? ' (' + esc(a.contador) + ')' : '') + '</button>').join('') + '</div>'
 }
 function cabecalho(titulo, sub, acoes) {
   return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap">'
@@ -174,9 +173,7 @@ function htmlCarrinhos(dados, estado) {
     + '<div style="display:flex;gap:6px;margin-left:auto">'
     + [['todos', 'Todos', (dados.itens || []).length], ['identificados', 'Identificados', k.identificados || 0],
        ['abandonados', '+5 min', k.abandonados || 0]].map((f) =>
-      '<button type="button" data-filtro-carrinho="' + f[0] + '" class="echip' + (filtro === f[0] ? ' is-on' : '') + '"'
-      + ' style="cursor:pointer;' + (filtro === f[0] ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800' : 'background:#eef0f3;color:#4b5563')
-      + '">' + f[1] + ' (' + f[2] + ')</button>').join('') + '</div></div>'
+      '<button type="button" data-filtro-carrinho="' + f[0] + '" class="eaba' + (filtro === f[0] ? ' is-on' : '') + '">' + f[1] + ' (' + f[2] + ')</button>').join('') + '</div></div>'
     + L.apenasGrade({ colunas: ['Cliente', 'Telefone', 'Itens', 'Parado', 'Total', 'Ações'],
         grade: '1fr 170px 90px 130px 140px 130px', direita: [2, 3, 4] }, linhas)
     + '</div>'

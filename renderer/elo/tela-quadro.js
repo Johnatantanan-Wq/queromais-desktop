@@ -116,10 +116,8 @@ function barraFiltros(atual, termo) {
     + '<span style="color:#9ca3af">🔎</span>'
     + '<input id="buscaPedidos" placeholder="Buscar pedido, cliente ou telefone…" value="' + esc(termo || '') + '" autocomplete="off"'
     + ' style="border:none;outline:none;background:none;font-family:inherit;font-size:13px;color:#111;flex:1"></div>'
-    + FILTROS.map((f) => '<button type="button" data-filtro-pedido="' + esc(f.chave) + '" class="echip'
-      + (f.chave === atual ? ' is-on' : '') + '" style="cursor:pointer;height:34px;'
-      + (f.chave === atual ? 'background:#111;color:#fff;font-weight:800' : 'background:#eef0f3;color:#4b5563') + '">'
-      + esc(f.rotulo) + '</button>').join('')
+    + FILTROS.map((f) => '<button type="button" data-filtro-pedido="' + esc(f.chave) + '" class="eaba'
+      + (f.chave === atual ? ' is-on' : '') + '">' + esc(f.rotulo) + '</button>').join('')
     + '</div>'
 }
 

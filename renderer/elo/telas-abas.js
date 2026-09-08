@@ -224,10 +224,8 @@ function gestaoProdutos(d, estado) {
 
   const pilula = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'
     + [{ id: 'todos', nome: 'Todos' }].concat(categorias).map((c) =>
-      '<button type="button" data-cat-estoque="' + esc(c.id) + '" class="echip' + (escolhida === c.id ? ' on' : '') + '"'
-      + ' style="cursor:pointer;height:32px;' + (escolhida === c.id
-        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(c.nome) + '</button>').join('')
+      '<button type="button" data-cat-estoque="' + esc(c.id) + '" class="eaba'
+      + (escolhida === c.id ? ' is-on' : '') + '">' + esc(c.nome) + '</button>').join('')
     + botaoEstoque('estoque:nova-categoria', '+', false)
     + '<span style="margin-left:auto">' + botaoEstoque('estoque:sincronizar-cardapio', '↔ Sincronizar com o cardápio', false) + '</span>'
     + '</div>'
@@ -519,10 +517,8 @@ function gestaoMovimentacoes(d, estado) {
   const periodo = PERIODOS_MOV.some((p) => p.chave === estado.periodoMov) ? estado.periodoMov : 'mes'
 
   const chips = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">'
-    + PERIODOS_MOV.map((p) => '<button type="button" data-periodo-mov="' + esc(p.chave) + '" class="echip'
-      + (p.chave === periodo ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (p.chave === periodo
-        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+    + PERIODOS_MOV.map((p) => '<button type="button" data-periodo-mov="' + esc(p.chave) + '" class="eaba'
+      + (p.chave === periodo ? ' is-on' : '') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
 
   const filtros = '<div class="ecard" style="padding:16px 20px;margin-bottom:14px;display:grid;'
     + 'grid-template-columns:1fr 190px 190px 190px;gap:12px;align-items:end">'
@@ -592,9 +588,7 @@ function gestaoFichas(d, estado) {
 
   const topo = '<div class="ecard" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     + SUB_FICHAS.map((s) => '<button type="button" data-subgestao="fichas:' + esc(s.chave) + '"'
-      + ' class="echip' + (s.chave === sub ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (s.chave === sub
-        ? 'background:var(--acento);color:#fff;font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(s.rotulo) + '</button>').join('') + '</div>'
+      + ' class="eaba' + (s.chave === sub ? ' is-on' : '') + '">' + esc(s.rotulo) + '</button>').join('') + '</div>'
 
   if (sub === 'insumo') {
     const porInsumo = {}

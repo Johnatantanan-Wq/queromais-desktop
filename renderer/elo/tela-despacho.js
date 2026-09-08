@@ -26,10 +26,7 @@ function kpi(rotulo, valor, sub, cor) {
     + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:5px">' + esc(sub) + '</div></div>'
 }
 function chip(attr, chave, rotulo, ligado) {
-  return '<button type="button" ' + attr + '="' + esc(chave) + '" class="echip' + (ligado ? ' is-on' : '') + '"'
-    + ' style="cursor:pointer;height:32px;' + (ligado
-      ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#eef0f3;color:#4b5563') + '">' + esc(rotulo) + '</button>'
+  return '<button type="button" ' + attr + '="' + esc(chave) + '" class="eaba' + (ligado ? ' is-on' : '') + '">' + esc(rotulo) + '</button>'
 }
 function botao(acao, rotulo, primaria, pequeno) {
   return '<button type="button" data-acao="' + esc(acao) + '" style="height:' + (pequeno ? 30 : 36) + 'px;padding:0 '

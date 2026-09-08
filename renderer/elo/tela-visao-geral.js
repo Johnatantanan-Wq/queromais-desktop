@@ -84,10 +84,7 @@ const PERIODOS = [
 
 function botoesPeriodo(atual) {
   return '<div style="display:flex;gap:6px;flex-wrap:wrap">' + PERIODOS.map((p) =>
-    '<button type="button" data-periodo="' + p.chave + '" class="echip' + (p.chave === atual ? ' is-on' : '') + '"'
-    + ' style="cursor:pointer;' + (p.chave === atual
-      ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-      : 'background:#eef0f3;color:#4b5563') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
+    '<button type="button" data-periodo="' + p.chave + '" class="eaba' + (p.chave === atual ? ' is-on' : '') + '">' + esc(p.rotulo) + '</button>').join('') + '</div>'
 }
 
 function bloco(titulo, subtitulo, conteudo, atraso, acao) {

@@ -38,10 +38,8 @@ function botaoFinal(acao, rotulo, primaria) {
       : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
 }
 function chipFinal(attr, chave, rotulo, ligado) {
-  return '<button type="button" ' + attr + '="' + esc(chave) + '" class="echip' + (ligado ? ' is-on' : '') + '"'
-    + ' style="cursor:pointer;height:30px;' + (ligado
-      ? 'background:var(--acento);color:#fff;font-weight:800'
-      : 'background:#eef0f3;color:#4b5563') + '">' + esc(rotulo) + '</button>'
+  return '<button type="button" ' + attr + '="' + esc(chave) + '" class="eaba'
+    + (ligado ? ' is-on' : '') + '">' + esc(rotulo) + '</button>'
 }
 /** Cartão de número do painel: rótulo miúdo em caixa alta, número grande. */
 function kpiFinal(rotulo, valor, sub, cor, faixa) {
@@ -94,11 +92,9 @@ function htmlRelatorios(dados, estado) {
     + campoData('Modalidade', 'Todas as modalidades') + campoData('Forma', 'Todas as formas')
     + '</div></div>'
 
-  const abas = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">'
-    + ABAS_REL.map((a) => '<button type="button" data-aba-rel="' + esc(a.chave) + '" class="echip'
-      + (a.chave === aba ? ' is-on' : '') + '" style="cursor:pointer;height:32px;' + (a.chave === aba
-        ? 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800'
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
+  const abas = '<div class="eabas">'
+    + ABAS_REL.map((a) => '<button type="button" data-aba-rel="' + esc(a.chave) + '" class="eaba'
+      + (a.chave === aba ? ' is-on' : '') + '">' + esc(a.rotulo) + '</button>').join('') + '</div>'
 
   if (aba !== 'vendas') {
     const secao = (dados.secoes || {})[aba]
@@ -344,15 +340,15 @@ function htmlConfiguracoes(dados, estado) {
   const aba = ABAS_CFG.some((a) => a.chave === estado.abaCfg) ? estado.abaCfg : 'geral'
   const sub = SUB_CFG_GERAL.some((x) => x.chave === estado.subCfg) ? estado.subCfg : 'config'
 
-  const barra = (lista, atual, attr, ativa) => '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
-    + lista.map((x) => '<button type="button" ' + attr + '="' + esc(x.chave) + '" class="echip"'
-      + ' style="cursor:pointer;height:32px;' + (x.chave === atual
-        ? (ativa === 'cheia' ? 'background:var(--acento);color:#fff;font-weight:800'
-          : 'background:var(--acento-suave);color:var(--acento-texto);font-weight:800')
-        : 'background:#eef0f3;color:#4b5563') + '">' + esc(x.rotulo) + '</button>').join('') + '</div>'
+  // `ativa` deixou de existir: a aba escolhida tem UM visual só, no CSS. Duas
+  // marcações diferentes na mesma tela (uma cheia, outra suave) faziam a sub-aba
+  // parecer mais importante que a aba.
+  const barra = (lista, atual, attr) => '<div class="eabas" style="margin-bottom:12px">'
+    + lista.map((x) => '<button type="button" ' + attr + '="' + esc(x.chave) + '" class="eaba'
+      + (x.chave === atual ? ' is-on' : '') + '">' + esc(x.rotulo) + '</button>').join('') + '</div>'
 
-  const cabecalho = barra(ABAS_CFG, aba, 'data-aba-cfg', 'suave')
-    + (aba === 'geral' ? barra(SUB_CFG_GERAL, sub, 'data-sub-cfg', 'cheia') : '')
+  const cabecalho = barra(ABAS_CFG, aba, 'data-aba-cfg')
+    + (aba === 'geral' ? barra(SUB_CFG_GERAL, sub, 'data-sub-cfg') : '')
 
   // A aba WhatsApp não é ficha de leitura: é onde se escolhe o caminho e se conecta.
   // O shell manda o painel pronto (config-whatsapp.js) — aqui só se dá o lugar a ele.
