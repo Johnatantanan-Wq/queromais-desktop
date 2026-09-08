@@ -62,7 +62,14 @@ const TELAS = [
     canal: 'conversas-carregar', cache: 'conversas',
     // As conversas ainda não têm rota no painel: o app pede a que houver e, sem ela,
     // a tela diz que não há conversa — nunca inventa uma.
-    rotas: { conversasResp: '/api/admin/whatsapp/conversas' },
+    rotas: {
+      conversasResp: '/api/admin/whatsapp/conversas',
+      // Para reconhecer quem está falando: o telefone da conversa é cruzado com o
+      // cadastro e com os pedidos. Se uma dessas rotas falhar, a conversa continua —
+      // só fica sem o vínculo.
+      clientesResp: '/api/admin/clientes',
+      pedidosResp: '/api/admin/desktop/pedidos',
+    },
     adaptar: (r) => A.conversas(r),
     valida: (r) => r.conversasResp && Array.isArray(r.conversasResp.conversas || r.conversasResp),
   },

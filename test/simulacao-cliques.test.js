@@ -41,7 +41,14 @@ function responder(canal, args) {
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
   if (canal === 'caixa-carregar') return ok(caixaLocal.aplicar(demo.caixa()))
   if (canal === 'whatsapp-carregar') return ok(whatsDoTeste)
-  if (canal === 'conversas-carregar') return ok({ ...demo.conversas(), estado: whatsDoTeste.estado, provedor: whatsDoTeste.provedor })
+  if (canal === 'conversas-carregar') {
+    // Mesmo cruzamento do app: telefone da conversa contra cadastro e pedidos.
+    const bruto = demo.conversas()
+    const junto = require('../src-electron/adaptadores').conversas({
+      conversasResp: bruto, clientesResp: demo.listas().clientes, pedidosResp: demo.listas().pedidos,
+    })
+    return ok({ ...junto, agora: bruto.agora, estado: whatsDoTeste.estado, provedor: whatsDoTeste.provedor })
+  }
   if (canal === 'whatsapp-salvar') {
     whatsDoTeste = { ...whatsDoTeste, ...(args.campos || {}), provedor: args.provedor,
       ativo: args.provedor !== 'desativado', estado: args.provedor === 'evolution' ? 'close' : 'indisponivel' }
@@ -659,7 +666,7 @@ test('WhatsApp: o item está no menu, logo abaixo de Clientes', async () => {
 test('WhatsApp no menu: são as CONVERSAS, não a configuração', async () => {
   await abrirApp()
   await irPara('/admin/whatsapp')
-  assert.ok(/Marina Prado/.test(conteudo()), 'a lista de conversas aparece')
+  assert.ok(/Maria Silva/.test(conteudo()), 'a lista aparece com o nome do CADASTRO, não o do WhatsApp')
   assert.ok(/Configurar WhatsApp/.test(conteudo()), 'e um atalho para a configuração')
   assert.ok(!/Meta Cloud API/.test(conteudo()), 'a escolha de provedor NÃO fica aqui')
 })
@@ -775,4 +782,28 @@ test('o sino mostra o que está esperando e leva à tela', async () => {
   clicar(doc.querySelector('[data-aviso="/admin/pedidos"]'))
   await esperar(80)
   assert.ok(chamadas.some((c) => c.canal === 'pedidos-carregar'), 'o aviso leva à Gestão de pedido')
+})
+
+test('a conversa reconhece o cliente e leva à ficha dele', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  // o telefone da conversa chega com DDI; o cadastro tem máscara — e mesmo assim casa
+  assert.ok(/Maria Silva/.test(conteudo()), 'o nome do cadastro aparece no lugar do número')
+  assert.ok(/>cliente</.test(conteudo()), 'e o selo de cliente conhecido')
+  const bt = doc.querySelector('#econtent [data-acao^="conversa:cliente:"]')
+  assert.ok(bt, 'com atalho para a ficha')
+  clicar(bt)
+  await esperar(420)
+  assert.ok(chamadas.some((c) => c.canal === 'clientes-carregar'), 'foi para Clientes')
+  assert.ok(doc.getElementById('eloFicha'), 'e a ficha do cliente abriu')
+})
+
+test('número que não é de cliente nenhum não ganha vínculo na tela', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  clicar(doc.querySelector('[data-conversa="c4"]'))
+  await esperar(60)
+  const painel = conteudo().split('data-conversa="c4"')[1] || ''
+  assert.ok(!/data-acao="conversa:cliente:/.test(conteudo().split('Enviar')[0].split('c4')[1] || ''),
+    'sem cadastro, sem atalho de ficha')
 })

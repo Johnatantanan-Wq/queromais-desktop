@@ -996,6 +996,25 @@ if (typeof document !== 'undefined') {
         return
       }
       // WhatsApp: dois caminhos, e o botão de cada cartão diz o que falta nele.
+      // Da conversa para a ficha — o vínculo veio do telefone. A ficha mora na tela
+      // do dado (Clientes, Gestão de pedido), então vai-se até lá e abre-se ali: é
+      // onde o lojista continua trabalhando depois de ver.
+      if (acao.indexOf('conversa:cliente:') === 0 || acao.indexOf('conversa:pedido:') === 0) {
+        const cliente = acao.indexOf('conversa:cliente:') === 0
+        const chave = acao.slice(cliente ? 'conversa:cliente:'.length : 'conversa:pedido:'.length)
+        const destino = cliente ? '/admin/clientes' : '/admin/pedidos'
+        ROTA = destino
+        pintar()
+        abrirRota(destino)
+        // A ficha só abre depois que a tela trouxe o dado dela.
+        setTimeout(() => {
+          abrirFichaDe(chave)
+          if (!document.getElementById('eloFicha')) {
+            avisar('Abri ' + (cliente ? 'Clientes' : 'Gestão de pedido') + ' — não achei esse registro na lista.', 'erro')
+          }
+        }, 320)
+        return
+      }
       if (acao === 'conversa:configurar') {
         ABA_CFG = 'whatsapp'
         ROTA = '/admin/configuracoes'

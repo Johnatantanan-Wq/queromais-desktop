@@ -45,7 +45,7 @@ function linhaConversa(c, aberta, agora) {
     + '<span style="flex:1;min-width:0">'
     + '<span style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">'
     + '<span style="font-size:13.5px;font-weight:' + (naoLidas ? '800' : '700') + ';color:#111;overflow:hidden;'
-    + 'text-overflow:ellipsis;white-space:nowrap">' + esc(c.nome || 'Sem nome') + '</span>'
+    + 'text-overflow:ellipsis;white-space:nowrap">' + esc(nomeDe(c)) + '</span>'
     + '<span style="font-size:11px;color:#9ca3af;font-weight:600;white-space:nowrap">'
     + esc(quando(c.ultimaEm, agora)) + '</span></span>'
     + '<span style="display:flex;align-items:center;gap:6px;margin-top:2px">'
@@ -54,6 +54,41 @@ function linhaConversa(c, aberta, agora) {
     + (naoLidas ? '<span style="min-width:18px;height:18px;border-radius:999px;background:var(--acento);color:#fff;'
       + 'font-size:10.5px;font-weight:800;line-height:18px;text-align:center;padding:0 5px">' + naoLidas + '</span>' : '')
     + '</span></span></div>'
+}
+
+const fone = require('../../src-electron/telefone')
+
+/** O nome do CADASTRO ganha do nome que o WhatsApp mostra — é o que a loja conhece. */
+function nomeDe(c) {
+  return (c.cliente && c.cliente.nome) || c.nome || 'Sem nome'
+}
+
+/** O pedido ligado à conversa: o que veio junto ou o último do cliente. */
+function pedidoDaConversa(c) {
+  if (c.pedido) return c.pedido
+  return (c.cliente && c.cliente.ultimoPedido && c.cliente.ultimoPedido.numero) || null
+}
+
+/**
+ * A faixa que diz quem é o cliente. Só aparece quando o telefone bateu com o
+ * cadastro ou com um pedido — nunca é preenchida por adivinhação.
+ */
+function faixaDoCliente(cli) {
+  if (!cli) return ''
+  const partes = []
+  if (cli.pedidos) partes.push(cli.pedidos + (cli.pedidos === 1 ? ' pedido' : ' pedidos'))
+  if (cli.gasto) partes.push(brl(cli.gasto) + ' já entregues')
+  if (cli.bairro) partes.push(cli.bairro)
+  const u = cli.ultimoPedido
+  if (u) partes.push('último #' + u.numero + (u.etapa && u.etapa !== 'entregue' ? ' (em andamento)' : ''))
+  if (!partes.length) return ''
+  return '<div style="display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--acento-suave);'
+    + 'font-size:12px;font-weight:700;color:var(--acento-texto);flex-wrap:wrap">'
+    + partes.map(esc).join(' · ') + '</div>'
+}
+
+function brl(v) {
+  return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function balao(m) {
@@ -71,6 +106,7 @@ function balao(m) {
 
 /** A conversa aberta. Sem nenhuma escolhida, explica em vez de ficar em branco. */
 function painelConversa(c, podeEnviar) {
+  const cli = c && c.cliente
   if (!c) {
     return '<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:40px 24px">'
       + '<div style="text-align:center;max-width:320px">'
@@ -84,12 +120,23 @@ function painelConversa(c, podeEnviar) {
     + 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">'
     + esc(iniciais(c.nome)) + '</span>'
     + '<span style="flex:1;min-width:0">'
-    + '<span style="display:block;font-size:14px;font-weight:800;color:#111">' + esc(c.nome || 'Sem nome') + '</span>'
-    + '<span style="display:block;font-size:11.5px;color:#9ca3af;font-weight:600">' + esc(c.telefone || '') + '</span>'
+    + '<span style="display:flex;align-items:center;gap:7px">'
+    + '<span style="font-size:14px;font-weight:800;color:#111">' + esc(nomeDe(c)) + '</span>'
+    + (cli && cli.cadastrado
+      ? '<span class="echip" style="background:var(--acento-suave);color:var(--acento-texto);font-weight:800">cliente</span>'
+      : '')
     + '</span>'
-    + (c.pedido ? '<button type="button" data-acao="conversa:pedido:' + esc(c.pedido) + '" class="echip"'
-      + ' style="cursor:pointer">pedido #' + esc(c.pedido) + '</button>' : '')
+    + '<span style="display:block;font-size:11.5px;color:#9ca3af;font-weight:600">'
+    + esc(fone.formatar(c.telefone)) + '</span>'
+    + '</span>'
+    + (cli && cli.cadastrado
+      ? '<button type="button" data-acao="conversa:cliente:' + esc(cli.chave) + '" class="echip"'
+        + ' style="cursor:pointer">ver ficha</button>'
+      : '')
+    + (pedidoDaConversa(c) ? '<button type="button" data-acao="conversa:pedido:' + esc(pedidoDaConversa(c)) + '"'
+      + ' class="echip" style="cursor:pointer">pedido #' + esc(pedidoDaConversa(c)) + '</button>' : '')
     + '</div>'
+    + faixaDoCliente(cli)
 
   const mensagens = '<div style="flex:1;overflow:auto;padding:16px 18px;background:#f7f8fa">'
     + ((c.mensagens || []).length

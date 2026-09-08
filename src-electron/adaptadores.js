@@ -169,10 +169,41 @@ function campos(fonte, pares) {
  * Estado do WhatsApp. O painel devolve o estado do Evolution; o modo "web" não tem
  * estado no servidor — quem sabe se a conversa está aberta é a própria janela.
  */
+const { acharPorTelefone, mesmoTelefone } = require('./telefone')
+
+/**
+ * Reconhece quem está do outro lado da conversa pelo telefone.
+ *
+ * Devolve null quando não dá para afirmar — número sem DDD, cadastro sem telefone,
+ * nada que bata. Vínculo errado numa conversa mostra o histórico de OUTRA pessoa, e
+ * isso é pior do que conversa sem vínculo.
+ */
+function reconhecer(telefone, cadastro, pedidos) {
+  const doCadastro = acharPorTelefone(cadastro, telefone)
+  const dele = (pedidos || []).filter((p) => mesmoTelefone(p.telefone, telefone))
+  if (!doCadastro && !dele.length) return null
+
+  // O pedido mais recente é o primeiro da lista do painel (ela vem em ordem).
+  const ultimo = dele[0] || null
+  return {
+    nome: (doCadastro && doCadastro.nome) || (ultimo && ultimo.cliente) || null,
+    cadastrado: !!doCadastro,
+    chave: (doCadastro && (doCadastro.chave || doCadastro.telefone)) || telefone,
+    pedidos: dele.length,
+    // Só conta como "gasto" o que já foi entregue: pedido em produção ainda pode cair.
+    gasto: dele.filter((p) => p.etapa === 'entregue')
+      .reduce((s, p) => s + (Number(p.valor) || 0), 0),
+    ultimoPedido: ultimo ? { numero: ultimo.numero, etapa: ultimo.etapa, valor: Number(ultimo.valor) || 0 } : null,
+    bairro: (doCadastro && doCadastro.bairro) || (ultimo && ultimo.bairro) || '',
+  }
+}
+
 /** Conversas do WhatsApp. Aceita lista pura ou objeto com `conversas`. */
-function conversas({ conversasResp }) {
+function conversas({ conversasResp, clientesResp, pedidosResp }) {
   if (!conversasResp) return null
   const lista = Array.isArray(conversasResp) ? conversasResp : (conversasResp.conversas || [])
+  const cadastro = (clientesResp && (clientesResp.itens || clientesResp.clientes)) || clientesResp || []
+  const pedidos = (pedidosResp && (pedidosResp.itens || pedidosResp)) || []
   return {
     agora: Date.now(),
     estado: conversasResp.estado || null,
@@ -182,6 +213,8 @@ function conversas({ conversasResp }) {
       nome: c.nome || c.cliente_nome || c.telefone || 'Sem nome',
       telefone: c.telefone || '',
       pedido: c.pedido || c.pedido_numero || null,
+      // Quem está falando: o telefone da conversa cruzado com o cadastro e os pedidos.
+      cliente: reconhecer(c.telefone, cadastro, pedidos),
       naoLidas: Number(c.nao_lidas || c.naoLidas) || 0,
       ultima: c.ultima || c.ultima_mensagem || '',
       ultimaEm: c.ultima_em || c.ultimaEm || null,

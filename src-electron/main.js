@@ -653,10 +653,20 @@ async function createWindow() {
       ipcMain.handle('whatsapp-carregar', () => ({ dados: whatsDemo, offline: false, ts: Date.now(), demo: true }))
       // As conversas em demonstração mostram como a tela fica em uso: cliente à
       // esquerda, loja à direita, automáticas marcadas.
-      ipcMain.handle('conversas-carregar', () => ({
-        dados: { ...dadosDemo.conversas(), estado: whatsDemo.estado, provedor: whatsDemo.provedor },
-        offline: false, ts: Date.now(), demo: true,
-      }))
+      ipcMain.handle('conversas-carregar', () => {
+        // Em demonstração o cruzamento é o mesmo do app conectado: o telefone da
+        // conversa contra o cadastro e os pedidos — inclusive com formatos diferentes.
+        const bruto = dadosDemo.conversas()
+        const junto = require('./adaptadores').conversas({
+          conversasResp: bruto,
+          clientesResp: dadosDemo.listas().clientes,
+          pedidosResp: dadosDemo.listas().pedidos,
+        })
+        return {
+          dados: { ...junto, agora: bruto.agora, estado: whatsDemo.estado, provedor: whatsDemo.provedor },
+          offline: false, ts: Date.now(), demo: true,
+        }
+      })
       ipcMain.handle('whatsapp-conectar', () => {
         whatsDemo = { ...whatsDemo, estado: 'connecting', provedor: 'evolution', ativo: true }
         return { ok: true, estado: 'connecting', qr: dadosDemo.qrFicticio(), pairingCode: 'DEMO-2026', demo: true }

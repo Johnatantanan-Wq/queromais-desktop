@@ -1044,7 +1044,7 @@ function conversas() {
     estado: 'open',
     provedor: 'evolution',
     conversas: [
-      { id: 'c1', nome: 'Marina Prado', telefone: '(75) 98811-0001', pedido: '1042', naoLidas: 0,
+      { id: 'c1', nome: 'Marina', telefone: '5575988110001', pedido: '1042', naoLidas: 0,
         ultima: 'Chegou quentinha, obrigada!', ultimaEm: min(4),
         mensagens: [
           { de: 'loja', texto: 'Pedido #1042 confirmado! Previsão de entrega: 45 min.', em: min(52), automatica: true },
@@ -1054,19 +1054,19 @@ function conversas() {
           { de: 'loja', texto: 'Seu pedido saiu para entrega com o Ícaro.', em: min(9), automatica: true },
           { de: 'cliente', texto: 'Chegou quentinha, obrigada!', em: min(4) },
         ] },
-      { id: 'c2', nome: 'João Pereira', telefone: '(75) 99120-3344', naoLidas: 2,
+      { id: 'c2', nome: 'Joao P.', telefone: '5575988110002', naoLidas: 2,
         ultima: 'Tem promoção de pizza hoje?', ultimaEm: min(26),
         mensagens: [
           { de: 'cliente', texto: 'Boa noite!', em: min(28) },
           { de: 'cliente', texto: 'Tem promoção de pizza hoje?', em: min(26) },
         ] },
-      { id: 'c3', nome: 'Carla Nunes', telefone: '(75) 98444-7788', pedido: '1040', naoLidas: 1,
+      { id: 'c3', nome: 'Carla', telefone: '75 8811-0003', pedido: '1040', naoLidas: 1,
         ultima: 'O entregador já saiu?', ultimaEm: min(74),
         mensagens: [
           { de: 'loja', texto: 'Pedido #1040 confirmado! Previsão: 45 min.', em: min(96), automatica: true },
           { de: 'cliente', texto: 'O entregador já saiu?', em: min(74) },
         ] },
-      { id: 'c4', nome: 'Rafael Souza', telefone: '(75) 98120-5566', naoLidas: 0,
+      { id: 'c4', nome: '+55 75 99999-1234', telefone: '5575999991234', naoLidas: 0,
         ultima: 'Beleza, valeu!', ultimaEm: min(60 * 26),
         mensagens: [
           { de: 'cliente', texto: 'Vocês entregam na Praia de Guaibim?', em: min(60 * 27) },
