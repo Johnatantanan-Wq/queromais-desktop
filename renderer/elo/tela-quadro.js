@@ -224,7 +224,7 @@ function htmlQuadro(dados, estado) {
     + '<div style="display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:14px;align-items:start;animation:eloFadeUp .5s ease both">'
     + colunas + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
-    + 'aceitar, imprimir e despachar ainda são pelo painel</div></div>'
+    + 'imprimir e escolher o entregador ainda são pelo painel</div></div>'
 }
 
 module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, emFaixa, COLUNAS, ACAO, ROTULO_ETAPA, FILTROS }
