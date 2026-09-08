@@ -28,10 +28,26 @@ test('servidor mudo devolve o cache marcado como offline', async () => {
   assert.strictEqual(r.ts, 1)
 })
 
-test('sem servidor e sem cache devolve vazio, não quebra', async () => {
+test('sem servidor e sem cache, o menu do APP entra no lugar do vazio', async () => {
+  // Antes esta chamada devolvia null e a barra lateral subia vazia: nenhuma tela
+  // alcançável, nem as que o app desenha sozinho. O menu das telas do app não pode
+  // depender do painel responder.
   const r = await buscarMenu({ cache: cacheFalso(), pedirAoPainel: async () => null, lojaId: 'l1' })
   assert.strictEqual(r.offline, true)
-  assert.strictEqual(r.dados, null)
+  assert.strictEqual(r.base, true, 'a resposta diz que o menu é o do app, não o do painel')
+  assert.ok(r.dados && Array.isArray(r.dados.secoes) && r.dados.secoes.length >= 4, 'as seções vêm no menu base')
+  const hrefs = r.dados.secoes.flatMap((s) => s.itens.map((i) => i.href))
+  for (const t of ['/admin', '/admin/caixa', '/admin/pedidos', '/admin/financeiro']) {
+    assert.ok(hrefs.includes(t), 'falta ' + t + ' no menu do app')
+  }
+})
+
+test('menu do painel MANDA sobre o do app quando o servidor responde', async () => {
+  const doPainel = { secoes: [{ titulo: 'Principal', itens: [{ href: '/admin', label: 'Visão geral' }] }], loja: { id: 'l1' } }
+  const r = await buscarMenu({ cache: cacheFalso(), pedirAoPainel: async () => doPainel, lojaId: 'l1' })
+  assert.strictEqual(r.offline, false)
+  assert.ok(!r.base, 'veio do painel, não é o menu base')
+  assert.strictEqual(r.dados.secoes.length, 1)
 })
 
 test('erro na chamada ao painel cai no cache, sem lançar', async () => {

@@ -19,11 +19,16 @@ const registroDeTeste = require('../src-electron/vendas-locais').criarRegistro({
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
 let modoDemo = true
+// `painelResponde` desliga para simular a sessão caída: o painel não devolve menu.
+let painelResponde = true
 const chamadas = []
 function responder(canal, args) {
   chamadas.push({ canal, args })
   const ok = (dados) => ({ dados, offline: false, ts: Date.now(), demo: true })
-  if (canal === 'menu-carregar') return ok(demo.menu())
+  if (canal === 'menu-carregar') {
+    if (!painelResponde) return { dados: require('../src-electron/menu-base').menuBase(), offline: true, ts: 0, base: true }
+    return ok(demo.menu())
+  }
   if (canal === 'app-info') return { demo: modoDemo, versao: 'teste' }
   if (canal === 'rede-status') return { online: true, demo: true }
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
@@ -499,4 +504,19 @@ test('conectado (sem --demo), o app sobe na Visão geral — não na tela do pai
     assert.ok(!chamadas.some((c) => c.canal === 'abrir-rota'), 'nada de abrir o painel no boot')
     assert.ok(conteudo().trim().length > 0, 'o palco nativo não pode subir vazio')
   } finally { modoDemo = true }
+})
+
+test('painel sem responder: a barra lateral ainda traz as telas do app', async () => {
+  // O sintoma de 07/09: sessão do painel caída → menu vazio → nenhuma tela alcançável.
+  modoDemo = false
+  painelResponde = false
+  try {
+    await abrirApp()
+    const itens = doc.querySelectorAll('.erailitem')
+    assert.ok(itens.length >= 20, 'a barra precisa dos itens do app: veio ' + itens.length)
+    assert.ok(doc.querySelector('[data-href="/admin/caixa"]'), 'o Caixa tem de estar alcançável')
+    assert.ok(doc.querySelector('[data-href="/admin/pedidos"]'), 'a Gestão de pedido também')
+    await irPara('/admin/caixa')
+    assert.ok(chamadas.some((c) => c.canal === 'caixa-carregar'), 'e clicar nela pede o dado dela')
+  } finally { modoDemo = true; painelResponde = true }
 })

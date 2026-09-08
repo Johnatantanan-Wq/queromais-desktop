@@ -1,3 +1,4 @@
+const { menuBase } = require('./menu-base')
 const { TELAS, SEM_API } = require('./telas-ponte')
 
 // A ponte entre o shell nativo e os dados. O renderer pede; aqui se decide entre
@@ -21,7 +22,12 @@ async function buscarMenu({ cache, pedirAoPainel, lojaId }) {
   }
 
   const guardado = cache.get('menu|' + (lojaId || 'sem-loja'))
-  return { dados: guardado ? guardado.body : null, offline: true, ts: guardado ? guardado.ts : 0 }
+  if (guardado) return { dados: guardado.body, offline: true, ts: guardado.ts }
+
+  // Nem servidor nem cache: o app ainda tem o menu DELE. Sem isto a barra lateral
+  // subia vazia — nenhuma tela alcançável, nem as que o app desenha sozinho (visto
+  // no beta 07/09, com a sessão do painel caída).
+  return { dados: menuBase(), offline: true, ts: 0, base: true }
 }
 
 /** Busca uma tela de leitura no painel; sem rede, devolve o último bom do cache.
