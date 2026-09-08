@@ -109,6 +109,26 @@ const TELAS = [
       valida: (r) => !!r.d && !r.d.error,
     })),
   {
+    // Insights e Relatórios saem das MESMAS contas do painel (lib/insights/agregacoes),
+    // que a tela dele também usa.
+    canal: 'insights-carregar', cache: 'insights',
+    rotas: { d: '/api/admin/desktop/insights' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error && !!r.d.geral,
+  },
+  {
+    canal: 'relatorios-carregar', cache: 'relatorios',
+    rotas: { d: '/api/admin/desktop/relatorios' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error && !!r.d.vendas,
+  },
+  {
+    canal: 'push-carregar', cache: 'push',
+    rotas: { d: '/api/admin/desktop/push' },
+    adaptar: (r) => r.d,
+    valida: (r) => !!r.d && !r.d.error,
+  },
+  {
     // O Financeiro muda com o período; o painel aceita o preset por parâmetro e devolve
     // DRE, extrato e livro caixa da MESMA conta que ele mostra.
     canal: 'financeiro-abas-carregar', cache: 'financeiro',
@@ -140,10 +160,9 @@ const TELAS = [
  * declaradas para o app dizer POR QUE está vazio — e para a lista do que falta viver
  * no código, não numa conversa.
  */
-const SEM_API = {
-  'push-carregar': 'o histórico de push precisa de uma rota de leitura no painel',
-  'insights-carregar': 'os insights precisam de uma rota de leitura no painel',
-  'relatorios-carregar': 'os relatórios precisam de uma rota de leitura no painel',
-}
+// Nenhuma tela ficou sem rota: quando alguma nova entrar antes do painel expor a
+// leitura dela, é aqui que se declara — a tela passa a dizer O QUE falta ligar, em
+// vez de "não deu para carregar", que faz o lojista procurar problema na internet.
+const SEM_API = {}
 
 module.exports = { TELAS, SEM_API }

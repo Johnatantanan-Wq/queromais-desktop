@@ -55,7 +55,7 @@ async function buscarVarias({ rotas, pedirTela }) {
 }
 
 /** Registra os canais. Chamado uma vez, no boot do main. */
-function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual }) {
+function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual, semApi }) {
   ipcMain.handle('menu-carregar', () => buscarMenu({ cache, pedirAoPainel, lojaId: lojaIdAtual() }))
   ipcMain.handle('rede-status', () => ({ online: monitorRede.online() }))
   ipcMain.handle('cache-get', (e, chave) => cache.get(chave))
@@ -96,8 +96,9 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
 
   // Telas que o painel ainda não expõe por rota de leitura: em vez de "No handler
   // registered" (que vira erro genérico na tela), o app diz o que falta.
-  for (const canal of Object.keys(SEM_API)) {
-    ipcMain.handle(canal, () => ({ dados: null, offline: false, ts: 0, semApi: SEM_API[canal] }))
+  const faltando = semApi || SEM_API
+  for (const canal of Object.keys(faltando)) {
+    ipcMain.handle(canal, () => ({ dados: null, offline: false, ts: 0, semApi: faltando[canal] }))
   }
 }
 

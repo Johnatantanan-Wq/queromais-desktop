@@ -59,6 +59,15 @@ test('todas as telas do catálogo viram canal registrado', () => {
   assert.ok(p.canais.has('caixa-carregar') && p.canais.has('menu-carregar'))
 })
 
+test('as 23 telas do app têm rota — nenhuma depende mais do modo demonstração', () => {
+  const p = pontePronta()
+  // Este era o buraco: 20 telas prontas que só existiam com --demo.
+  assert.ok(TELAS.length >= 23, 'o catálogo precisa cobrir todas as telas (tem ' + TELAS.length + ')')
+  const canais = TELAS.map((t) => t.canal)
+  assert.strictEqual(new Set(canais).size, canais.length, 'canal repetido no catálogo')
+  for (const t of TELAS) assert.ok(p.canais.has(t.canal))
+})
+
 test('nenhum canal do modo demonstração fica sem par no app conectado', () => {
   // Era exatamente este o buraco: 20 telas prontas que só existiam com --demo.
   const p = pontePronta()
@@ -131,11 +140,25 @@ test('mas se a rota PRINCIPAL falha, a tela não inventa dado', async () => {
   assert.strictEqual(r.offline, true)
 })
 
-test('tela sem rota no painel diz O QUE falta, em vez de erro genérico', async () => {
-  const p = pontePronta()
-  const r = await p.chamar('push-carregar')
-  assert.strictEqual(r.dados, null)
-  assert.match(r.semApi, /rota de leitura no painel/)
+test('nenhuma tela ficou sem rota — SEM_API está vazio', () => {
+  assert.deepStrictEqual(Object.keys(SEM_API), [],
+    'telas ainda sem rota no painel: ' + Object.keys(SEM_API).join(', '))
+})
+
+test('o aviso de "falta ligar" continua de pé para a próxima tela que entrar', async () => {
+  // O mecanismo é o que importa: quando uma tela nova chegar antes da rota dela, o app
+  // precisa dizer O QUE falta em vez de "não deu para carregar", que faz o lojista
+  // procurar problema na internet dele.
+  const r = registrador()
+  ponte.registrar({
+    ipcMain: r.ipcMain, cache: cacheDeTeste(), monitorRede: { online: () => true },
+    pedirAoPainel: async () => ({ secoes: [] }), pedirTela: async () => null,
+    abrirRota: () => ({ ok: true }), lojaIdAtual: () => 'l1',
+    semApi: { 'tela-futura-carregar': 'a rota ainda não existe no painel' },
+  })
+  const resposta = await r.chamar('tela-futura-carregar')
+  assert.strictEqual(resposta.dados, null)
+  assert.match(resposta.semApi, /ainda não existe/)
 })
 
 test('a Visão geral leva o período na rota E na chave do cache', async () => {
