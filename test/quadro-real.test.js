@@ -104,14 +104,26 @@ test('coluna vazia diz que não há pedido (menos a de análise, que tem a confi
   assert.ok(/aceitos automaticamente/i.test(h), 'a configuração continua na coluna de análise')
 })
 
-test('cada coluna corre uma faixa na cor do título por trás dos cartões', () => {
+test('cada CARTÃO corre a faixa na cor do título — na altura dele, não da coluna', () => {
   const h = Q.htmlQuadro(dados, {})
   for (const c of Q.COLUNAS) {
+    const daColuna = dados.itens.filter((p) => p.etapa === c.id)
+    if (!daColuna.length && c.id !== 'analise') continue
     const claro = Q.clarear(c.cor, 0.86)
     assert.ok(h.includes('background:' + claro), c.titulo + ' precisa da faixa ' + claro)
-    // a faixa fecha o cartão da coluna: cabeçalho colorido em cima, faixa clara embaixo
-    assert.ok(h.indexOf('background:' + c.cor + ';padding:11px 14px') < h.indexOf('background:' + claro),
-      'a faixa vem depois do cabeçalho em ' + c.titulo)
+  }
+  // uma faixa por cartão (mais a da configuração, que mora na coluna de análise)
+  const faixas = (h.match(/border-radius:14px;padding:5px/g) || []).length
+  assert.strictEqual(faixas, dados.itens.length + 1, 'uma faixa por cartão, nem mais nem menos')
+})
+
+test('coluna sem cartão não pinta faixa nenhuma — cor não sobra na tela', () => {
+  const h = Q.htmlQuadro({ ...dados, itens: [], aceiteAutomatico: false }, {})
+  const faixas = (h.match(/border-radius:14px;padding:5px/g) || []).length
+  assert.strictEqual(faixas, 1, 'só a da configuração em Em análise: ' + faixas)
+  for (const c of Q.COLUNAS) {
+    if (c.id === 'analise') continue
+    assert.ok(!h.includes('background:' + Q.clarear(c.cor, 0.86)), c.titulo + ' não pode ter faixa vazia')
   }
 })
 

@@ -117,6 +117,16 @@ function barraFiltros(atual, termo) {
     + '</div>'
 }
 
+/**
+ * Põe o cartão sobre um trilho na cor da coluna. A faixa acompanha a ALTURA DO CARTÃO
+ * e nada mais: um bloco contínuo pela coluna inteira espalhava a cor pela tela e
+ * empatava colunas cheias com colunas vazias (ajuste pedido em 07/09).
+ */
+function emFaixa(html, coluna) {
+  return '<div style="background:' + clarear(coluna.cor, 0.86) + ';border-radius:14px;padding:5px">'
+    + html + '</div>'
+}
+
 function cartao(p, coluna, consumoLocal) {
   const atrasado = coluna.limite != null && p.esperaMin > coluna.limite
   const acao = ACAO[coluna.id]
@@ -194,15 +204,14 @@ function htmlQuadro(dados, estado) {
     const doColuna = itens.filter((p) => p.etapa === c.id)
     const titulo = estado.consumoLocal ? (TITULOS_LOCAL[c.id] || c.titulo) : c.titulo
     const cartoes = doColuna.length
-      ? doColuna.map((p) => cartao(p, c, estado.consumoLocal)).join('')
+      ? doColuna.map((p) => emFaixa(cartao(p, c, estado.consumoLocal), c)).join('')
       : (c.id === 'analise' ? '' : '<div style="padding:20px 12px;text-align:center;color:#9ca3af;font-size:12.5px">Nenhum pedido no momento.</div>')
     return '<div style="display:flex;flex-direction:column;min-width:0">'
-      + '<div style="border-radius:12px 12px 0 0;background:' + c.cor + ';padding:11px 14px;display:flex;align-items:center;justify-content:space-between">'
+      + '<div style="border-radius:12px;background:' + c.cor + ';padding:11px 14px;display:flex;align-items:center;justify-content:space-between">'
       + '<span style="font-size:13px;font-weight:800;color:#fff">' + esc(titulo) + '</span>'
       + '<span style="font-size:15px;font-weight:800;color:#fff">' + doColuna.length + '</span></div>'
-      + '<div style="background:' + clarear(c.cor, 0.86) + ';border-radius:0 0 12px 12px;'
-      + 'padding:10px;display:flex;flex-direction:column;gap:10px;min-height:60px">'
-      + (c.id === 'analise' ? painelAnalise(dados) : '') + cartoes + '</div></div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px;padding-top:10px">'
+      + (c.id === 'analise' ? emFaixa(painelAnalise(dados), c) : '') + cartoes + '</div></div>'
   }).join('')
 
   return '<div>' + faixaIndicadores(dados.kpis || {}) + barraAcoes(dados) + barraFiltros(filtro, estado.termoPedido)
@@ -212,4 +221,4 @@ function htmlQuadro(dados, estado) {
     + 'aceitar, imprimir e despachar ainda são pelo painel</div></div>'
 }
 
-module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, COLUNAS, ACAO, FILTROS }
+module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, emFaixa, COLUNAS, ACAO, FILTROS }
