@@ -159,7 +159,7 @@ function htmlCardapio(dados, estado) {
 
   return '<div>' + abas + faixaQualidade(dados.qualidade || {}) + barra + lista
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:10px">'
-    + 'criar, editar e reordenar ainda são pelo painel — aqui é consulta e conferência</div></div>'
+    + 'criar categoria e produto, reordenar e trocar fotos ainda são pelo painel</div></div>'
 }
 
 module.exports = { htmlCardapio, ABAS, medidor }

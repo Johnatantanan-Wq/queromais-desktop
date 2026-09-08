@@ -114,6 +114,18 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+/** Editar o preço de um produto: um campo, o preço atual à vista. */
+function fichaPreco(item) {
+  const p = item || {}
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Preço atual: <b style="color:#111">' + esc(brl(p.preco)) + '</b>. Vale a partir de agora, no cardápio e na venda manual.</div>'
+    + campo('Novo preço', 'preco', '', 'Pode digitar 59,90 ou 59.90.')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('cardapio:preco:cancelar', 'Cancelar', false)
+    + botaoFicha('cardapio:preco:confirmar:' + (p.nome || ''), 'Salvar preço', true)
+    + '</div>'
+}
+
 /** Abertura: o fundo de troco é o único campo, e zero é resposta válida. */
 function fichaAbertura() {
   return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:18px;line-height:1.5">'
@@ -242,4 +254,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

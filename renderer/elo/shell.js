@@ -1003,6 +1003,51 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Cardápio: acabou um item, acabou a categoria, o preço mudou. É o que o balcão
+      // mexe no meio do movimento; quem grava (e registra no histórico) é o painel.
+      if (acao.indexOf('esgotar-item:') === 0 || acao.indexOf('ficha:esgotar:') === 0) {
+        const nome = acao.indexOf('ficha:') === 0 ? acao.slice('ficha:esgotar:'.length) : acao.slice('esgotar-item:'.length)
+        const item = produtoDoCardapio(nome)
+        if (!item) { avisar('Não achei esse produto na tela — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('cardapio-esgotar-item', { item, esgotar: !item.esgotado }).then((r) => {
+          if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada mudou.', 'erro') })
+        return
+      }
+      if (acao.indexOf('esgotar-categoria:') === 0) {
+        const nome = acao.slice('esgotar-categoria:'.length)
+        const cat = ((DADOS_TELA && DADOS_TELA.categorias) || []).find((c) => c.nome === nome)
+        if (!cat) { avisar('Não achei essa categoria na tela — recarregue.', 'erro'); return }
+        const esgotar = !(cat.itens || []).every((i) => i.esgotado)
+        btAcao.disabled = true
+        ipcRenderer.invoke('cardapio-esgotar-categoria', { categoria: cat, esgotar }).then((r) => {
+          if (r && r.ok) { avisar(r.resumo, r.parcial ? 'aviso' : 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada mudou.', 'erro') })
+        return
+      }
+      if (acao.indexOf('editar-preco:') === 0) {
+        const item = produtoDoCardapio(acao.slice('editar-preco:'.length))
+        if (!item) { avisar('Não achei esse produto na tela — recarregue.', 'erro'); return }
+        abrirPopup(item.nome || 'Preço', Ficha.fichaPreco(item), 440)
+        const c = document.querySelector('#eloFicha [data-campo="preco"]')
+        if (c) c.focus()
+        return
+      }
+      if (acao === 'cardapio:preco:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('cardapio:preco:confirmar:') === 0) {
+        const item = produtoDoCardapio(acao.slice('cardapio:preco:confirmar:'.length))
+        if (!item) { avisar('Não achei esse produto — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('cardapio-editar-preco', { item, preco: campoDaFicha('preco') }).then((r) => {
+          if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. O preço não mudou.', 'erro') })
+        return
+      }
+
       // Despacho: mandar pedido para a rua. As quatro formas (um, o bairro, os
       // selecionados, em rota) viram a MESMA coisa — uma lista de pedidos — e daí
       // uma chamada por entregador. O painel cria a rota e move para "em entrega".
@@ -1537,6 +1582,15 @@ if (typeof document !== 'undefined') {
       online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
     })
     return true
+  }
+
+  /** Acha o produto pelo nome, em qualquer categoria do cardápio na tela. */
+  function produtoDoCardapio(nome) {
+    for (const c of ((DADOS_TELA && DADOS_TELA.categorias) || [])) {
+      const achado = (c.itens || []).find((i) => i.nome === nome)
+      if (achado) return achado
+    }
+    return null
   }
 
   /** Acha o item da fila pelo id, em qualquer pedido da tela do KDS. */

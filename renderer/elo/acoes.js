@@ -46,9 +46,6 @@ const DESTINOS = {
   // ── Cardápio ──
   'nova-categoria': { rota: '/admin/cardapio', o: 'criar categoria' },
   'novo-combo': { rota: '/admin/cardapio', o: 'criar combo' },
-  'editar-preco': { rota: '/admin/cardapio', o: 'editar o preço' },
-  'esgotar-item': { rota: '/admin/cardapio', o: 'marcar esgotado' },
-  'esgotar-categoria': { rota: '/admin/cardapio', o: 'esgotar a categoria' },
   'acoes-item': { rota: '/admin/cardapio', o: 'editar o produto' },
   'acoes-categoria': { rota: '/admin/cardapio', o: 'editar a categoria' },
   'link-item': { rota: '/admin/cardapio', o: 'ver o produto' },
@@ -127,7 +124,6 @@ const DESTINOS = {
   'ficha:whatsapp': { rota: '/admin/whatsapp', o: 'falar com o cliente' },
   'ficha:whatsapp-cliente': { rota: '/admin/whatsapp', o: 'falar com o cliente' },
   'ficha:novo-pedido': { app: 'venda-cliente' },
-  'ficha:esgotar': { rota: '/admin/cardapio', o: 'marcar esgotado' },
 
   // ── Impressão (do app, não do painel) ──
   'impressao:procurar': { app: 'impressao' },

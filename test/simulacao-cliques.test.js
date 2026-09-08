@@ -23,6 +23,7 @@ let caixaLocal = require('../src-electron/caixa-local').criarRegistro()
 let whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
 let filaDoTeste = new Map()
 let despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
+let cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -117,7 +118,25 @@ function responder(canal, args) {
   }
   if (canal === 'clientes-carregar') return ok(demo.listas().clientes)
   if (canal === 'carrinhos-carregar') return ok(demo.listas().carrinhos)
-  if (canal === 'cardapio-carregar') return ok(demo.listas().cardapio)
+  if (canal === 'cardapio-carregar') return ok(cardapioDoTeste.aplicar(demo.listas().cardapio))
+  if (canal === 'cardapio-esgotar-item') {
+    const d = require('../src-electron/cardapio-acoes').esgotarItem(args.item, args.esgotar)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    cardapioDoTeste.mudar(args.item.id, { esgotado: d.corpo.esgotado })
+    return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'cardapio-editar-preco') {
+    const d = require('../src-electron/cardapio-acoes').editarPreco(args.item, args.preco)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    cardapioDoTeste.mudar(args.item.id, { preco: d.corpo.preco })
+    return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'cardapio-esgotar-categoria') {
+    const d = require('../src-electron/cardapio-acoes').esgotarCategoria(args.categoria, args.esgotar)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    for (const c of d.chamadas) cardapioDoTeste.mudar(c.caminho.split('/').pop(), { esgotado: c.corpo.esgotado })
+    return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'despacho-carregar') return ok(despachoDoTeste.aplicar(demo.listas().despacho))
   if (canal === 'despacho-despachar') {
     const d = require('../src-electron/despacho-acoes').despachar(args)
@@ -222,7 +241,8 @@ const vendaNaTela = () => {
 beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
   whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
   filaDoTeste = new Map()
-  despachoDoTeste = require('../src-electron/despacho-local').criarRegistro() })
+  despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
+  cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -980,4 +1000,68 @@ test('Despacho: escolher o entregador e despachar tira o pedido da fila', async 
   assert.strictEqual(ch.args.pedidos[0].pedido, '7')
   assert.ok(/Saiu: 1 pedido com Tiago Moura/.test(aviso().textContent), aviso().textContent)
   assert.ok(!doc.querySelector('#econtent [data-acao="despachar:7"]'), 'o #7 saiu da fila de prontos')
+})
+
+/** Abre a primeira categoria do cardápio (os itens ficam dentro dela). */
+async function abrirPrimeiraCategoria() {
+  await irPara('/admin/cardapio')
+  clicar(doc.querySelector('#econtent [data-categoria]'))
+  await esperar(60)
+}
+
+test('Cardápio: esgotar um item muda o cardápio na hora', async () => {
+  await abrirApp()
+  await abrirPrimeiraCategoria()
+  const bt = doc.querySelector('#econtent [data-acao^="esgotar-item:"]')
+  assert.ok(bt, 'o item tem a chave de esgotar')
+  const nome = bt.getAttribute('data-acao').slice('esgotar-item:'.length)
+  clicar(bt)
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'cardapio-esgotar-item')
+  assert.ok(ch && ch.args.item.nome === nome, 'o clique esgota o item certo')
+  assert.ok(/marcado como esgotado/.test(aviso().textContent), aviso().textContent)
+})
+
+test('Cardápio: editar preço abre popup, salva e o aviso mostra de → para', async () => {
+  await abrirApp()
+  await abrirPrimeiraCategoria()
+  const bt = doc.querySelector('#econtent [data-acao^="editar-preco:"]')
+  assert.ok(bt, 'o item tem o botão de preço')
+  clicar(bt)
+  await esperar(60)
+  const campo = doc.querySelector('#eloFicha [data-campo="preco"]')
+  assert.ok(campo, 'o popup do preço abre')
+  campo.value = '1.234,50'
+  clicar(doc.querySelector('#eloFicha [data-acao^="cardapio:preco:confirmar:"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'cardapio-editar-preco')
+  assert.ok(ch, 'o preço sai')
+  assert.ok(/→ R\$ 1\.234,50/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.getElementById('eloFicha'), 'o popup fecha')
+})
+
+test('Cardápio: preço igual ao atual é recusado sem fechar o popup', async () => {
+  await abrirApp()
+  await abrirPrimeiraCategoria()
+  const bt = doc.querySelector('#econtent [data-acao^="editar-preco:"]')
+  clicar(bt)
+  await esperar(60)
+  const item = ((doc.getElementById('eloFicha').innerHTML.match(/Preço atual: <b[^>]*>R\$ ([\d.,]+)/) || [])[1])
+  doc.querySelector('#eloFicha [data-campo="preco"]').value = item
+  clicar(doc.querySelector('#eloFicha [data-acao^="cardapio:preco:confirmar:"]'))
+  await esperar(80)
+  assert.ok(/não mudou/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'fica aberto para corrigir')
+})
+
+test('Cardápio: esgotar a categoria esgota os produtos dela', async () => {
+  await abrirApp()
+  await irPara('/admin/cardapio')
+  const bt = doc.querySelector('#econtent [data-acao^="esgotar-categoria:"]')
+  assert.ok(bt, 'a categoria tem a chave de esgotar tudo')
+  clicar(bt)
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'cardapio-esgotar-categoria')
+  assert.ok(ch, 'o clique esgota a categoria')
+  assert.ok(/produtos? de .* esgotad/.test(aviso().textContent), aviso().textContent)
 })

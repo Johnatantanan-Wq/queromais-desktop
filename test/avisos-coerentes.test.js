@@ -25,9 +25,12 @@ const PROMESSAS = [
   { palavra: 'fechamento', acao: 'caixa:fechar' },
   { palavra: 'Abrir e fechar o caixa', acao: 'caixa:abrir' },
   { palavra: 'marcar item como pronto', acao: 'kds:pronto:' },
+  { palavra: 'esgotar', acao: 'esgotar-item:' },
+  { palavra: 'editar', acao: 'editar-preco:' },
 ]
 
 const TELAS = {
+  cardapio: () => require('../renderer/elo/tela-cardapio').htmlCardapio(demo.listas().cardapio, { online: true, ts: Date.now() }),
   despacho: () => require('../renderer/elo/tela-despacho').htmlDespacho(demo.listas().despacho, { visao: 'bairro' }),
   cozinha: () => require('../renderer/elo/tela-operacao').htmlKds(demo.operacao().cozinha, { departamento: 'cozinha' }),
   quadro: () => require('../renderer/elo/telas-catalogo').htmlDaRota('/admin/pedidos', demo.listas().pedidos, { modo: 'quadro' }),

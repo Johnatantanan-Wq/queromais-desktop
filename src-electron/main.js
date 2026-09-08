@@ -613,6 +613,9 @@ async function createWindow() {
           const dados = dadosDemo.listas()[chave]
           // Pedidos: as vendas fechadas no app entram na frente das que vieram do painel,
           // e as etapas que o lojista mudou aqui dentro valem por cima.
+          if (chave === 'cardapio') {
+            return { dados: registroCardapio.aplicar(dados), offline: false, ts: Date.now(), demo: true }
+          }
           if (chave === 'despacho') {
             return { dados: registroDespacho.aplicar(dados), offline: false, ts: Date.now(), demo: true }
           }
@@ -655,6 +658,27 @@ async function createWindow() {
       // O despacho também sai em demonstração: o pedido some de "prontos" e o
       // entregador ganha a linha em "em trânsito".
       const registroDespacho = require('./despacho-local').criarRegistro()
+      // O cardápio também muda em demonstração: esgotado e preço ficam na sessão.
+      const registroCardapio = require('./cardapio-local').criarRegistro()
+      const acoesCardapio = require('./cardapio-acoes')
+      ipcMain.handle('cardapio-esgotar-item', (e, args) => {
+        const d = acoesCardapio.esgotarItem(args && args.item, args && args.esgotar)
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCardapio.mudar(args.item.id, { esgotado: d.corpo.esgotado })
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('cardapio-editar-preco', (e, args) => {
+        const d = acoesCardapio.editarPreco(args && args.item, args && args.preco)
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCardapio.mudar(args.item.id, { preco: d.corpo.preco })
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('cardapio-esgotar-categoria', (e, args) => {
+        const d = acoesCardapio.esgotarCategoria(args && args.categoria, args && args.esgotar)
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        for (const c of d.chamadas) registroCardapio.mudar(c.caminho.split('/').pop(), { esgotado: c.corpo.esgotado })
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
       ipcMain.handle('despacho-despachar', (e, args) => {
         const d = require('./despacho-acoes').despachar(args || {})
         if (!d.ok) return { ok: false, erro: d.motivo }
@@ -830,6 +854,7 @@ async function createWindow() {
     if (!DEMO) require('./whatsapp-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./kds-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./despacho-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./cardapio-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
