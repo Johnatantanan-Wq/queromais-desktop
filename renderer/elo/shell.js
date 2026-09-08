@@ -488,6 +488,13 @@ if (typeof document !== 'undefined') {
     div.innerHTML = Ficha.painel(titulo, corpo)
     document.body.appendChild(div.firstChild)
   }
+  /** Janela de AÇÃO: centralizada, como as do painel — ver Ficha.popup. */
+  function abrirPopup(titulo, corpo, largura) {
+    fecharFicha()
+    const div = document.createElement('div')
+    div.innerHTML = Ficha.popup(titulo, corpo, largura)
+    document.body.appendChild(div.firstChild)
+  }
   function fecharFicha() {
     const f = document.getElementById('eloFicha')
     if (f) f.remove()
@@ -898,15 +905,15 @@ if (typeof document !== 'undefined') {
       // o app abre a ficha, confere o que dá para conferir aqui e manda.
       if (acao === 'caixa:sangria' || acao === 'caixa:suprimento') {
         const tipo = acao.split(':')[1]
-        abrirFicha(tipo === 'sangria' ? 'Sangria' : 'Suprimento',
+        abrirPopup(tipo === 'sangria' ? 'Sangria' : 'Suprimento',
           Ficha.fichaMovimentacao(tipo, CaixaAcoes.MOTIVOS_SANGRIA))
         return
       }
       if (acao === 'caixa:fechar') {
-        abrirFicha('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA))
+        abrirPopup('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA), 560)
         return
       }
-      if (acao === 'caixa:abrir') { abrirFicha('Abrir caixa', Ficha.fichaAbertura()); return }
+      if (acao === 'caixa:abrir') { abrirPopup('Abrir caixa', Ficha.fichaAbertura()); return }
       if (acao === 'caixa:abrir:confirmar') {
         mandarAoCaixa(btAcao, 'caixa-abrir', {
           fundo: campoDaFicha('fundo'),

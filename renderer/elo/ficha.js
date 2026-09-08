@@ -31,6 +31,30 @@ function botao(acao, rotulo, primaria) {
 }
 
 /** Moldura do painel: fundo escurecido + folha à direita. */
+/**
+ * POPUP — janela centralizada, no formato do Elo (print do dono, 08/09): fundo
+ * escurecido, caixa branca no meio da tela, cantos arredondados e sombra funda.
+ *
+ * Quando usar cada um: o `painel` lateral é para CONSULTAR (ficha do pedido, do
+ * cliente) — a tela por trás continua à vista e o lojista compara. O `popup` é para
+ * FAZER: sangria, fechamento, abertura. A ação pede atenção inteira, e o fundo
+ * escurecido é o que diz isso.
+ */
+function popup(titulo, conteudo, largura) {
+  return '<div id="eloFicha" style="position:fixed;inset:0;z-index:900;display:flex;align-items:center;'
+    + 'justify-content:center;padding:32px">'
+    + '<div data-fechar-ficha="1" style="position:absolute;inset:0;background:rgba(17,17,17,.32)"></div>'
+    + '<div style="position:relative;width:' + (largura || 520) + 'px;max-width:94vw;max-height:88vh;background:#fff;'
+    + 'border-radius:16px;box-shadow:0 24px 64px rgba(17,17,17,.24);display:flex;flex-direction:column;'
+    + 'animation:eloFadeUp .2s ease both;overflow:hidden">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 24px;'
+    + 'border-bottom:1px solid #eef0f3">'
+    + '<div style="font-size:16px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
+    + '<button type="button" data-fechar-ficha="1" style="width:32px;height:32px;border:1px solid #e5e7eb;'
+    + 'border-radius:9px;background:#fff;color:#6b7280;cursor:pointer;font-family:inherit;font-size:14px">✕</button></div>'
+    + '<div style="flex:1;overflow:auto;padding:22px 24px">' + conteudo + '</div></div></div>'
+}
+
 function painel(titulo, conteudo) {
   return '<div id="eloFicha" style="position:fixed;inset:0;z-index:900;display:flex;justify-content:flex-end">'
     + '<div data-fechar-ficha="1" style="position:absolute;inset:0;background:rgba(17,17,17,.28)"></div>'
@@ -218,4 +242,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

@@ -92,3 +92,26 @@ test('a ficha de abertura pede o fundo e já vem com zero', () => {
   assert.ok(h.includes('data-campo="fundo"'))
   assert.ok(h.includes('data-acao="caixa:abrir:confirmar"'))
 })
+
+test('as janelas de AÇÃO são popup centralizado; as de consulta seguem laterais', () => {
+  const Ficha = require('../renderer/elo/ficha')
+  const pop = Ficha.popup('Sangria', '<p>x</p>')
+  assert.ok(/align-items:center;justify-content:center/.test(pop), 'o popup fica no meio da tela')
+  assert.ok(/border-radius:16px/.test(pop) && /box-shadow:0 24px 64px/.test(pop), 'cantos e sombra do formato do painel')
+  assert.ok(/data-fechar-ficha="1"/.test(pop), 'fecha pelo fundo e pelo ✕, como a ficha')
+  assert.strictEqual(pop.indexOf('id="eloFicha"') >= 0, true, 'usa o mesmo id — fecharFicha() serve para os dois')
+
+  const lateral = Ficha.painel('Pedido #1042', '<p>x</p>')
+  assert.ok(/justify-content:flex-end/.test(lateral), 'a ficha de consulta continua encostada na direita')
+})
+
+test('o shell abre as janelas do caixa como popup, não como ficha lateral', () => {
+  const fs = require('fs')
+  const path = require('path')
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'elo', 'shell.js'), 'utf8')
+  for (const acao of ['Sangria', 'Fechar caixa', 'Abrir caixa']) {
+    const linha = shell.split('\n').find((l) => l.includes("'" + acao + "'") && /abrir(Ficha|Popup)/.test(l))
+    assert.ok(linha, 'não achei onde ' + acao + ' abre')
+    assert.ok(/abrirPopup/.test(linha), acao + ' tem de abrir como popup: ' + linha.trim())
+  }
+})
