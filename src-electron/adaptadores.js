@@ -637,7 +637,88 @@ const TIPO_CATEGORIA = {
   bebida: { id: 'revenda', nome: 'Revenda' },
   insumo: { id: 'insumos', nome: 'Insumos' },
 }
-function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp }) {
+const MOVIMENTO = { entrada: 'Entrada', saida: 'Saída', perda: 'Perda', ajuste: 'Ajuste', producao: 'Produção' }
+
+/**
+ * As três abas que vêm de /api/admin/desktop/estoque: Movimentações, Fichas técnicas
+ * e Nota fiscal (saída). Sem essa rota elas ficavam desenhadas e sem fonte.
+ */
+function abasDaGestao(r) {
+  if (!r) return {}
+  const movs = r.movimentacoes || []
+  const soma = (t) => movs.filter((m) => m.tipo === t).reduce((s, m) => s + Math.abs(Number(m.qtd) || 0), 0)
+  const dias = new Set(movs.map((m) => m.dia).filter(Boolean))
+
+  return {
+    movimentacoes: {
+      entradasValor: soma('entrada'),
+      saidasValor: soma('saida'),
+      perdasValor: soma('perda'),
+      lancamentos: movs.length,
+      produtosMovimentados: new Set(movs.map((m) => m.item)).size,
+      diasNoPeriodo: dias.size,
+      giro: [],
+      itens: movs.map((m) => ({
+        data: diaBR(m.dia),
+        hora: m.quando || '',
+        produto: m.item || '',
+        movimento: MOVIMENTO[m.tipo] || m.tipo || '',
+        qtd: (Number(m.qtd) || 0) + (m.unidade ? ' ' + m.unidade : ''),
+        conversao: '—',
+        // null é diferente de zero: "não sei o saldo" não é "saldo zerado".
+        saldoApos: m.saldoDepois == null ? null : Number(m.saldoDepois),
+        custo: null,
+        operador: m.quem || '',
+        observacao: m.motivo || '',
+      })),
+    },
+    fichas: {
+      itens: (r.fichas || []).map((f) => ({
+        produto: f.produto,
+        categoria: f.categoria || '',
+        preco: Number(f.preco) || 0,
+        custo: Number(f.custo) || 0,
+        insumos: (f.itens || []).map((i) => ({
+          nome: i.ingrediente,
+          qtd: (Number(i.qtd) || 0) + (i.unidade ? ' ' + i.unidade : ''),
+        })),
+      })),
+      // Produto que baixa por ficha e não tem ficha: some do estoque sem baixar nada.
+      semFicha: r.semFicha || [],
+    },
+    nfSaida: notasDeSaida(r.notasSaida || []),
+  }
+}
+
+function notasDeSaida(notas) {
+  const ok = (n) => /autoriz/i.test('' + (n.status || ''))
+  const falha = (n) => /rejeit|erro|falha|denegad/i.test('' + (n.status || ''))
+  const hoje = new Date().toISOString().slice(0, 10)
+  const doDia = notas.filter((n) => n.dia === hoje)
+  const valor = (lista) => lista.reduce((s, n) => s + (Number(n.valor) || 0), 0)
+  return {
+    emitidasHoje: doDia.filter(ok).length,
+    emitidasHojeValor: valor(doDia.filter(ok)),
+    pendentes: notas.filter((n) => !ok(n) && !falha(n)).length,
+    pendentesValor: valor(notas.filter((n) => !ok(n) && !falha(n))),
+    comFalha: notas.filter(falha).length,
+    periodo: notas.filter(ok).length,
+    periodoValor: valor(notas.filter(ok)),
+    itens: notas.map((n) => ({
+      numero: n.numero, serie: n.serie, situacao: n.status,
+      valor: Number(n.valor) || 0, quando: n.quando, dia: diaBR(n.dia),
+      chave: n.chave, mensagem: n.mensagem,
+    })),
+  }
+}
+
+/** "2026-09-08" → "08/09/2026", sem passar por fuso (é dia, não instante). */
+function diaBR(iso) {
+  const m = ('' + (iso || '')).match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : ''
+}
+
+function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoResp }) {
   const itens = Array.isArray(ingredientesResp) ? ingredientesResp : []
   const porTipo = new Map()
   for (const i of itens) {
@@ -659,6 +740,7 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp }) {
     })
   }
   return {
+    ...abasDaGestao(gestaoResp),
     categorias: [...porTipo.values()],
     nfEntrada: {
       notas: [],

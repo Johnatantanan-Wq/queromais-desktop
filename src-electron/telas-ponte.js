@@ -105,6 +105,7 @@ const TELAS = [
       ingredientesResp: '/api/admin/ingredientes',
       pendenciasResp: '/api/admin/estoque/pendencias',
       fornecedoresResp: '/api/admin/fornecedores',
+      gestaoResp: '/api/admin/desktop/estoque',
     },
     adaptar: (r) => A.estoque(r),
     valida: (r) => Array.isArray(r.ingredientesResp),
