@@ -193,3 +193,38 @@ test('sem formas cadastradas a aba fica vazia, sem inventar linha', () => {
   assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, formasResp: [] }).abas.pagamento, [])
   assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, formasResp: null }).abas.pagamento, [])
 })
+
+// ── Mesas ──
+const salaoBase = { mesas: [
+  { numero: '1', lugares: 4, situacao: 'Livre' },
+  { numero: '2', lugares: 4, situacao: 'Ocupada' },
+  { numero: '3', lugares: 2, situacao: 'Em preparo' },
+  { numero: '4', lugares: 6, situacao: 'Livre' },
+] }
+
+test('a aba Mesas conta o cadastro e o que está em uso', () => {
+  const d = A.configuracoes({ lojaResp: loja, salaoResp: salaoBase })
+  const campos = {}
+  for (const s of d.abas.mesas) for (const c of s.campos) campos[c.rotulo] = c.valor
+  assert.strictEqual(campos['Mesas cadastradas'], '4')
+  assert.strictEqual(campos['Em uso agora'], '2 de 4', 'Ocupada e Em preparo contam como em uso')
+  assert.strictEqual(campos['Lugares no total'], '16')
+})
+
+test('a distribuição agrupa por lugares, no singular e no plural certos', () => {
+  const d = A.configuracoes({ lojaResp: loja, salaoResp: salaoBase })
+  const dist = d.abas.mesas[1].campos[0].valor
+  assert.strictEqual(dist, '1× de 2 lugares · 2× de 4 lugares · 1× de 6 lugares')
+  const umLugar = A.configuracoes({ lojaResp: loja, salaoResp: { mesas: [{ numero: '1', lugares: 1 }] } })
+  assert.ok(/1× de 1 lugar$/.test(umLugar.abas.mesas[1].campos[0].valor), 'singular')
+})
+
+test('a aba Mesas aceita o salão embrulhado, como a rota devolve', () => {
+  const d = A.configuracoes({ lojaResp: loja, salaoResp: { salao: salaoBase } })
+  assert.strictEqual(d.abas.mesas[0].campos[0].valor, '4')
+})
+
+test('sem mesas cadastradas a aba fica vazia, sem inventar salão', () => {
+  assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, salaoResp: { mesas: [] } }).abas.mesas, [])
+  assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, salaoResp: null }).abas.mesas, [])
+})

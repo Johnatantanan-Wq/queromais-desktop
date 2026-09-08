@@ -87,6 +87,7 @@ const TELAS = [
       whatsappResp: '/api/admin/whatsapp/status',
       formasResp: '/api/admin/formas-pagamento',
       contasResp: '/api/admin/contas-financeiras',
+      salaoResp: '/api/admin/atendimento/salao',
     },
     adaptar: (r) => A.configuracoes(r),
     valida: (r) => r.lojaResp && r.lojaResp.id,

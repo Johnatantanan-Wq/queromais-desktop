@@ -218,7 +218,7 @@ function whatsapp({ statusResp, configResp }) {
   }
 }
 
-function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp }) {
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp, salaoResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
@@ -275,6 +275,7 @@ function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, plan
       gestor: appGestor(l),
       whatsapp: whatsappDaLoja(whatsappResp),
       pagamento: formasDePagamento(formasResp, contasResp),
+      mesas: mesasDoSalao(salaoResp),
     },
   }
 }
@@ -344,6 +345,39 @@ function planoDaLoja(r) {
       { rotulo: 'Pedidos no ciclo', valor: uso.pedidos != null ? String(uso.pedidos) : '' },
       { rotulo: 'Franquia do plano', valor: franquia != null ? String(franquia) + ' pedidos' : 'sem limite' },
       { rotulo: 'Excedente', valor: prox.excedenteQtd != null ? String(prox.excedenteQtd) + ' pedidos' : '' },
+    ] },
+  ]
+}
+
+/**
+ * Mesas do salão. Vem da mesma rota que a tela de Atendimento usa — não há endpoint
+ * só de mesas, e criar um seria repetir a consulta.
+ *
+ * O que a aba mostra é o CADASTRO (quantas mesas, quantos lugares, quantas em uso),
+ * não o mapa ao vivo: para acompanhar o salão existe a tela de Atendimento.
+ */
+function mesasDoSalao(r) {
+  const mesas = (r && (r.mesas || (r.salao && r.salao.mesas))) || []
+  if (!mesas.length) return []
+  const ocupadas = mesas.filter((m) => /ocupad|em preparo|pronto|conta/i.test('' + (m.situacao || ''))).length
+  const lugares = mesas.reduce((s, m) => s + (Number(m.lugares) || 0), 0)
+  const porLugares = {}
+  for (const m of mesas) {
+    const n = Number(m.lugares) || 0
+    porLugares[n] = (porLugares[n] || 0) + 1
+  }
+  const distribuicao = Object.keys(porLugares).sort((a, b) => a - b)
+    .map((n) => porLugares[n] + '× de ' + n + (Number(n) === 1 ? ' lugar' : ' lugares')).join(' · ')
+
+  return [
+    { titulo: 'Salão', colunas: 3, campos: [
+      { rotulo: 'Mesas cadastradas', valor: String(mesas.length) },
+      { rotulo: 'Em uso agora', valor: ocupadas + ' de ' + mesas.length },
+      { rotulo: 'Lugares no total', valor: String(lugares) },
+    ] },
+    { titulo: 'Como as mesas estão montadas', colunas: 1, campos: [
+      { rotulo: 'Distribuição', valor: distribuicao },
+      { rotulo: 'Cadastrar e imprimir QR', valor: 'ainda é pelo painel' },
     ] },
   ]
 }
