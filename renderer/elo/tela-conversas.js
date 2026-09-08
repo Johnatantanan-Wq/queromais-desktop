@@ -157,6 +157,69 @@ function painelConversa(c, podeEnviar) {
   return '<div style="display:flex;flex-direction:column;height:100%">' + cabecalho + mensagens + resposta + '</div>'
 }
 
+const ETAPA_PEDIDO = {
+  analise: { rotulo: 'Em análise', cor: '#1e2a5a' },
+  producao: { rotulo: 'Em produção', cor: '#2563eb' },
+  pronto: { rotulo: 'Pronto para entrega', cor: '#047857' },
+  transito: { rotulo: 'Em trânsito', cor: '#6d28d9' },
+  entregue: { rotulo: 'Entregue', cor: '#16a34a' },
+}
+
+/**
+ * O pedido que está andando, ao lado da conversa. Só aparece quando existe — coluna
+ * vazia à direita rouba largura da conversa sem dar nada em troca.
+ *
+ * O que ele mostra é o que se responde ao cliente sem sair da tela: em que etapa
+ * está, há quanto tempo, o que foi pedido, quanto deu e para onde vai.
+ */
+function painelPedido(p) {
+  if (!p) return ''
+  const e = ETAPA_PEDIDO[p.etapa] || { rotulo: p.status || 'Em andamento', cor: '#4b5563' }
+  const linha = (rotulo, valor, forte) => '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0">'
+    + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">' + esc(rotulo) + '</span>'
+    + '<span style="font-size:12.5px;color:#111;font-weight:' + (forte ? '800' : '700') + ';text-align:right">'
+    + esc(valor) + '</span></div>'
+
+  const itens = (p.itens || []).length
+    ? '<div style="margin:12px 0 6px">'
+      + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.06em;'
+      + 'margin-bottom:6px">O que ele pediu</div>'
+      + (p.itens || []).map((i) => '<div style="font-size:12.5px;color:#111;font-weight:600;padding:3px 0;'
+        + 'border-bottom:1px solid #f4f5f7">' + esc(i) + '</div>').join('')
+      + '</div>'
+    : ''
+
+  const subtotal = p.valor - p.taxa + p.desconto
+  return '<div style="border-left:1px solid #eef0f3;background:#fff;display:flex;flex-direction:column;height:100%">'
+    + '<div style="padding:13px 16px;border-bottom:1px solid #eef0f3">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'
+    + '<span style="font-size:14px;font-weight:800;color:#111">Pedido #' + esc(p.numero) + '</span>'
+    + '<span style="font-size:11px;font-weight:800;color:#fff;background:' + e.cor + ';border-radius:999px;'
+    + 'padding:4px 10px;white-space:nowrap">' + esc(e.rotulo) + '</span></div>'
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">'
+    + esc([p.canal, p.hora, p.esperaMin ? 'há ' + p.esperaMin + ' min' : ''].filter(Boolean).join(' · ')) + '</div>'
+    + '</div>'
+    + '<div style="flex:1;overflow:auto;padding:12px 16px">'
+    + itens
+    + '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #eef0f3">'
+    + linha('Subtotal', brl(subtotal))
+    + (p.taxa ? linha('Entrega', brl(p.taxa)) : '')
+    + (p.desconto ? linha('Desconto', '− ' + brl(p.desconto)) : '')
+    + linha('Total', brl(p.valor), true)
+    + (p.forma ? linha('Pagamento', p.forma) : '')
+    + '</div>'
+    + (p.endereco ? '<div style="margin-top:12px">'
+      + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.06em;'
+      + 'margin-bottom:4px">Entrega</div>'
+      + '<div style="font-size:12.5px;color:#111;font-weight:600;line-height:1.5">' + esc(p.endereco) + '</div></div>' : '')
+    + '</div>'
+    + '<div style="padding:12px 16px;border-top:1px solid #eef0f3">'
+    + '<button type="button" data-acao="conversa:pedido:' + esc(p.numero) + '" style="width:100%;height:36px;'
+    + 'border:1px solid #e5e7eb;border-radius:10px;background:#fff;color:#111;font-family:inherit;font-size:12.5px;'
+    + 'font-weight:800;cursor:pointer">Abrir o pedido</button></div>'
+    + '</div>'
+}
+
 function htmlConversas(dados, estado) {
   dados = dados || {}
   estado = estado || {}
@@ -183,12 +246,20 @@ function htmlConversas(dados, estado) {
     + '<button type="button" data-acao="conversa:configurar" class="echip" style="cursor:pointer">'
     + '⚙ Configurar WhatsApp</button></div>'
 
+  // O pedido em andamento do cliente da conversa aberta — se houver, ganha a coluna
+  // da direita. Sem pedido ativo, a conversa fica com a largura toda.
+  const pedidoAtivo = (aberta && aberta.cliente && aberta.cliente.emAndamento) || null
+  const colunas = pedidoAtivo
+    ? 'minmax(220px,290px) 1fr minmax(240px,300px)'
+    : 'minmax(240px,320px) 1fr'
+
   return '<div>' + cabecalho
     + '<div class="ecard" style="padding:0;overflow:hidden;display:grid;'
-    + 'grid-template-columns:minmax(240px,320px) 1fr;height:calc(100vh - 260px);min-height:420px">'
+    + 'grid-template-columns:' + colunas + ';height:calc(100vh - 260px);min-height:420px">'
     + '<div style="border-right:1px solid #eef0f3;overflow:auto">'
     + conversas.map((c) => linhaConversa(c, abertaId, dados.agora)).join('') + '</div>'
     + '<div style="min-width:0">' + painelConversa(aberta, podeEnviar) + '</div>'
+    + (pedidoAtivo ? '<div style="min-width:0">' + painelPedido(pedidoAtivo) + '</div>' : '')
     + '</div></div>'
 }
 

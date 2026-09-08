@@ -807,3 +807,17 @@ test('número que não é de cliente nenhum não ganha vínculo na tela', async 
   assert.ok(!/data-acao="conversa:cliente:/.test(conteudo().split('Enviar')[0].split('c4')[1] || ''),
     'sem cadastro, sem atalho de ficha')
 })
+
+test('o pedido em andamento aparece ao lado da conversa', async () => {
+  await abrirApp()
+  await irPara('/admin/whatsapp')
+  // Maria Silva tem o #1042 em produção
+  assert.ok(/Pedido #1042/.test(conteudo()), 'o pedido ativo entra na coluna da direita')
+  assert.ok(/Em produção/.test(conteudo()), 'com a etapa em que está')
+  assert.ok(/Abrir o pedido/.test(conteudo()))
+
+  // Carla não tem pedido andando: a coluna some
+  clicar(doc.querySelector('[data-conversa="c3"]'))
+  await esperar(60)
+  assert.ok(!/Abrir o pedido/.test(conteudo()), 'sem pedido ativo, sem coluna')
+})

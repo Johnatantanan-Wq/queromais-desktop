@@ -164,3 +164,79 @@ test('sem reconhecer, a tela não inventa faixa nem selo', () => {
   assert.ok(!h.includes('data-acao="conversa:cliente:'))
   assert.ok(!/pedidos ·/.test(h))
 })
+
+// ── o pedido em andamento, ao lado da conversa ──
+const T2 = require('../renderer/elo/tela-conversas')
+
+const comPedido = {
+  estado: 'open',
+  conversas: [{
+    id: '1', nome: 'Marina', telefone: '5575988110001',
+    mensagens: [{ de: 'cliente', texto: 'meu pedido saiu?' }],
+    cliente: { nome: 'MARINA PRADO', cadastrado: true, chave: 'x', pedidos: 3, gasto: 200,
+      emAndamento: { numero: '1042', etapa: 'producao', valor: 89.9, taxa: 8, desconto: 0,
+        canal: 'Delivery', forma: 'Pix', hora: '20:18', esperaMin: 12,
+        endereco: 'Rua das Palmeiras, 45 — Centro',
+        itens: ['1x Pizza Portuguesa G', '1x Refrigerante 2L'] } },
+  }],
+}
+
+test('cliente com pedido ANDANDO ganha o pedido na coluna da direita', () => {
+  const h = T2.htmlConversas(comPedido, {})
+  assert.ok(/Pedido #1042/.test(h))
+  assert.ok(/Em produção/.test(h), 'a etapa aparece com o nome do quadro')
+  assert.ok(/1x Pizza Portuguesa G/.test(h), 'e o que ele pediu')
+  assert.ok(/grid-template-columns:minmax\(220px,290px\) 1fr minmax/.test(h), 'três colunas')
+})
+
+test('a conta do pedido fecha: subtotal + entrega = total', () => {
+  const h = T2.htmlConversas(comPedido, {})
+  assert.ok(/Subtotal<\/span><span[^>]*>R\$ 81,90/.test(h), 'subtotal = total − entrega')
+  assert.ok(/Entrega<\/span><span[^>]*>R\$ 8,00/.test(h))
+  assert.ok(/Total<\/span><span[^>]*>R\$ 89,90/.test(h))
+})
+
+test('sem pedido andando, a conversa fica com a largura toda', () => {
+  const semAtivo = { ...comPedido, conversas: [{ ...comPedido.conversas[0],
+    cliente: { ...comPedido.conversas[0].cliente, emAndamento: null } }] }
+  const h = T2.htmlConversas(semAtivo, {})
+  assert.ok(/grid-template-columns:minmax\(240px,320px\) 1fr;/.test(h), 'duas colunas')
+  assert.ok(!/Abrir o pedido/.test(h), 'coluna vazia à direita rouba largura sem dar nada')
+})
+
+test('pedido já entregue NÃO vira painel — ele não está mais andando', () => {
+  const A2 = require('../src-electron/adaptadores')
+  const d = A2.conversas({
+    conversasResp: { conversas: [{ id: '1', telefone: '5575988110001' }] },
+    pedidosResp: { itens: [{ numero: '1', telefone: '75988110001', valor: 50, etapa: 'entregue' }] },
+  })
+  assert.strictEqual(d.conversas[0].cliente.emAndamento, null)
+  assert.strictEqual(d.conversas[0].cliente.pedidos, 1, 'mas continua contando no histórico')
+})
+
+test('entre dois pedidos, o painel mostra o que ainda está andando', () => {
+  const A2 = require('../src-electron/adaptadores')
+  const d = A2.conversas({
+    conversasResp: { conversas: [{ id: '1', telefone: '5575988110001' }] },
+    pedidosResp: { itens: [
+      { numero: '99', telefone: '75988110001', valor: 50, etapa: 'entregue' },
+      { numero: '100', telefone: '75988110001', valor: 70, etapa: 'transito' },
+    ] },
+  })
+  assert.strictEqual(d.conversas[0].cliente.emAndamento.numero, '100')
+})
+
+test('o painel do pedido leva ao pedido inteiro', () => {
+  const h = T2.htmlConversas(comPedido, {})
+  assert.ok(h.includes('data-acao="conversa:pedido:1042"'))
+  assert.ok(/Abrir o pedido/.test(h))
+})
+
+test('pedido sem endereço (balcão) não desenha bloco de entrega vazio', () => {
+  const balcao = { ...comPedido, conversas: [{ ...comPedido.conversas[0],
+    cliente: { ...comPedido.conversas[0].cliente,
+      emAndamento: { ...comPedido.conversas[0].cliente.emAndamento, endereco: '', taxa: 0, canal: 'Balcão' } } }] }
+  const h = T2.htmlConversas(balcao, {})
+  assert.ok(!/>Entrega</.test(h), 'sem endereço, sem bloco de entrega')
+  assert.ok(/Total<\/span><span[^>]*>R\$ 89,90/.test(h), 'a conta continua fechando')
+})

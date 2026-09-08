@@ -185,7 +185,18 @@ function reconhecer(telefone, cadastro, pedidos) {
 
   // O pedido mais recente é o primeiro da lista do painel (ela vem em ordem).
   const ultimo = dele[0] || null
+  // ATIVO é o que ainda está andando: quem já foi entregue (ou cancelado, que nem
+  // entra no quadro) não precisa ficar ocupando a tela ao lado da conversa.
+  const ativo = dele.find((p) => p.etapa && p.etapa !== 'entregue') || null
   return {
+    emAndamento: ativo ? {
+      numero: ativo.numero, etapa: ativo.etapa, status: ativo.status || '',
+      valor: Number(ativo.valor) || 0, taxa: Number(ativo.taxa) || 0, desconto: Number(ativo.desconto) || 0,
+      canal: ativo.canal || '', forma: ativo.forma || ativo.pagamento || '',
+      endereco: ativo.endereco || '', hora: ativo.hora || '',
+      esperaMin: Number(ativo.esperaMin || ativo.entrouHaMin) || 0,
+      itens: ativo.itens || [],
+    } : null,
     nome: (doCadastro && doCadastro.nome) || (ultimo && ultimo.cliente) || null,
     cadastrado: !!doCadastro,
     chave: (doCadastro && (doCadastro.chave || doCadastro.telefone)) || telefone,
