@@ -1003,6 +1003,32 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Fila da cozinha/bar: iniciar o preparo e marcar pronto. Quem move o item é o
+      // painel — ele cuida do relógio e avisa o pedido quando o último fica pronto.
+      if (acao.indexOf('kds:iniciar:') === 0 || acao.indexOf('kds:pronto:') === 0) {
+        const id = acao.split(':').slice(2).join(':')
+        const item = itemDaFila(id)
+        if (!item) { avisar('Não achei esse item na tela — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('kds-avancar', { item }).then((r) => {
+          if (r && r.ok) { avisar(r.resumo || 'Pronto.', 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu para mover o item.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel.', 'erro') })
+        return
+      }
+      if (acao.indexOf('kds:pedido-pronto:') === 0) {
+        const numero = acao.slice('kds:pedido-pronto:'.length)
+        const pedido = ((DADOS_TELA && DADOS_TELA.pedidos) || [])
+          .find((p) => String(p.numero) === String(numero))
+        if (!pedido) { avisar('Não achei esse pedido na tela — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('kds-pedido-pronto', { pedido }).then((r) => {
+          if (r && r.ok) { avisar(r.resumo || 'Pronto.', r.parcial ? 'aviso' : 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu para marcar.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel.', 'erro') })
+        return
+      }
+
       // Caixa: sangria, suprimento e fechamento. O painel continua lançando a
       // movimentação, decidindo se a sangria vira despesa e gravando a auditoria —
       // o app abre a ficha, confere o que dá para conferir aqui e manda.
@@ -1480,6 +1506,15 @@ if (typeof document !== 'undefined') {
       online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
     })
     return true
+  }
+
+  /** Acha o item da fila pelo id, em qualquer pedido da tela do KDS. */
+  function itemDaFila(id) {
+    for (const p of ((DADOS_TELA && DADOS_TELA.pedidos) || [])) {
+      const achado = (p.itens || []).find((i) => String(i.id) === String(id))
+      if (achado) return achado
+    }
+    return null
   }
 
   function abrirPopupPedido() {

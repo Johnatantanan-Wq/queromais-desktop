@@ -135,7 +135,7 @@ function htmlKds(dados, estado) {
     + 'align-items:start;animation:eloFadeUp .5s ease both">'
     + pedidos.map((p) => cartaoKds(p, dep)).join('') + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
-    + 'marcar item como pronto ainda é pelo painel</div>'
+    + 'imprimir a comanda ainda é pelo painel</div>'
 }
 
 const COR_MESA = {

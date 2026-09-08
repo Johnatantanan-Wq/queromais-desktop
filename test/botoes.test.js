@@ -149,9 +149,18 @@ test('toda ação que vai para o painel diz O QUE vai fazer lá', () => {
 
 test('a chave da ação ignora o identificador que vem depois', () => {
   assert.strictEqual(Acoes.chaveDe('despachar:1042'), 'despachar')
-  assert.strictEqual(Acoes.chaveDe('kds:iniciar:c1'), 'kds:iniciar')
+  assert.strictEqual(Acoes.chaveDe('mesa:fechar:7'), 'mesa:fechar', 'chave composta que está no mapa')
   assert.strictEqual(Acoes.chaveDe('esgotar-item:Pizza: a boa'), 'esgotar-item')
   assert.strictEqual(Acoes.destinoDe('mesa:imprimir:7').app, 'comanda')
+})
+
+test('ação que saiu do mapa não tem destino — porque o app FAZ', () => {
+  // kds:iniciar saiu quando a cozinha passou a mover a fila pelo app. Um destino
+  // sobrando aqui faria o clique abrir o painel em vez de mover o item.
+  assert.strictEqual(Acoes.destinoDe('kds:iniciar:c1'), null)
+  assert.strictEqual(Acoes.destinoDe('kds:pronto:c1'), null)
+  assert.strictEqual(Acoes.destinoDe('caixa:sangria'), null)
+  assert.strictEqual(Acoes.destinoDe('avancar:1042'), null)
 })
 
 test('o aviso do topo existe de verdade (era ele que faltava)', () => {

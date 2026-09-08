@@ -647,6 +647,28 @@ async function createWindow() {
       // O caixa também anda em demonstração: sangria e suprimento entram nas
       // movimentações do turno e mudam o dinheiro esperado na gaveta.
       const registroCaixa = require('./caixa-local').criarRegistro()
+      // A fila da cozinha também anda em demonstração: o estado do item fica na
+      // sessão e é aplicado por cima do que a demonstração devolve.
+      const estadosKds = new Map()
+      const comEstados = (dept) => ({
+        ...dept,
+        pedidos: (dept.pedidos || []).map((p) => ({
+          ...p,
+          itens: (p.itens || []).map((i) => ({ ...i, estado: estadosKds.get(i.id) || i.estado })),
+        })),
+      })
+      ipcMain.handle('kds-avancar', (e, args) => {
+        const d = require('./kds-acoes').avancarItem(args && args.item)
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        estadosKds.set(args.item.id, d.status)
+        return { ok: true, status: d.status, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('kds-pedido-pronto', (e, args) => {
+        const d = require('./kds-acoes').pedidoPronto(args && args.pedido)
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        for (const i of (args.pedido.itens || [])) if (i.estado !== 'pronto') estadosKds.set(i.id, 'pronto')
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
       // WhatsApp em demonstração: começa desconectado, e "Conectar" devolve um QR
       // fictício — dá para ver a tela inteira sem servidor.
       let whatsDemo = { estado: 'sem_config', provedor: 'evolution', ativo: false }
@@ -757,7 +779,13 @@ async function createWindow() {
       const CANAIS_OPERACAO = { 'cozinha-carregar': 'cozinha', 'bar-carregar': 'bar', 'salao-carregar': 'salao' }
       for (const canal of Object.keys(CANAIS_OPERACAO)) {
         const chave = CANAIS_OPERACAO[canal]
-        ipcMain.handle(canal, () => ({ dados: dadosDemo.operacao()[chave], offline: false, ts: Date.now(), demo: true }))
+        ipcMain.handle(canal, () => {
+          const dept = dadosDemo.operacao()[chave]
+          // Cozinha e bar levam por cima o que foi marcado aqui dentro; o salão não
+          // tem fila de itens.
+          const dados = (chave === 'cozinha' || chave === 'bar') ? comEstados(dept) : dept
+          return { dados, offline: false, ts: Date.now(), demo: true }
+        })
       }
       void listasDemo
       ipcMain.handle('rede-status', () => ({ online: true, demo: true }))
@@ -788,6 +816,7 @@ async function createWindow() {
     if (!DEMO) require('./pedido-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./whatsapp-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./kds-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

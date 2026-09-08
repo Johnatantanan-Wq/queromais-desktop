@@ -21,6 +21,7 @@ const pedidosLocais = require('../src-electron/pedidos-locais')
 let etapasDeTeste = pedidosLocais.criarRegistro()
 let caixaLocal = require('../src-electron/caixa-local').criarRegistro()
 let whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
+let filaDoTeste = new Map()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -72,7 +73,24 @@ function responder(canal, args) {
     const d = require('../src-electron/caixa-acoes').fechamento({ ...args, caixaAberto: true })
     return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
   }
-  if (canal === 'cozinha-carregar') return ok(demo.operacao().cozinha)
+  if (canal === 'cozinha-carregar') {
+    const c = demo.operacao().cozinha
+    return ok({ ...c, pedidos: (c.pedidos || []).map((p) => ({
+      ...p, itens: (p.itens || []).map((i) => ({ ...i, estado: filaDoTeste.get(i.id) || i.estado })),
+    })) })
+  }
+  if (canal === 'kds-avancar') {
+    const d = require('../src-electron/kds-acoes').avancarItem(args.item)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    filaDoTeste.set(args.item.id, d.status)
+    return { ok: true, status: d.status, resumo: d.resumo }
+  }
+  if (canal === 'kds-pedido-pronto') {
+    const d = require('../src-electron/kds-acoes').pedidoPronto(args.pedido)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    for (const i of args.pedido.itens) if (i.estado !== 'pronto') filaDoTeste.set(i.id, 'pronto')
+    return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'bar-carregar') return ok(demo.operacao().bar)
   if (canal === 'salao-carregar') return ok(demo.operacao().salao)
   if (canal === 'compras-carregar') return ok(demo.listasApoio().compras)
@@ -195,7 +213,8 @@ const vendaNaTela = () => {
 }
 
 beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
-  whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true } })
+  whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
+  filaDoTeste = new Map() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -901,4 +920,28 @@ test('teclado de tela: 123 digita no telefone, ABC digita no nome', async () => 
   clicar(doc.querySelector('#eloFicha [data-tecla="' + String.fromCharCode(8) + '"]'))
   await esperar(40)
   assert.strictEqual(doc.querySelector('[data-venda-campo="nome"]').value, 'A')
+})
+
+test('KDS: iniciar o preparo move o item na fila, sem sair da tela', async () => {
+  await abrirApp()
+  await irPara('/admin/cozinha')
+  const bt = doc.querySelector('#econtent [data-acao^="kds:iniciar:"]')
+  assert.ok(bt, 'o item na fila tem o botão de iniciar')
+  clicar(bt)
+  await esperar(90)
+  assert.ok(chamadas.some((c) => c.canal === 'kds-avancar'), 'o clique move o item')
+  assert.ok(/Preparo iniciado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(chamadas.some((c) => c.canal === 'cozinha-carregar'), 'e a fila se redesenha')
+})
+
+test('KDS: marcar o pedido inteiro pronto marca só o que falta', async () => {
+  await abrirApp()
+  await irPara('/admin/cozinha')
+  const bt = doc.querySelector('#econtent [data-acao^="kds:pedido-pronto:"]')
+  assert.ok(bt, 'o cartão tem o botão do pedido inteiro')
+  clicar(bt)
+  await esperar(90)
+  const chamada = chamadas.find((c) => c.canal === 'kds-pedido-pronto')
+  assert.ok(chamada, 'o clique marca o pedido')
+  assert.ok(/marcad/.test(aviso().textContent), aviso().textContent)
 })

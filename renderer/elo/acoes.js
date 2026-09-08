@@ -44,9 +44,6 @@ const DESTINOS = {
   'novo-entregador': { rota: '/admin/motoboys', o: 'cadastrar entregador' },
 
   // ── Cozinha e bar ──
-  'kds:iniciar': { rota: '/admin/cozinha', o: 'iniciar o item' },
-  'kds:pronto': { rota: '/admin/cozinha', o: 'marcar o item como pronto' },
-  'kds:pedido-pronto': { rota: '/admin/cozinha', o: 'marcar o pedido como pronto' },
   'kds:gerar-codigo': { rota: '/admin/cozinha', o: 'gerar o código da TV' },
   'kds:revogar-telas': { rota: '/admin/cozinha', o: 'desconectar as telas' },
 

@@ -24,9 +24,11 @@ const PROMESSAS = [
   { palavra: 'sangria', acao: 'caixa:sangria' },
   { palavra: 'fechamento', acao: 'caixa:fechar' },
   { palavra: 'Abrir e fechar o caixa', acao: 'caixa:abrir' },
+  { palavra: 'marcar item como pronto', acao: 'kds:pronto:' },
 ]
 
 const TELAS = {
+  cozinha: () => require('../renderer/elo/tela-operacao').htmlKds(demo.operacao().cozinha, { departamento: 'cozinha' }),
   quadro: () => require('../renderer/elo/telas-catalogo').htmlDaRota('/admin/pedidos', demo.listas().pedidos, { modo: 'quadro' }),
   caixa: () => require('../renderer/elo/tela-caixa').htmlDoCaixa(demo.caixa(), { online: true, ts: Date.now() }),
   'caixa fechado': () => require('../renderer/elo/tela-caixa').htmlDoCaixa({ ...demo.caixa(), aberto: null }, { online: true, ts: Date.now() }),
