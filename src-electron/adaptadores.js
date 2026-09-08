@@ -265,7 +265,7 @@ function whatsapp({ statusResp, configResp }) {
   }
 }
 
-function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp, salaoResp }) {
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp, salaoResp, restoResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
@@ -323,6 +323,10 @@ function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, plan
       whatsapp: whatsappDaLoja(whatsappResp),
       pagamento: formasDePagamento(formasResp, contasResp),
       mesas: mesasDoSalao(salaoResp),
+      cardapio: cardapioDaLoja(restoResp),
+      fiscal: fiscalDaLoja(restoResp),
+      integracoes: integracoesDaLoja(restoResp),
+      backup: backupDaLoja(restoResp),
     },
   }
 }
@@ -403,6 +407,76 @@ function planoDaLoja(r) {
  * O que a aba mostra é o CADASTRO (quantas mesas, quantos lugares, quantas em uso),
  * não o mapa ao vivo: para acompanhar o salão existe a tela de Atendimento.
  */
+const REGIME = {
+  1: 'Simples Nacional', 2: 'Simples Nacional, excesso de sublimite', 3: 'Regime Normal',
+}
+
+/** Cardápio: as cores e as imagens do cardápio digital. */
+function cardapioDaLoja(r) {
+  const c = r && r.cardapio
+  if (!c) return []
+  return [{ titulo: 'Cardápio digital', colunas: 3, campos: [
+    { rotulo: 'Cor principal', valor: texto(c.corPrincipal) },
+    { rotulo: 'Imagem de capa', valor: c.temCapa ? 'enviada' : 'não enviada' },
+    { rotulo: 'Logo', valor: c.temLogo ? 'enviado' : 'não enviado' },
+    { rotulo: 'Cores personalizadas', valor: c.coresPersonalizadas
+      ? c.coresPersonalizadas + (c.coresPersonalizadas === 1 ? ' cor trocada' : ' cores trocadas')
+      : 'usando o padrão' },
+    { rotulo: 'Modelo', valor: texto(c.modelo) },
+    { rotulo: 'Trocar cores e imagens', valor: 'ainda é pelo painel' },
+  ] }]
+}
+
+/** Fiscal: o que a SEFAZ exige. Faltando um campo, não sai nota. */
+function fiscalDaLoja(r) {
+  const f = r && r.fiscal
+  if (!f) return []
+  const secoes = [{ titulo: 'Dados da empresa', colunas: 3, campos: [
+    { rotulo: 'Razão social', valor: texto(f.razaoSocial) },
+    { rotulo: 'CNPJ', valor: texto(f.cnpj) },
+    { rotulo: 'Inscrição estadual', valor: texto(f.inscricaoEstadual) },
+    { rotulo: 'Regime tributário', valor: REGIME[f.regime] || texto(f.regime) },
+    { rotulo: 'Município', valor: texto(f.municipio) },
+    { rotulo: 'Código IBGE', valor: texto(f.codigoIbge) },
+  ] }, { titulo: 'Emissão', colunas: 2, campos: [
+    { rotulo: 'CSC da NFC-e', valor: f.temCsc ? 'preenchido' : 'não preenchido' },
+    { rotulo: 'Portal do contador', valor: f.contabilConectado ? 'conectado' : 'não conectado' },
+  ] }]
+
+  // Dizer "pendente" não ajuda: a tela lista o que falta, um a um.
+  if ((f.faltando || []).length) {
+    secoes.push({ titulo: 'Falta preencher para emitir nota', colunas: 1, campos: [
+      { rotulo: 'Campos', valor: f.faltando.join(' · ') },
+    ] })
+  }
+  return secoes
+}
+
+function integracoesDaLoja(r) {
+  const i = r && r.integracoes
+  if (!i) return []
+  return [{ titulo: 'Conectadas', colunas: 2, campos: [
+    { rotulo: 'Pixel do Facebook', valor: i.pixelFacebook ? 'configurado' : 'não configurado' },
+    { rotulo: 'Portal do contador', valor: i.contabil ? 'conectado' : 'não conectado' },
+    { rotulo: 'Conectar outras', valor: 'ainda é pelo painel' },
+  ] }]
+}
+
+const NOME_ENTIDADE = {
+  pedidos: 'Pedidos', clientes: 'Clientes', produtos: 'Produtos', estoque: 'Estoque',
+  financeiro: 'Financeiro', cupons: 'Cupons', motoboys: 'Entregadores',
+}
+
+function backupDaLoja(r) {
+  const b = r && r.backup
+  if (!b || !(b.entidades || []).length) return []
+  return [{ titulo: 'O que dá para exportar', colunas: 1, campos: [
+    { rotulo: 'Dados', valor: b.entidades.map((e) => NOME_ENTIDADE[e] || e).join(' · ') },
+    { rotulo: 'Formatos', valor: 'CSV e JSON' },
+    { rotulo: 'Baixar', valor: 'ainda é pelo painel' },
+  ] }]
+}
+
 function mesasDoSalao(r) {
   const mesas = (r && (r.mesas || (r.salao && r.salao.mesas))) || []
   if (!mesas.length) return []

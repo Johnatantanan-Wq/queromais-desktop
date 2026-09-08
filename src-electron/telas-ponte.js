@@ -95,6 +95,7 @@ const TELAS = [
       formasResp: '/api/admin/formas-pagamento',
       contasResp: '/api/admin/contas-financeiras',
       salaoResp: '/api/admin/atendimento/salao',
+      restoResp: '/api/admin/desktop/configuracoes',
     },
     adaptar: (r) => A.configuracoes(r),
     valida: (r) => r.lojaResp && r.lojaResp.id,

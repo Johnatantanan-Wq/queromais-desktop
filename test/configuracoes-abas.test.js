@@ -228,3 +228,73 @@ test('sem mesas cadastradas a aba fica vazia, sem inventar salão', () => {
   assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, salaoResp: { mesas: [] } }).abas.mesas, [])
   assert.deepStrictEqual(A.configuracoes({ lojaResp: loja, salaoResp: null }).abas.mesas, [])
 })
+
+// ── as quatro últimas abas ──
+const restoBase = {
+  cardapio: { corPrincipal: '#000000', temCapa: true, temLogo: false, coresPersonalizadas: 2, modelo: '' },
+  fiscal: { razaoSocial: 'DU PELLEGRINI LTDA', cnpj: '00.000.000/0001-00', inscricaoEstadual: '',
+    regime: 1, municipio: 'Valença / BA', codigoIbge: '2932903', temCsc: false,
+    faltando: ['Inscrição estadual'], contabilConectado: true },
+  integracoes: { pixelFacebook: true, contabil: true },
+  backup: { entidades: ['pedidos', 'clientes', 'produtos', 'estoque', 'financeiro', 'cupons', 'motoboys'] },
+}
+
+test('as 15 abas de Configurações passam a ter conteúdo', () => {
+  const d = A.configuracoes({
+    lojaResp: loja, bairrosResp: { bairros: ['Centro'], taxas_bairro: {}, taxa_padrao: 0 },
+    usuariosResp: { usuarios: [{ nome: 'Ana', papel: 'garcom' }] },
+    planoResp: { plano: { nome: 'Pro' }, assinatura: { existe: true } },
+    whatsappResp: { estado: 'open', provedor: 'evolution' },
+    formasResp: [{ metodo: 'pix', habilitado: true }],
+    salaoResp: { mesas: [{ numero: '1', lugares: 4 }] },
+    restoResp: restoBase,
+  })
+  const abas = ['config', 'horarios', 'rotas', 'usuario', 'gestor', 'plano',
+    'cardapio', 'mesas', 'pagamento', 'fiscal', 'impressora', 'integracoes', 'whatsapp', 'backup']
+  const vazias = abas.filter((a) => a !== 'impressora' && !(d.abas[a] || []).length)
+  assert.deepStrictEqual(vazias, [], 'abas sem conteúdo: ' + vazias.join(', '))
+})
+
+test('o fiscal LISTA o que falta — "pendente" sozinho não resolve nada', () => {
+  const d = A.configuracoes({ lojaResp: loja, restoResp: restoBase })
+  const falta = d.abas.fiscal.find((s) => /Falta preencher/.test(s.titulo))
+  assert.ok(falta, 'a seção do que falta precisa aparecer')
+  assert.strictEqual(falta.campos[0].valor, 'Inscrição estadual')
+})
+
+test('com tudo preenchido, a seção de pendência some', () => {
+  const completo = { ...restoBase, fiscal: { ...restoBase.fiscal, faltando: [], inscricaoEstadual: '123', temCsc: true } }
+  const d = A.configuracoes({ lojaResp: loja, restoResp: completo })
+  assert.ok(!d.abas.fiscal.some((s) => /Falta preencher/.test(s.titulo)))
+  assert.strictEqual(d.abas.fiscal[1].campos[0].valor, 'preenchido', 'o CSC aparece como preenchido')
+})
+
+test('o regime tributário aparece por extenso, não como número', () => {
+  const d = A.configuracoes({ lojaResp: loja, restoResp: restoBase })
+  assert.strictEqual(d.abas.fiscal[0].campos[3].valor, 'Simples Nacional')
+  const normal = A.configuracoes({ lojaResp: loja, restoResp: { ...restoBase, fiscal: { ...restoBase.fiscal, regime: 3 } } })
+  assert.strictEqual(normal.abas.fiscal[0].campos[3].valor, 'Regime Normal')
+})
+
+test('o cardápio diz quantas cores foram trocadas, no singular e plural', () => {
+  const d = A.configuracoes({ lojaResp: loja, restoResp: restoBase })
+  assert.strictEqual(d.abas.cardapio[0].campos[3].valor, '2 cores trocadas')
+  const uma = A.configuracoes({ lojaResp: loja, restoResp: { ...restoBase, cardapio: { ...restoBase.cardapio, coresPersonalizadas: 1 } } })
+  assert.strictEqual(uma.abas.cardapio[0].campos[3].valor, '1 cor trocada')
+  const zero = A.configuracoes({ lojaResp: loja, restoResp: { ...restoBase, cardapio: { ...restoBase.cardapio, coresPersonalizadas: 0 } } })
+  assert.strictEqual(zero.abas.cardapio[0].campos[3].valor, 'usando o padrão')
+})
+
+test('o backup mostra os dados pelo nome que o lojista conhece', () => {
+  const d = A.configuracoes({ lojaResp: loja, restoResp: restoBase })
+  const dados = d.abas.backup[0].campos[0].valor
+  assert.ok(/Entregadores/.test(dados), 'motoboys vira Entregadores')
+  assert.ok(!/motoboys/.test(dados), 'o nome da tabela não vaza para a tela')
+})
+
+test('sem a rota nova, as quatro abas ficam vazias em vez de inventar', () => {
+  const d = A.configuracoes({ lojaResp: loja })
+  for (const a of ['cardapio', 'fiscal', 'integracoes', 'backup']) {
+    assert.deepStrictEqual(d.abas[a], [], a + ' deveria vir vazia')
+  }
+})
