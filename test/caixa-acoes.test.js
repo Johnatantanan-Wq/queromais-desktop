@@ -132,3 +132,12 @@ test('o shell abre as janelas do caixa como popup, não como ficha lateral', () 
     assert.ok(/abrirPopup/.test(linha), acao + ' tem de abrir como popup: ' + linha.trim())
   }
 })
+
+test('o popup pode ser de altura FIXA — e so a venda pede isso', () => {
+  const Ficha = require('../renderer/elo/ficha')
+  assert.ok(/height:88vh;/.test(Ficha.popup('Venda', '<p>x</p>', 980, true)), 'fixo: o quadro nao muda com o conteudo')
+  assert.ok(/max-height:88vh;/.test(Ficha.popup('Sangria', '<p>x</p>')), 'os outros crescem ate o limite')
+  const fs = require('fs'), path = require('path')
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'elo', 'shell.js'), 'utf8')
+  assert.ok(/'Venda manual'[\s\S]{0,200}\}\), 980, true\)/.test(shell), 'a venda manual abre com o quadro fixo')
+})

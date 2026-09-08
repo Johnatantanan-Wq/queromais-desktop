@@ -40,11 +40,15 @@ function botao(acao, rotulo, primaria) {
  * FAZER: sangria, fechamento, abertura. A ação pede atenção inteira, e o fundo
  * escurecido é o que diz isso.
  */
-function popup(titulo, conteudo, largura) {
+function popup(titulo, conteudo, largura, fixo) {
+  // `fixo`: o quadro não muda de tamanho com o que tem dentro — o corpo rola. Serve
+  // para janela onde se DIGITA (a venda manual): conteúdo aparecendo não pode mexer
+  // o quadro nem recentralizá-lo debaixo das mãos do operador.
+  const altura = fixo ? 'height:88vh;' : 'max-height:88vh;'
   return '<div id="eloFicha" style="position:fixed;inset:0;z-index:900;display:flex;align-items:center;'
     + 'justify-content:center;padding:32px">'
     + '<div data-fechar-ficha="1" style="position:absolute;inset:0;background:rgba(17,17,17,.32)"></div>'
-    + '<div style="position:relative;width:' + (largura || 520) + 'px;max-width:94vw;max-height:88vh;background:#fff;'
+    + '<div style="position:relative;width:' + (largura || 520) + 'px;max-width:94vw;' + altura + 'background:#fff;'
     + 'border-radius:16px;box-shadow:0 24px 64px rgba(17,17,17,.24);display:flex;flex-direction:column;'
     + 'animation:eloFadeUp .2s ease both;overflow:hidden">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 24px;'

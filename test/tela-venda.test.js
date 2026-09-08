@@ -156,3 +156,43 @@ test('o teclado aparece na etapa do cliente, ao lado do formulario', () => {
   assert.ok(h.includes('data-tecla='), 'o teclado esta na tela')
   assert.ok(h.includes('data-modo-teclado='), 'com as duas abas')
 })
+
+// ── a busca de cliente não pode mexer a tela ──
+const LISTA = [
+  { nome: 'Maria Silva', telefone: '(75) 98811-0001', bairro: 'Centro' },
+  { nome: 'Joao Pereira', telefone: '(75) 98811-0002' },
+  { nome: 'Mariana Costa', telefone: '(71) 99999-0003' },
+]
+
+test('um digito so nao busca — casaria com o DDD de todo mundo', () => {
+  assert.deepStrictEqual(V.clientesQueBatem(LISTA, '7', ''), [])
+  assert.deepStrictEqual(V.clientesQueBatem(LISTA, '75988', ''), [], 'ainda nao e um numero')
+})
+
+test('com o numero quase inteiro (8 digitos) a busca acha', () => {
+  assert.strictEqual(V.MIN_DIGITOS_BUSCA, 8)
+  const r = V.clientesQueBatem(LISTA, '98811000', '')
+  assert.deepStrictEqual(r.map((c) => c.nome), ['Maria Silva', 'Joao Pereira'])
+  assert.strictEqual(V.clientesQueBatem(LISTA, '(75) 98811-0001', '')[0].nome, 'Maria Silva')
+})
+
+test('pelo nome, tres letras bastam; duas nao', () => {
+  assert.strictEqual(V.MIN_LETRAS_BUSCA, 3)
+  assert.deepStrictEqual(V.clientesQueBatem(LISTA, '', 'Ma').map((c) => c.nome), [])
+  assert.deepStrictEqual(V.clientesQueBatem(LISTA, '', 'mar').map((c) => c.nome), ['Maria Silva', 'Mariana Costa'])
+})
+
+test('o cartao de clientes tem a MESMA altura com e sem resultado', () => {
+  const base = { categorias: [], clientes: LISTA, taxasBairro: {} }
+  const vazio = V.htmlVenda(base, { venda: { ...V.vendaVazia(), etapa: 'cliente', telefone: '7' } })
+  const cheio = V.htmlVenda(base, { venda: { ...V.vendaVazia(), etapa: 'cliente', telefone: '98811000' } })
+  const altura = /min-height:196px;max-height:196px;overflow:auto/
+  assert.ok(altura.test(vazio), 'sem resultado, a caixa ja reserva o espaco')
+  assert.ok(altura.test(cheio), 'com resultado, a lista rola dentro do mesmo espaco')
+  assert.ok(!/Clientes que batem/.test(vazio) && /Clientes que batem/.test(cheio))
+})
+
+test('a lista de sugestoes nunca passa de cinco — e o resto rola', () => {
+  const muitos = Array.from({ length: 9 }, (_, i) => ({ nome: 'Cliente ' + i, telefone: '(75) 98811-000' + i }))
+  assert.strictEqual(V.clientesQueBatem(muitos, '98811000', '').length, 5)
+})

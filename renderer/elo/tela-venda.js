@@ -154,6 +154,21 @@ function tecladoDeTela(modo) {
     + corpo
 }
 
+const MIN_DIGITOS_BUSCA = 8
+const MIN_LETRAS_BUSCA = 3
+
+/** Quem bate com o telefone ou o nome — e só quando há o bastante para buscar. */
+function clientesQueBatem(lista, telefone, nome) {
+  const t = ('' + (telefone || '')).replace(/\D/g, '')
+  const n = ('' + (nome || '')).trim().toLowerCase()
+  const porTel = t.length >= MIN_DIGITOS_BUSCA
+  const porNome = n.length >= MIN_LETRAS_BUSCA
+  if (!porTel && !porNome) return []
+  return (lista || []).filter((c) =>
+    (porTel && ('' + (c.telefone || '')).replace(/\D/g, '').indexOf(t) >= 0)
+    || (porNome && ('' + (c.nome || '')).toLowerCase().indexOf(n) >= 0)).slice(0, 5)
+}
+
 // ── etapa 1: cliente ────────────────────────────────────────────────────────
 function etapaCliente(venda, dados) {
   const bairros = Object.keys(dados.taxasBairro || {})
@@ -179,23 +194,23 @@ function etapaCliente(venda, dados) {
       : '')
     + campo('Observação do pedido', entrada('data-venda-campo="observacao"', venda.observacao, 'Ex.: sem cebola'))
 
-  const clientes = (dados.clientes || []).filter((c) => {
-    const t = (venda.telefone || '').replace(/\D/g, '')
-    const n = (venda.nome || '').trim().toLowerCase()
-    if (!t && !n) return false
-    return (t && (c.telefone || '').replace(/\D/g, '').indexOf(t) >= 0)
-      || (n && (c.nome || '').toLowerCase().indexOf(n) >= 0)
-  }).slice(0, 5)
+  // A busca só começa com o número quase inteiro (8 dígitos — o que sobra tirando o
+  // DDD) ou com três letras do nome. Um dígito só casa com o DDD de todo mundo, e a
+  // lista aparecendo a cada tecla mexia a tela inteira (print do dono, 08/09).
+  const clientes = clientesQueBatem(dados.clientes, venda.telefone, venda.nome)
 
+  // O cartão tem SEMPRE a mesma altura: com resultado a lista rola por dentro, sem
+  // resultado a dica ocupa o mesmo espaço. É o que mantém a tela parada enquanto se digita.
+  const ALTURA_SUGESTOES = 'min-height:196px;max-height:196px;overflow:auto'
   const sugestoes = clientes.length
-    ? cartao('Clientes que batem', clientes.map((c) =>
+    ? cartao('Clientes que batem', '<div style="' + ALTURA_SUGESTOES + '">' + clientes.map((c) =>
       '<div data-venda-cliente="' + esc(c.telefone || c.nome) + '" style="display:flex;align-items:center;gap:10px;'
       + 'padding:10px 0;border-bottom:1px solid #f4f5f7;cursor:pointer">'
       + '<span style="flex:1;min-width:0;font-size:13.5px;font-weight:700;color:#111">' + esc(c.nome) + '</span>'
       + '<span style="font-size:12px;color:#9ca3af;font-weight:600">' + esc(c.bairro || '') + ' · '
-      + esc(c.telefone || '') + '</span></div>').join(''))
-    : cartao('Cliente', '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;line-height:1.6">'
-      + 'Digite o telefone ou o nome e o app procura no cadastro. '
+      + esc(c.telefone || '') + '</span></div>').join('') + '</div>')
+    : cartao('Cliente', '<div style="' + ALTURA_SUGESTOES + ';font-size:12.5px;color:#9ca3af;font-weight:500;line-height:1.6">'
+      + 'Digite o telefone inteiro (ou três letras do nome) e o app procura no cadastro. '
       + 'Sem achar, a venda entra como cliente novo — o que o balcão faz o dia todo.</div>')
 
   return '<div style="display:grid;grid-template-columns:minmax(300px,1fr) minmax(240px,300px);gap:18px;'
@@ -359,4 +374,5 @@ function htmlVenda(dados, estado) {
 }
 
 module.exports = {
+  clientesQueBatem, MIN_DIGITOS_BUSCA, MIN_LETRAS_BUSCA,
   tecladoDeTela, TECLAS_NUMERICAS, TECLAS_LETRAS, htmlVenda, vendaVazia, totais, oQueFalta, TIPOS, FORMAS, ETAPAS }

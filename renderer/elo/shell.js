@@ -533,10 +533,10 @@ if (typeof document !== 'undefined') {
   function abrirFicha(titulo, corpo, largura) {
     abrirPopup(titulo, corpo, largura || 620)
   }
-  function abrirPopup(titulo, corpo, largura) {
+  function abrirPopup(titulo, corpo, largura, fixo) {
     fecharFicha()
     const div = document.createElement('div')
-    div.innerHTML = Ficha.popup(titulo, corpo, largura)
+    div.innerHTML = Ficha.popup(titulo, corpo, largura, fixo)
     document.body.appendChild(div.firstChild)
   }
   function fecharFicha() {
@@ -1510,7 +1510,19 @@ if (typeof document !== 'undefined') {
       VENDA[campoVenda] = campoVenda === 'trocoPara'
         ? Number(('' + e.target.value).replace(/[^0-9,.]/g, '').replace(',', '.')) || 0
         : e.target.value
-      // Busca e troco mexem no que está na tela; nome e telefone também (as sugestões).
+      // Telefone e nome: a tela só se redesenha (e a busca só roda) depois que se PARA
+      // de digitar — redesenhar a cada tecla fazia a lista de clientes piscar e a tela
+      // andar debaixo das mãos. Busca de produto e troco continuam na hora.
+      if (campoVenda === 'telefone' || campoVenda === 'nome') {
+        clearTimeout(ESPERA_BUSCA_CLIENTE)
+        ESPERA_BUSCA_CLIENTE = setTimeout(() => {
+          const pos7 = (document.activeElement && document.activeElement.selectionStart) || null
+          redesenharTelaAtual()
+          const campo7 = document.querySelector('[data-venda-campo="' + campoVenda + '"]')
+          if (campo7) { campo7.focus(); if (pos7 != null) { try { campo7.setSelectionRange(pos7, pos7) } catch (x) {} } }
+        }, ESPERA_PARAR_DE_DIGITAR)
+        return
+      }
       const pos6 = e.target.selectionStart
       redesenharTelaAtual()
       const campo = document.querySelector('[data-venda-campo="' + campoVenda + '"]')
@@ -1597,7 +1609,7 @@ if (typeof document !== 'undefined') {
     const desenhar = () => {
       abrirPopup('Venda manual', TelaVenda.htmlVenda(VENDA_POPUP, {
         online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
-      }), 980)
+      }), 980, true)
     }
     if (VENDA_POPUP) { desenhar(); return }
     ipcRenderer.invoke('venda-cardapio').then((r) => {
@@ -1700,6 +1712,9 @@ if (typeof document !== 'undefined') {
   // A venda manual abre em POPUP, sobre a tela em que se está — quem vende no balcão
   // não quer perder de vista o quadro de pedidos para lançar uma venda.
   let VENDA_POPUP = null
+  // Espera entre a última tecla e a busca do cliente (telefone/nome).
+  const ESPERA_PARAR_DE_DIGITAR = 450
+  let ESPERA_BUSCA_CLIENTE = null
 
   // O pedido aberto no popup da conversa, e se está em modo de edição.
   let PEDIDO_NA_CONVERSA = null

@@ -1117,3 +1117,25 @@ test('Compras: "Recebi" abre o popup com a sugestão e dá entrada no estoque', 
   assert.ok(/Entrou \d+/.test(aviso().textContent), aviso().textContent)
   assert.ok(!doc.getElementById('eloFicha'), 'o popup fecha')
 })
+
+test('venda manual: digitar o telefone nao mexe a tela — a busca so vem depois de parar', async () => {
+  await abrirApp()
+  await irParaVenda()
+  const quadro = doc.querySelector('#eloFicha > div:nth-child(2)')
+  assert.ok(/height:88vh/.test(quadro.getAttribute('style')), 'o quadro da venda tem altura fixa')
+  const tel = doc.querySelector('[data-venda-campo="telefone"]')
+  const antes = vendaNaTela()
+  tel.value = '7'
+  tel.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(120)
+  assert.strictEqual(vendaNaTela(), antes, 'uma tecla nao redesenha nada')
+  assert.ok(!/Clientes que batem/.test(vendaNaTela()), 'e nao busca com um digito')
+
+  tel.value = '(75) 98811-0001'
+  tel.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await esperar(120)
+  assert.ok(!/Clientes que batem/.test(vendaNaTela()), 'ainda digitando: nada aparece')
+  await esperar(500)
+  assert.ok(/Clientes que batem/.test(vendaNaTela()), 'parou de digitar: a busca roda')
+  assert.ok(/Maria Silva/.test(vendaNaTela()), 'e acha o cliente')
+})
