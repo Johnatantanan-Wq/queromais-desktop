@@ -46,11 +46,11 @@ function caixa() {
     ],
     // contas de mesa abertas — o que precisa fechar antes de o caixa fechar
     mesas: [
-      { mesa: '14', abertaHa: 114, consumo: 76.90, garcom: 'Valdecir de Jesus', pedidos: 2, situacao: 'Em preparo', cliente: null },
-      { mesa: '16', abertaHa: 293, consumo: 184.28, garcom: 'Valdecir de Jesus', pedidos: 4, situacao: 'Pedido pronto', cliente: null },
-      { mesa: '19', abertaHa: 188, consumo: 221.58, garcom: 'Ícaro Santos', pedidos: 5, situacao: 'Em preparo', cliente: null },
-      { mesa: '27', abertaHa: 33, consumo: 156.80, garcom: null, pedidos: 2, situacao: 'Em preparo', cliente: null, pessoas: 2 },
-      { mesa: '34', abertaHa: 98, consumo: 76.65, garcom: 'Ícaro Santos', pedidos: 1, situacao: 'Em preparo', cliente: null },
+      { sessaoId: 'sess-14', mesa: '14', abertaHa: 114, consumo: 76.90, garcom: 'Valdecir de Jesus', pedidos: 2, situacao: 'Em preparo', cliente: null },
+      { sessaoId: 'sess-16', mesa: '16', abertaHa: 293, consumo: 184.28, garcom: 'Valdecir de Jesus', pedidos: 4, situacao: 'Pedido pronto', cliente: null },
+      { sessaoId: 'sess-19', mesa: '19', abertaHa: 188, consumo: 221.58, garcom: 'Ícaro Santos', pedidos: 5, situacao: 'Em preparo', cliente: null },
+      { sessaoId: 'sess-27', mesa: '27', abertaHa: 33, consumo: 156.80, garcom: null, pedidos: 2, situacao: 'Em preparo', cliente: null, pessoas: 2 },
+      { sessaoId: 'sess-34', mesa: '34', abertaHa: 98, consumo: 76.65, garcom: 'Ícaro Santos', pedidos: 1, situacao: 'Em preparo', cliente: null },
     ],
     // entregas já entregues cujo dinheiro ninguém confirmou (a checagem que o painel
     // faz ao fechar: sem isso a venda fica fora do caixa)
@@ -866,10 +866,10 @@ function telasComAbas() {
         mesas: op.salao.mesas.map((m) => ({ ...m, desdeMin: m.desdeMin })),
       },
       solicitacoes: [
-        { mesa: '4', tipo: 'Chamou o garçom', hora: '20:14', situacao: 'Aberta' },
-        { mesa: '9', tipo: 'Pediu a conta', hora: '20:09', situacao: 'Aberta' },
-        { mesa: '2', tipo: 'Pediu mais uma bebida', hora: '19:58', situacao: 'Atendida' },
-        { mesa: '7', tipo: 'Chamou o garçom', hora: '19:41', situacao: 'Atendida' },
+        { sessaoId: 'sess-4', mesa: '4', tipo: 'Chamou o garçom', hora: '20:14', situacao: 'Aberta' },
+        { sessaoId: 'sess-9', mesa: '9', tipo: 'Pediu a conta', hora: '20:09', situacao: 'Aberta' },
+        { sessaoId: 'sess-2', mesa: '2', tipo: 'Pediu mais uma bebida', hora: '19:58', situacao: 'Atendida' },
+        { sessaoId: 'sess-7', mesa: '7', tipo: 'Chamou o garçom', hora: '19:41', situacao: 'Atendida' },
       ],
       gorjetas: [
         { nome: 'Ana', mesas: 4, vendas: 892.40, valor: 89.24 },

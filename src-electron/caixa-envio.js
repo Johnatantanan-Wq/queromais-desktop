@@ -6,6 +6,10 @@ const DECISAO = {
   'caixa-movimentacao': A.movimentacao,
   'caixa-fechar': A.fechamento,
   'caixa-abrir': A.abertura,
+  // Delivery e Mesas: o item vem em `entrega`/`mesa`, o resto são os campos do popup.
+  'entrega-concluir': (a) => A.concluirEntrega(a && a.entrega, a || {}),
+  'entrega-confirmar': (a) => A.confirmarRecebimento(a && a.entrega, a || {}),
+  'mesa-fechar': (a) => A.fecharMesa(a && a.mesa, a || {}),
 }
 
 function registrar({ ipcMain, enviar, log }) {

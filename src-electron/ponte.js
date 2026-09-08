@@ -86,11 +86,20 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   ipcMain.handle('abrir-rota', (e, href) => abrirRota(href))
   // Telas nativas: cada uma tem sua chave no cache, sempre por loja — cache de uma
   // loja não pode vazar para outra quando o lojista troca de loja.
+  // O Caixa junta três rotas: o resumo, as entregas (aba Delivery) e o salão (aba
+  // Mesas). As duas abas só existiam na demonstração até 08/09.
   ipcMain.handle('caixa-carregar', () => buscarTela({
     cache,
     chave: 'caixa|' + lojaDaVez(cache, lojaIdAtual()),
-    pedirAoPainel: () => pedirTela('/api/admin/caixa/resumo'),
-    valida: (d) => Object.prototype.hasOwnProperty.call(d, 'aberto'),
+    pedirAoPainel: async () => require('./adaptadores').caixaCompleto(await buscarVarias({
+      rotas: {
+        resumoResp: '/api/admin/caixa/resumo',
+        entregasResp: '/api/admin/atendimento/entregas',
+        salaoResp: '/api/admin/atendimento/salao',
+      },
+      pedirTela,
+    })),
+    valida: (d) => d != null && Object.prototype.hasOwnProperty.call(d, 'aberto'),
   }))
 
   // As demais telas vêm do catálogo (telas-ponte.js): uma linha por tela, com as

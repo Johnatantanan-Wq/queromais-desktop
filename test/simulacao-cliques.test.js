@@ -77,6 +77,19 @@ function responder(canal, args) {
     const d = require('../src-electron/caixa-acoes').fechamento({ ...args, caixaAberto: true })
     return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
   }
+  if (canal === 'entrega-concluir' || canal === 'entrega-confirmar') {
+    const A = require('../src-electron/caixa-acoes')
+    const d = canal === 'entrega-concluir' ? A.concluirEntrega(args.entrega, args) : A.confirmarRecebimento(args.entrega, args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    caixaLocal.fecharEntrega(args.entrega, d.corpo.forma_caixa, d.corpo.valor_recebido)
+    return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'mesa-fechar') {
+    const d = require('../src-electron/caixa-acoes').fecharMesa(args.mesa, args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    caixaLocal.fecharMesa(args.mesa, d.corpo.pagamentos[0].forma, d.corpo.pagamentos[0].valor)
+    return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'cozinha-carregar') {
     const c = demo.operacao().cozinha
     return ok({ ...c, pedidos: (c.pedidos || []).map((p) => ({
@@ -328,15 +341,72 @@ test('fechar caixa pede os três contados antes de deixar fechar', async () => {
   assert.ok(/dinheiro, Pix e cartão/i.test(aviso().textContent), 'esperava a recusa: ' + aviso().textContent)
 })
 
-test('na subaba Delivery, cada cartão tem o botão da sua fase e ele responde', async () => {
+test('Caixa › Delivery: concluir a entrega abre o popup e lança a venda', async () => {
   await abrirApp()
   await irPara('/admin/caixa')
   clicar($('[data-subaba="delivery"]'))
   await esperar(30)
   assert.ok($('[data-acao^="entrega:confirmar"]'), 'o pedido esperando fechamento tem o botão')
-  clicar($('[data-acao^="entrega:concluir"]'))
+  const bt = $('[data-acao^="entrega:concluir:"]')
+  assert.ok(bt, 'o pedido em trânsito tem o Concluir')
+  const numero = bt.getAttribute('data-acao').slice('entrega:concluir:'.length)
+  clicar(bt)
+  await esperar(60)
+  const forma = doc.querySelector('#eloFicha [data-campo="forma"]')
+  assert.ok(forma, 'o popup abre com a forma')
+  assert.ok(forma.value, 'já preenchida com a forma do pedido: ' + forma.value)
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:entrega:confirmar:concluir:"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'entrega-concluir')
+  assert.ok(ch && ch.args.entrega.pedido === numero, 'a conclusão sai com o pedido certo')
+  assert.ok(/Pedido #\d+ entregue — R\$/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('[data-acao="entrega:concluir:' + numero + '"]'), 'o cartão sai da aba')
+})
+
+test('Caixa › Delivery: confirmar o recebimento tira o pedido do fechamento', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  clicar($('[data-subaba="delivery"]'))
   await esperar(30)
-  assert.ok(/concluir a entrega/i.test(aviso().textContent), aviso().textContent)
+  const bt = $('[data-acao^="entrega:confirmar:"]')
+  const numero = bt.getAttribute('data-acao').slice('entrega:confirmar:'.length)
+  clicar(bt)
+  await esperar(60)
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:entrega:confirmar:confirmar:"]'))
+  await esperar(100)
+  assert.ok(chamadas.some((c) => c.canal === 'entrega-confirmar'), 'a confirmação sai')
+  assert.ok(/Recebimento do #\d+ confirmado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('[data-acao="entrega:confirmar:' + numero + '"]'), 'saiu do fechamento')
+})
+
+test('Caixa › Mesas: fechar a conta pede a forma e fecha com o valor certo', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  const bt = $('#econtent [data-acao^="mesa:fechar:"]')
+  assert.ok(bt, 'a mesa aberta tem o botão de fechar')
+  const mesa = bt.getAttribute('data-acao').slice('mesa:fechar:'.length)
+  clicar(bt)
+  await esperar(60)
+  // sem forma: recusa e fica aberto
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:mesa:confirmar:"]'))
+  await esperar(80)
+  assert.ok(/Escolha como a mesa pagou/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'fica aberto para corrigir')
+  // valor que não fecha com a conta: recusa dizendo os dois números
+  doc.querySelector('#eloFicha [data-campo="forma"]').value = 'pix'
+  doc.querySelector('#eloFicha [data-campo="valor"]').value = '1'
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:mesa:confirmar:"]'))
+  await esperar(80)
+  assert.ok(/tem de fechar com a conta/.test(aviso().textContent), aviso().textContent)
+  // valor certo: fecha
+  const consumo = doc.querySelector('#eloFicha [data-campo="valor"]').getAttribute('value')
+  doc.querySelector('#eloFicha [data-campo="valor"]').value = consumo
+  clicar(doc.querySelector('#eloFicha [data-acao^="caixa:mesa:confirmar:"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'mesa-fechar')
+  assert.ok(ch && ch.args.mesa.sessaoId, 'o fechamento sai com a sessão')
+  assert.ok(/Mesa \d+ fechada/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('[data-acao="mesa:fechar:' + mesa + '"]'), 'a mesa some da aba')
 })
 
 test('imprimir conta de mesa é do app: manda para a impressora', async () => {

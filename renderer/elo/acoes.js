@@ -17,11 +17,7 @@ const DESTINOS = {
   // ── Caixa ──
   // sangria, suprimento e fechar saíram do mapa: o app FAZ (shell.js → caixa-*).
   // Se ficassem aqui, o clique abriria o painel em vez de abrir a ficha.
-  'mesa:fechar': { rota: '/admin/caixa', o: 'fechar a conta da mesa' },
   'mesa:imprimir': { app: 'comanda' },
-  'entrega:confirmar': { rota: '/admin/caixa', o: 'confirmar o recebimento' },
-  'entrega:concluir': { rota: '/admin/caixa', o: 'concluir a entrega' },
-  'entrega:entregue': { rota: '/admin/caixa', o: 'marcar como entregue' },
 
   // ── Pedidos e despacho ──
   // 'avancar' saiu do mapa: o app FAZ (ver shell.js → pedido-avancar). Deixar aqui

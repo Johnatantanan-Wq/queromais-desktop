@@ -1003,6 +1003,40 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Caixa › Delivery e Mesas: concluir entrega, confirmar recebimento, retirada
+      // entregue e fechar a conta da mesa. O painel lança a venda, baixa estoque e
+      // oferece a nota — o app confere a forma e manda.
+      if (acao.indexOf('entrega:concluir:') === 0 || acao.indexOf('entrega:entregue:') === 0 || acao.indexOf('entrega:confirmar:') === 0) {
+        const modo = acao.indexOf('entrega:concluir:') === 0 ? 'concluir' : acao.indexOf('entrega:entregue:') === 0 ? 'retirada' : 'confirmar'
+        const numero = acao.split(':').slice(2).join(':')
+        const entrega = entregaDaTela(numero)
+        if (!entrega) { avisar('Não achei esse pedido na tela — recarregue.', 'erro'); return }
+        abrirPopup((modo === 'confirmar' ? 'Confirmar recebimento' : 'Entregar') + ' #' + numero, Ficha.fichaEntrega(entrega, modo), 460)
+        return
+      }
+      if (acao === 'caixa:entrega:cancelar' || acao === 'caixa:mesa:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('caixa:entrega:confirmar:') === 0) {
+        const [modo, numero] = acao.slice('caixa:entrega:confirmar:'.length).split(':')
+        const entrega = entregaDaTela(numero)
+        if (!entrega) { avisar('Não achei esse pedido — recarregue.', 'erro'); return }
+        mandarCompras(btAcao, modo === 'confirmar' ? 'entrega-confirmar' : 'entrega-concluir',
+          { entrega, forma: campoDaFicha('forma'), valor: campoDaFicha('valor') }, fecharFicha)
+        return
+      }
+      if (acao.indexOf('mesa:fechar:') === 0) {
+        const mesa = mesaDaTela(acao.slice('mesa:fechar:'.length))
+        if (!mesa) { avisar('Não achei essa mesa na tela — recarregue.', 'erro'); return }
+        abrirPopup('Fechar mesa ' + mesa.mesa, Ficha.fichaFecharMesa(mesa), 480)
+        return
+      }
+      if (acao.indexOf('caixa:mesa:confirmar:') === 0) {
+        const mesa = mesaDaTela(acao.slice('caixa:mesa:confirmar:'.length))
+        if (!mesa) { avisar('Não achei essa mesa — recarregue.', 'erro'); return }
+        mandarCompras(btAcao, 'mesa-fechar',
+          { mesa, forma: campoDaFicha('forma'), valor: campoDaFicha('valor'), gorjeta: campoDaFicha('gorjeta') }, fecharFicha)
+        return
+      }
+
       // Contas a pagar/receber: dar baixa e lançar conta nova. O painel registra cada
       // baixa sem alterar o valor original da obrigação, e grava quem lançou.
       if (acao.indexOf('conta:liquidar:') === 0 || acao.indexOf('conta:receber:') === 0) {
@@ -1672,6 +1706,12 @@ if (typeof document !== 'undefined') {
     return true
   }
 
+  function entregaDaTela(numero) {
+    return ((DADOS_TELA && DADOS_TELA.entregas) || []).find((e) => String(e.pedido) === String(numero)) || null
+  }
+  function mesaDaTela(numero) {
+    return ((DADOS_TELA && DADOS_TELA.mesas) || []).find((m) => String(m.mesa) === String(numero)) || null
+  }
   function contaDaTela(id) {
     return ((DADOS_TELA && DADOS_TELA.contas) || []).find((c) => String(c.id) === String(id)) || null
   }

@@ -786,6 +786,18 @@ async function createWindow() {
         const d = acoesCaixa.fechamento({ ...(args || {}), caixaAberto: true })
         return d.ok ? { ok: true, resumo: d.resumo, demo: true } : { ok: false, erro: d.motivo }
       })
+      ipcMain.handle('entrega-concluir', (e, a) => {
+        const d = acoesCaixa.concluirEntrega(a && a.entrega, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCaixa.fecharEntrega(a.entrega, d.corpo.forma_caixa, d.corpo.valor_recebido); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('entrega-confirmar', (e, a) => {
+        const d = acoesCaixa.confirmarRecebimento(a && a.entrega, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCaixa.fecharEntrega(a.entrega, d.corpo.forma_caixa); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('mesa-fechar', (e, a) => {
+        const d = acoesCaixa.fecharMesa(a && a.mesa, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCaixa.fecharMesa(a.mesa, d.corpo.pagamentos[0].forma, d.corpo.pagamentos[0].valor); return { ok: true, resumo: d.resumo, demo: true }
+      })
       ipcMain.handle('caixa-abrir', (e, args) => {
         const d = acoesCaixa.abertura({ ...(args || {}), caixaAberto: false })
         return d.ok ? { ok: true, resumo: d.resumo, demo: true } : { ok: false, erro: d.motivo }

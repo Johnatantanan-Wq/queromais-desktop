@@ -106,7 +106,7 @@ function subabaMesas(dados) {
   }).join('')
   return cartaoBloco('Contas de mesa em aberto', mesas.length + ' conta(s) · ' + fmtBRL(total) + ' a receber',
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px">' + cartoes + '</div>'
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">fechar conta de mesa ainda é pelo painel</div>')
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">dividir o pagamento entre duas formas ainda é pelo painel</div>')
 }
 
 // Cores por estado da entrega — as MESMAS do painel (EntregasPendentes.tsx). A cor não
@@ -200,7 +200,7 @@ function subabaDelivery(dados) {
   return cartaoBloco('Delivery e retirada', sub,
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">' + cartoes + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
-    + 'confirmar o recebimento ainda é pelo painel — enquanto não confirma, o dinheiro não entra no caixa</div>')
+    + 'enquanto o recebimento não é confirmado, o dinheiro não entra no caixa</div>')
 }
 
 function tempoLongo(min) {

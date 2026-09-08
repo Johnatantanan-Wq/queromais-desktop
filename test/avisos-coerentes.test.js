@@ -31,6 +31,8 @@ const PROMESSAS = [
   { palavra: 'anotar item', acao: 'compras:adicionar-avulso' },
   { palavra: 'liquidar conta', acao: 'conta:liquidar:' },
   { palavra: 'registrar recebimento', acao: 'conta:receber:' },
+  { palavra: 'fechar conta de mesa', acao: 'mesa:fechar:' },
+  { palavra: 'confirmar o recebimento', acao: 'entrega:confirmar:' },
 ]
 
 const TELAS = {
@@ -41,6 +43,7 @@ const TELAS = {
   cozinha: () => require('../renderer/elo/tela-operacao').htmlKds(demo.operacao().cozinha, { departamento: 'cozinha' }),
   quadro: () => require('../renderer/elo/telas-catalogo').htmlDaRota('/admin/pedidos', demo.listas().pedidos, { modo: 'quadro' }),
   caixa: () => require('../renderer/elo/tela-caixa').htmlDoCaixa(demo.caixa(), { online: true, ts: Date.now() }),
+  'caixa delivery': () => require('../renderer/elo/tela-caixa').htmlDoCaixa(demo.caixa(), { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' }),
   'caixa fechado': () => require('../renderer/elo/tela-caixa').htmlDoCaixa({ ...demo.caixa(), aberto: null }, { online: true, ts: Date.now() }),
 }
 

@@ -118,6 +118,69 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+const FORMAS_CAIXA_FICHA = [['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['cartao', 'Cartão'], ['credito', 'Crédito'], ['debito', 'Débito']]
+function seletorFormaCaixa(escolhida, rotulo) {
+  return '<label style="display:block;margin-bottom:14px">'
+    + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+    + 'letter-spacing:.06em;margin-bottom:6px">' + esc(rotulo || 'Como pagou') + '</span>'
+    + '<select data-campo="forma" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;'
+    + 'font-family:inherit;font-size:14px;font-weight:600;color:#111;background:#fff">'
+    + '<option value=""' + (escolhida ? '' : ' selected') + '>— escolha —</option>'
+    + FORMAS_CAIXA_FICHA.map(([v, r]) => '<option value="' + v + '"' + (v === escolhida ? ' selected' : '') + '>' + esc(r) + '</option>').join('')
+    + '</select></label>'
+}
+const FORMA_ENTREGA_PARA_CAIXA = { cartao_entrega: 'cartao', cartão: 'cartao' }
+
+/**
+ * Concluir entrega / retirada entregue / confirmar recebimento. O que muda entre os
+ * três é só o que se diz e se o valor recebido entra — o pedido e a forma são os mesmos.
+ */
+function fichaEntrega(entrega, modo) {
+  const e = entrega || {}
+  const formaAtual = FORMA_ENTREGA_PARA_CAIXA[e.forma] || e.forma || ''
+  const confirmar = modo === 'confirmar'
+  const retirada = modo === 'retirada'
+  const titulo = confirmar
+    ? 'O motoboy voltou com o dinheiro deste pedido. Confirme como recebeu — é o que entra no caixa.'
+    : retirada ? 'O cliente buscou no balcão. Marcar entregue lança a venda no caixa com a forma confirmada.'
+    : 'O pedido chegou. Marcar entregue lança a venda no caixa com a forma confirmada.'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">' + titulo + '</div>'
+    + '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="display:flex;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#111">Pedido #'
+    + esc(e.pedido || '') + '</span><span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(e.valor)) + '</span></div>'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-top:3px">' + esc(e.cliente || '')
+    + (e.entregador ? ' · ' + esc(e.entregador) : '')
+    + (e.trocoPara ? ' · troco para ' + esc(brl(e.trocoPara)) : '') + '</div></div>'
+    + seletorFormaCaixa(formaAtual, confirmar ? 'Como o motoboy recebeu' : 'Como o cliente pagou')
+    + (confirmar ? '' : campo('Valor recebido (opcional)', 'valor', '', 'Em branco usa o total do pedido.'))
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:entrega:cancelar', 'Cancelar', false)
+    + botaoFicha('caixa:entrega:confirmar:' + modo + ':' + (e.pedido || ''),
+      confirmar ? 'Confirmar recebimento' : 'Marcar entregue', true)
+    + '</div>'
+}
+
+/** Fechar a conta da mesa: uma forma só — dividir é pelo painel, e a ficha diz isso. */
+function fichaFecharMesa(mesa) {
+  const m = mesa || {}
+  const consumo = Number(m.consumo) || 0
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">'
+    + 'Fecha a mesa, lança a venda no caixa e libera a mesa. Para dividir entre duas formas, use o painel.</div>'
+    + '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="display:flex;justify-content:space-between;gap:10px"><span style="font-size:13px;font-weight:800;color:#111">Mesa '
+    + esc(m.mesa || '') + '</span><span style="font-size:13px;font-weight:800;color:#111">' + esc(brl(consumo)) + '</span></div>'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-top:3px">'
+    + esc([m.cliente, m.garcom ? 'garçom ' + m.garcom : '', m.pedidos ? m.pedidos + (m.pedidos === 1 ? ' lançamento' : ' lançamentos') : ''].filter(Boolean).join(' · ')) + '</div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('Gorjeta', 'gorjeta', '0', 'Pode ser zero.')
+    + campo('Valor pago', 'valor', consumo.toFixed(2).replace('.', ','), 'Tem de fechar com consumo + gorjeta.') + '</div>'
+    + seletorFormaCaixa('', 'Como a mesa pagou')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:mesa:cancelar', 'Cancelar', false)
+    + botaoFicha('caixa:mesa:confirmar:' + (m.mesa || ''), 'Fechar conta', true)
+    + '</div>'
+}
+
 const FORMAS_CONTA = [
   ['', '— forma —'], ['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['debito', 'Débito'], ['credito', 'Crédito'],
   ['boleto', 'Boleto'], ['cheque', 'Cheque'], ['transferencia', 'Transferência'], ['debito_automatico', 'Débito automático'],
@@ -326,4 +389,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

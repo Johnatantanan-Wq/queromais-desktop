@@ -212,6 +212,63 @@ function reconhecer(telefone, cadastro, pedidos) {
   }
 }
 
+/**
+ * O Caixa completo: o resumo (que já vinha) mais as duas abas que só existiam na
+ * demonstração — Delivery (de /atendimento/entregas) e Mesas (de /atendimento/salao).
+ * Uma rota que falhe não derruba o resumo: a aba fica vazia, o caixa continua.
+ */
+function caixaCompleto({ resumoResp, entregasResp, salaoResp }) {
+  if (!resumoResp || !Object.prototype.hasOwnProperty.call(resumoResp, 'aberto')) return null
+  return { ...resumoResp, entregas: entregasDoCaixa(entregasResp), mesas: mesasDoCaixa(salaoResp) }
+}
+
+const ESTADO_ENTREGA = { em_entrega: 'transito', pronto: 'pronto', em_producao: 'preparo', pago: 'preparo' }
+function entregasDoCaixa(r) {
+  const lista = (r && r.pedidos) || []
+  return lista.map((p) => ({
+    id: p.id,
+    pedido: String(p.numero == null ? '' : p.numero),
+    cliente: p.cliente_nome || 'Sem identificação',
+    telefone: p.cliente_telefone || '',
+    entregador: p.motoboy_nome || '',
+    forma: p.forma_pagamento || '',
+    pago: !!p.pago_no_ato,
+    valor: Number(p.total) || 0,
+    trocoPara: p.troco_para == null ? null : Number(p.troco_para),
+    tipo: p.tipo || 'entrega',
+    // "fechamento" é o motoboy de volta com o dinheiro de um pedido já entregue.
+    estado: p.pendente_confirmacao ? 'fechamento' : (ESTADO_ENTREGA[p.status] || 'preparo'),
+    saiuHa: minutosDesde(p.saiu_entrega_em || p.criado_em),
+    itens: Array.isArray(p.items) ? p.items.map((i) => (Number(i.qtd) || 1) + 'x ' + (i.nome || '')) : [],
+  }))
+}
+
+function mesasDoCaixa(r) {
+  if (!r) return []
+  const pediuConta = new Set((r.solicitacoes || []).filter((x) => x.tipo === 'conta').map((x) => String(x.mesa_id)))
+  const numeroDe = {}
+  for (const m of (r.mesas || [])) numeroDe[String(m.id)] = m.numero
+  // Só as mesas com sessão ABERTA: é o que o caixa fecha.
+  return (r.sessoes || []).map((s) => {
+    const sess = s.sessao || {}
+    const situacao = pediuConta.has(String(sess.mesa_id)) ? 'Pediu a conta'
+      : (s.prontos_nao_entregues > 0) ? 'Pedido pronto'
+      : (s.itens_preparando > 0 || s.itens_pendentes > 0) ? 'Em preparo' : 'Aberta'
+    const consumo = Math.round(((Number(s.total_parcial) || 0) - (Number(s.pagamentos_parciais) || 0)) * 100) / 100
+    return {
+      mesa: texto(numeroDe[String(sess.mesa_id)] != null ? numeroDe[String(sess.mesa_id)] : sess.mesa_id),
+      sessaoId: sess.id,
+      abertaHa: minutosDesde(sess.aberta_em),
+      consumo,
+      garcom: s.garcom_nome || null,
+      pedidos: Number(s.lancamentos) || 0,
+      pessoas: Number(sess.n_pessoas) || null,
+      situacao,
+      cliente: sess.cliente_nome || null,
+    }
+  }).sort((a, b) => String(a.mesa).localeCompare(String(b.mesa), 'pt-BR', { numeric: true }))
+}
+
 /** Conversas do WhatsApp. Aceita lista pura ou objeto com `conversas`. */
 function conversas({ conversasResp, clientesResp, pedidosResp }) {
   if (!conversasResp) return null
@@ -919,6 +976,7 @@ function fidelidade({ dashboardResp, atividadesResp, configResp }) {
 }
 
 module.exports = {
+  caixaCompleto, entregasDoCaixa, mesasDoCaixa,
   whatsapp,
   conversas,
   filaDeProducao, juntarAcessoTv, salao, atendimento, configuracoes, clientes,

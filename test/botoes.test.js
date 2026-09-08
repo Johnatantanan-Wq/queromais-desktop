@@ -149,7 +149,7 @@ test('toda ação que vai para o painel diz O QUE vai fazer lá', () => {
 
 test('a chave da ação ignora o identificador que vem depois', () => {
   assert.strictEqual(Acoes.chaveDe('despachar:1042'), 'despachar')
-  assert.strictEqual(Acoes.chaveDe('mesa:fechar:7'), 'mesa:fechar', 'chave composta que está no mapa')
+  assert.strictEqual(Acoes.chaveDe('mesa:imprimir:7'), 'mesa:imprimir', 'chave composta que está no mapa')
   assert.strictEqual(Acoes.chaveDe('esgotar-item:Pizza: a boa'), 'esgotar-item')
   assert.strictEqual(Acoes.destinoDe('mesa:imprimir:7').app, 'comanda')
 })
