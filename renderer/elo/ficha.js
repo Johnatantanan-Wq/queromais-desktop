@@ -114,6 +114,21 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+/** Recebi: dá entrada no estoque. Quantidade sugerida (2× o mínimo − saldo) e custo à vista. */
+function fichaRecebimento(item) {
+  const i = item || {}
+  const sugestao = Math.max(0, (Number(i.minimo) || 0) * 2 - (Number(i.saldo) || 0))
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Saldo hoje: <b style="color:#111">' + esc((Number(i.saldo) || 0) + ' ' + (i.unidade || 'un')) + '</b> · mínimo '
+    + esc(String(Number(i.minimo) || 0)) + '. O que entrar aqui soma no estoque e mexe no custo médio.</div>'
+    + campo('Quantidade recebida (' + (i.unidade || 'un') + ')', 'qtd', String(sugestao || ''), 'Sugerido: repõe até 2× o mínimo.')
+    + campo('Custo unitário (opcional)', 'custo', i.custo != null ? String(i.custo).replace('.', ',') : '', 'Em branco mantém o custo médio de hoje.')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('compras:recebi:cancelar', 'Cancelar', false)
+    + botaoFicha('compras:recebi:confirmar:' + (i.nome || ''), 'Dar entrada', true)
+    + '</div>'
+}
+
 /** Editar o preço de um produto: um campo, o preço atual à vista. */
 function fichaPreco(item) {
   const p = item || {}
@@ -254,4 +269,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

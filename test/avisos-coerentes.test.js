@@ -27,9 +27,12 @@ const PROMESSAS = [
   { palavra: 'marcar item como pronto', acao: 'kds:pronto:' },
   { palavra: 'esgotar', acao: 'esgotar-item:' },
   { palavra: 'editar', acao: 'editar-preco:' },
+  { palavra: 'receber compra', acao: 'compras:recebi:' },
+  { palavra: 'anotar item', acao: 'compras:adicionar-avulso' },
 ]
 
 const TELAS = {
+  compras: () => require('../renderer/elo/tela-compras').htmlCompras(demo.listasApoio().compras, {}),
   cardapio: () => require('../renderer/elo/tela-cardapio').htmlCardapio(demo.listas().cardapio, { online: true, ts: Date.now() }),
   despacho: () => require('../renderer/elo/tela-despacho').htmlDespacho(demo.listas().despacho, { visao: 'bairro' }),
   cozinha: () => require('../renderer/elo/tela-operacao').htmlKds(demo.operacao().cozinha, { departamento: 'cozinha' }),

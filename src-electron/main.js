@@ -633,7 +633,10 @@ async function createWindow() {
       }
       for (const canal of Object.keys(CANAIS_APOIO)) {
         const chave = CANAIS_APOIO[canal]
-        ipcMain.handle(canal, () => ({ dados: dadosDemo.listasApoio()[chave], offline: false, ts: Date.now(), demo: true }))
+        ipcMain.handle(canal, () => {
+          const dados = dadosDemo.listasApoio()[chave]
+          return { dados: chave === 'compras' ? registroCompras.aplicar(dados) : dados, offline: false, ts: Date.now(), demo: true }
+        })
       }
       const CANAIS_FINAIS = {
         'insights-carregar': 'insights', 'relatorios-carregar': 'relatorios',
@@ -660,6 +663,23 @@ async function createWindow() {
       const registroDespacho = require('./despacho-local').criarRegistro()
       // O cardápio também muda em demonstração: esgotado e preço ficam na sessão.
       const registroCardapio = require('./cardapio-local').criarRegistro()
+      // Compras em demonstração: anotar, comprar, voltar, excluir e receber ficam na sessão.
+      const registroCompras = require('./compras-local').criarRegistro()
+      const acoesCompras = require('./compras-acoes')
+      ipcMain.handle('compras-anotar', (e, a) => {
+        const d = acoesCompras.anotar(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCompras.anotar(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      for (const [canal, fn, estado] of [['compras-comprado', 'comprado', 'comprado'], ['compras-voltar', 'voltar', 'pendente'], ['compras-excluir', 'excluir', 'excluido']]) {
+        ipcMain.handle(canal, (e, a) => {
+          const d = acoesCompras[fn](a && a.item); if (!d.ok) return { ok: false, erro: d.motivo }
+          registroCompras.marcar(a.item.id, estado); return { ok: true, resumo: d.resumo, demo: true }
+        })
+      }
+      ipcMain.handle('compras-recebi', (e, a) => {
+        const d = acoesCompras.recebi(a && a.item, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroCompras.receber(a.item.id, d.corpo.qtd); return { ok: true, resumo: d.resumo, demo: true }
+      })
       const acoesCardapio = require('./cardapio-acoes')
       ipcMain.handle('cardapio-esgotar-item', (e, args) => {
         const d = acoesCardapio.esgotarItem(args && args.item, args && args.esgotar)
@@ -855,6 +875,7 @@ async function createWindow() {
     if (!DEMO) require('./kds-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./despacho-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./cardapio-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./compras-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

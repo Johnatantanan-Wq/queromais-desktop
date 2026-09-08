@@ -24,6 +24,7 @@ let whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false,
 let filaDoTeste = new Map()
 let despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
 let cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
+let comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -95,7 +96,15 @@ function responder(canal, args) {
   }
   if (canal === 'bar-carregar') return ok(demo.operacao().bar)
   if (canal === 'salao-carregar') return ok(demo.operacao().salao)
-  if (canal === 'compras-carregar') return ok(demo.listasApoio().compras)
+  if (canal === 'compras-carregar') return ok(comprasDoTeste.aplicar(demo.listasApoio().compras))
+  if (canal.indexOf('compras-') === 0 && canal !== 'compras-carregar') {
+    const A = require('../src-electron/compras-acoes')
+    if (canal === 'compras-anotar') { const d = A.anotar(args); if (!d.ok) return { ok: false, erro: d.motivo }; comprasDoTeste.anotar(d.corpo); return { ok: true, resumo: d.resumo } }
+    if (canal === 'compras-recebi') { const d = A.recebi(args.item, args); if (!d.ok) return { ok: false, erro: d.motivo }; comprasDoTeste.receber(args.item.id, d.corpo.qtd); return { ok: true, resumo: d.resumo } }
+    const fn = { 'compras-comprado': ['comprado', 'comprado'], 'compras-voltar': ['voltar', 'pendente'], 'compras-excluir': ['excluir', 'excluido'] }[canal]
+    const d = A[fn[0]](args.item); if (!d.ok) return { ok: false, erro: d.motivo }
+    comprasDoTeste.marcar(args.item.id, fn[1]); return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'cupons-carregar') return ok(demo.listasApoio().cupons)
   if (canal === 'fidelidade-carregar') return ok(demo.listasApoio().fidelidade)
   if (canal === 'parceiros-carregar') return ok(demo.listasApoio().parceiros)
@@ -242,7 +251,8 @@ beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.cria
   whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
   filaDoTeste = new Map()
   despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
-  cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro() })
+  cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
+  comprasDoTeste = require('../src-electron/compras-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -1064,4 +1074,46 @@ test('Cardápio: esgotar a categoria esgota os produtos dela', async () => {
   const ch = chamadas.find((c) => c.canal === 'cardapio-esgotar-categoria')
   assert.ok(ch, 'o clique esgota a categoria')
   assert.ok(/produtos? de .* esgotad/.test(aviso().textContent), aviso().textContent)
+})
+
+test('Compras: anotar um item avulso entra na lista na hora', async () => {
+  await abrirApp()
+  await irPara('/admin/compras')
+  doc.querySelector('#econtent [data-compra-avulsa="nome"]').value = 'Papel toalha'
+  doc.querySelector('#econtent [data-compra-avulsa="qtd"]').value = '3'
+  clicar(doc.querySelector('#econtent [data-acao="compras:adicionar-avulso"]'))
+  await esperar(100)
+  assert.ok(chamadas.some((c) => c.canal === 'compras-anotar'), 'o clique anota')
+  assert.ok(/Papel toalha anotado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(/Papel toalha/.test(conteudo()), 'e o item aparece na lista')
+})
+
+test('Compras: marcar comprado tira o item da lista de avulsos', async () => {
+  await abrirApp()
+  await irPara('/admin/compras')
+  const bt = doc.querySelector('#econtent [data-acao^="compras:comprado:"]')
+  assert.ok(bt, 'o avulso tem o botão Comprado')
+  const nome = bt.getAttribute('data-acao').slice('compras:comprado:'.length)
+  clicar(bt)
+  await esperar(100)
+  assert.ok(/marcado como comprado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('#econtent [data-acao="compras:comprado:' + nome + '"]'), 'saiu dos avulsos')
+  assert.ok(doc.querySelector('#econtent [data-acao="compras:voltar-lista:' + nome + '"]'), 'e foi para os comprados')
+})
+
+test('Compras: "Recebi" abre o popup com a sugestão e dá entrada no estoque', async () => {
+  await abrirApp()
+  await irPara('/admin/compras')
+  const bt = doc.querySelector('#econtent [data-acao^="compras:recebi:"]')
+  assert.ok(bt, 'o item de reposição tem o botão Recebi')
+  clicar(bt)
+  await esperar(60)
+  const qtd = doc.querySelector('#eloFicha [data-campo="qtd"]')
+  assert.ok(qtd && Number(qtd.value) > 0, 'o popup abre com a quantidade sugerida: ' + (qtd && qtd.value))
+  clicar(doc.querySelector('#eloFicha [data-acao^="compras:recebi:confirmar:"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'compras-recebi')
+  assert.ok(ch && ch.args.item.id, 'a entrada sai com o id do ingrediente')
+  assert.ok(/Entrou \d+/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.getElementById('eloFicha'), 'o popup fecha')
 })

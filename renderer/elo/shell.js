@@ -1003,6 +1003,41 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Compras: anotar, comprar, voltar, excluir e — o que importa — "Recebi", que dá
+      // entrada no estoque. O painel grava; aqui se confere e se manda.
+      if (acao === 'compras:adicionar-avulso') {
+        const v = (k) => { const el = document.querySelector('#econtent [data-compra-avulsa="' + k + '"]'); return el ? el.value : '' }
+        mandarCompras(btAcao, 'compras-anotar', { nome: v('nome'), qtd: v('qtd'), unidade: v('unidade') }, () => {
+          AVULSO.nome = ''; AVULSO.qtd = '1'; AVULSO.unidade = 'un'
+        })
+        return
+      }
+      if (acao.indexOf('compras:comprado:') === 0 || acao.indexOf('compras:excluir-avulso:') === 0 || acao.indexOf('compras:voltar-lista:') === 0) {
+        const canal = acao.indexOf('compras:comprado:') === 0 ? 'compras-comprado'
+          : acao.indexOf('compras:excluir-avulso:') === 0 ? 'compras-excluir' : 'compras-voltar'
+        const nome = acao.split(':').slice(2).join(':')
+        const item = ((DADOS_TELA && DADOS_TELA.avulsos) || []).concat((DADOS_TELA && DADOS_TELA.comprados) || [])
+          .find((x) => x.nome === nome)
+        if (!item) { avisar('Não achei esse item na tela — recarregue.', 'erro'); return }
+        mandarCompras(btAcao, canal, { item })
+        return
+      }
+      if (acao.indexOf('compras:recebi:') === 0 && acao.indexOf('compras:recebi:confirmar:') !== 0 && acao !== 'compras:recebi:cancelar') {
+        const nome = acao.slice('compras:recebi:'.length)
+        const item = ((DADOS_TELA && DADOS_TELA.repor) || []).find((x) => x.nome === nome)
+        if (!item) { avisar('Não achei esse ingrediente na tela — recarregue.', 'erro'); return }
+        abrirPopup('Recebi ' + item.nome, Ficha.fichaRecebimento(item), 460)
+        return
+      }
+      if (acao === 'compras:recebi:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('compras:recebi:confirmar:') === 0) {
+        const nome = acao.slice('compras:recebi:confirmar:'.length)
+        const item = ((DADOS_TELA && DADOS_TELA.repor) || []).find((x) => x.nome === nome)
+        if (!item) { avisar('Não achei esse ingrediente — recarregue.', 'erro'); return }
+        mandarCompras(btAcao, 'compras-recebi', { item, qtd: campoDaFicha('qtd'), custo: campoDaFicha('custo') }, fecharFicha)
+        return
+      }
+
       // Cardápio: acabou um item, acabou a categoria, o preço mudou. É o que o balcão
       // mexe no meio do movimento; quem grava (e registra no histórico) é o painel.
       if (acao.indexOf('esgotar-item:') === 0 || acao.indexOf('ficha:esgotar:') === 0) {
@@ -1582,6 +1617,15 @@ if (typeof document !== 'undefined') {
       online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
     })
     return true
+  }
+
+  /** Manda uma ação de Compras e devolve o resultado para a tela — nunca finge sucesso. */
+  function mandarCompras(bt, canal, args, aoDarCerto) {
+    bt.disabled = true
+    ipcRenderer.invoke(canal, args).then((r) => {
+      if (r && r.ok) { if (aoDarCerto) aoDarCerto(); avisar(r.resumo || 'Pronto.', 'ok'); carregarTelaNativa(ROTA) }
+      else { bt.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+    }).catch(() => { bt.disabled = false; avisar('Não deu para falar com o painel. Nada mudou.', 'erro') })
   }
 
   /** Acha o produto pelo nome, em qualquer categoria do cardápio na tela. */

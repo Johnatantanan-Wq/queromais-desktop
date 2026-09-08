@@ -133,7 +133,7 @@ function htmlCompras(dados, estado) {
 
   return topo + cartaoRepor + cartaoAvulsos + cartaoComprados
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
-    + 'receber compra e anotar item ainda são pelo painel</div>'
+    + 'o custo previsto usa 2× o mínimo, como o painel — nota fiscal de compra é pela Gestão</div>'
 }
 
 module.exports = { htmlCompras, sugestaoDe }

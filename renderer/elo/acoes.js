@@ -87,11 +87,6 @@ const DESTINOS = {
   'mov:pdf': { app: 'pdf' },
 
   // ── Compras ──
-  'compras:recebi': { rota: '/admin/compras', o: 'registrar o recebimento' },
-  'compras:adicionar-avulso': { rota: '/admin/compras', o: 'anotar o item' },
-  'compras:comprado': { rota: '/admin/compras', o: 'marcar como comprado' },
-  'compras:excluir-avulso': { rota: '/admin/compras', o: 'excluir o item' },
-  'compras:voltar-lista': { rota: '/admin/compras', o: 'voltar o item para a lista' },
   'compras:relatorio-reposicao': { app: 'pdf' },
 
   // ── Relatórios ──

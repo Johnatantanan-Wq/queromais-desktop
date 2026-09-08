@@ -386,27 +386,27 @@ function listasApoio() {
   return {
     compras: {
       repor: [
-        { nome: 'Farinha de trigo', saldo: 18, unidade: 'kg', minimo: 40, custo: 4.20 },
-        { nome: 'Calabresa', saldo: 9, unidade: 'kg', minimo: 15, custo: 29.80 },
-        { nome: 'Refrigerante 2L', saldo: 0, unidade: 'un', minimo: 24, custo: 6.90 },
+        { id: 'ing-1', nome: 'Farinha de trigo', saldo: 18, unidade: 'kg', minimo: 40, custo: 4.20 },
+        { id: 'ing-2', nome: 'Calabresa', saldo: 9, unidade: 'kg', minimo: 15, custo: 29.80 },
+        { id: 'ing-3', nome: 'Refrigerante 2L', saldo: 0, unidade: 'un', minimo: 24, custo: 6.90 },
       ],
       avulsos: [
-        { nome: 'Saco de lixo 100L', qtd: 4, unidade: 'pct' },
-        { nome: 'Detergente neutro', qtd: 6, unidade: 'un' },
+        { id: 'av-1', nome: 'Saco de lixo 100L', qtd: 4, unidade: 'pct' },
+        { id: 'av-2', nome: 'Detergente neutro', qtd: 6, unidade: 'un' },
       ],
       comprados: [
-        { nome: 'Papel toalha', qtd: 12, unidade: 'rolo' },
+        { id: 'av-3', nome: 'Papel toalha', qtd: 12, unidade: 'rolo' },
       ],
     },
     estoque: {
       abaixoMinimo: 3, valorTotal: 18420.00,
       itens: [
-        { nome: 'Muçarela', unidade: 'kg', saldo: 42, minimo: 30, custo: 38.90 },
-        { nome: 'Farinha de trigo', unidade: 'kg', saldo: 18, minimo: 40, custo: 4.20 },
-        { nome: 'Molho de tomate', unidade: 'lata', saldo: 61, minimo: 24, custo: 12.50 },
-        { nome: 'Calabresa', unidade: 'kg', saldo: 9, minimo: 15, custo: 29.80 },
-        { nome: 'Refrigerante 2L', unidade: 'un', saldo: 8, minimo: 24, custo: 6.90 },
-        { nome: 'Caixa de pizza G', unidade: 'un', saldo: 340, minimo: 200, custo: 1.80 },
+        { id: 'ing-4', nome: 'Muçarela', unidade: 'kg', saldo: 42, minimo: 30, custo: 38.90 },
+        { id: 'ing-5', nome: 'Farinha de trigo', unidade: 'kg', saldo: 18, minimo: 40, custo: 4.20 },
+        { id: 'ing-6', nome: 'Molho de tomate', unidade: 'lata', saldo: 61, minimo: 24, custo: 12.50 },
+        { id: 'ing-7', nome: 'Calabresa', unidade: 'kg', saldo: 9, minimo: 15, custo: 29.80 },
+        { id: 'ing-8', nome: 'Refrigerante 2L', unidade: 'un', saldo: 8, minimo: 24, custo: 6.90 },
+        { id: 'ing-9', nome: 'Caixa de pizza G', unidade: 'un', saldo: 340, minimo: 200, custo: 1.80 },
       ],
     },
     cupons: {
