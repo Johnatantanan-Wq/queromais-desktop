@@ -174,34 +174,40 @@ function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, plan
       config: [
         { titulo: '', colunas: 3, campos: [
           { rotulo: 'Nome fantasia / nome da loja', valor: texto(l.nome) },
-          { rotulo: 'Razão social', valor: texto(l.razao_social) },
-          { rotulo: 'Responsável', valor: texto(l.responsavel) },
+          { rotulo: 'Razão social', valor: texto(l.empresa_razao_social || l.razao_social) },
+          { rotulo: 'Responsável', valor: texto(l.empresa_responsavel || l.responsavel) },
         ] },
         { titulo: 'Documentos e contato', colunas: 3, campos: [
           { rotulo: 'CNPJ', valor: texto(l.empresa_cnpj || l.cnpj) },
-          { rotulo: 'Inscrição estadual', valor: texto(l.inscricao_estadual) },
+          { rotulo: 'Inscrição estadual', valor: texto(l.empresa_ie || l.inscricao_estadual) },
           { rotulo: 'Telefone / WhatsApp', valor: texto(l.telefone || l.whatsapp) },
-          { rotulo: 'E-mail', valor: texto(l.email) },
-          { rotulo: 'Site', valor: texto(l.site) },
+          { rotulo: 'E-mail', valor: texto(l.empresa_email || l.email) },
+          { rotulo: 'Site', valor: texto(l.empresa_site || l.site) },
           { rotulo: 'Descrição', valor: texto(l.descricao) },
         ] },
         { titulo: 'Endereço', colunas: 3, campos: [
-          { rotulo: 'Rua / avenida', valor: texto(endereco.rua || l.endereco_rua) },
+          { rotulo: 'Rua / avenida', valor: texto(endereco.rua || l.endereco_logradouro || l.endereco_rua) },
           { rotulo: 'Número', valor: texto(endereco.numero || l.endereco_numero) },
-          { rotulo: 'CEP', valor: texto(endereco.cep || l.cep) },
+          { rotulo: 'CEP', valor: texto(endereco.cep || l.endereco_cep || l.cep) },
           { rotulo: 'Bairro', valor: texto(endereco.bairro || l.endereco_bairro) },
-          { rotulo: 'Cidade', valor: texto(endereco.cidade || l.cidade) },
-          { rotulo: 'UF', valor: texto(endereco.uf || l.uf) },
+          { rotulo: 'Cidade', valor: texto(endereco.cidade || l.endereco_municipio || l.cidade) },
+          { rotulo: 'UF', valor: texto(endereco.uf || l.endereco_uf || l.uf) },
+          { rotulo: 'Complemento', valor: texto(endereco.complemento || l.endereco_complemento) },
+          { rotulo: 'Link Google Maps', valor: texto(l.maps_url) },
         ] },
         { titulo: 'Como o cliente pode receber o pedido', colunas: 1, campos: [
           { rotulo: 'Modalidades', valor: modalidades(l) },
         ] },
+        { titulo: 'Numeração dos pedidos', colunas: 1, campos: [
+          { rotulo: 'Como numera', valor: l.numeracao_diaria === false
+            ? 'Sequencial, sem reiniciar' : 'Reinicia todo dia (#1, #2, #3…)' },
+        ] },
         { titulo: 'Pix e tempos de atendimento', colunas: 3, campos: [
           { rotulo: 'Chave Pix', valor: texto(l.pix_chave) },
-          { rotulo: 'Nome do titular Pix', valor: texto(l.pix_titular) },
-          { rotulo: 'Tempo retirada (min)', valor: l.tempo_retirada != null ? String(l.tempo_retirada) : '' },
-          { rotulo: 'Tempo delivery (min)', valor: l.tempo_entrega != null ? String(l.tempo_entrega) : '' },
-          { rotulo: 'Tempo consumo local (min)', valor: l.tempo_local != null ? String(l.tempo_local) : '' },
+          { rotulo: 'Nome do titular Pix', valor: texto(l.pix_nome || l.pix_titular) },
+          { rotulo: 'Tempo retirada (min)', valor: numeroOuVazio(l.tempo_estimado_balcao, l.tempo_retirada) },
+          { rotulo: 'Tempo delivery (min)', valor: numeroOuVazio(l.tempo_estimado_delivery, l.tempo_entrega) },
+          { rotulo: 'Tempo consumo local (min)', valor: numeroOuVazio(l.tempo_estimado_local, l.tempo_local) },
         ] },
       ],
       horarios: [
@@ -314,7 +320,27 @@ function dataBR(iso) {
   const d = new Date(iso)
   return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR')
 }
+function numeroOuVazio() {
+  for (const v of arguments) if (v != null && v !== '') return String(v)
+  return ''
+}
+
+const NOME_MODALIDADE = {
+  entrega: 'Entrega', retirada: 'Retirada na loja', balcao: 'Retirada na loja',
+  consumo_local: 'Consumir no local', local: 'Consumir no local', mesa: 'Consumir no local',
+}
+/** A loja guarda as modalidades numa lista (`modalidades_pedido`), não em três flags. */
 function modalidades(l) {
+  const lista = l.modalidades_pedido
+  if (Array.isArray(lista) && lista.length) {
+    const vistos = []
+    for (const m of lista) {
+      const nome = NOME_MODALIDADE[m] || m
+      if (nome && vistos.indexOf(nome) < 0) vistos.push(nome)
+    }
+    return vistos.join(' · ')
+  }
+  // Formato antigo (três flags), para não quebrar cache guardado nem a demonstração.
   const m = []
   if (l.aceita_entrega !== false) m.push('Entrega')
   if (l.aceita_retirada !== false) m.push('Retirada na loja')

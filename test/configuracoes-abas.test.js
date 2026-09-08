@@ -97,3 +97,48 @@ test('vencimento é DIA, não instante — não pode voltar um dia pelo fuso', (
   })
   assert.strictEqual(soData.abas.plano[1].campos[0].valor, '05/01/2026')
 })
+
+test('a ficha da loja lê os nomes REAIS das colunas do painel', () => {
+  // O adaptador lia razao_social, inscricao_estadual, endereco_rua, pix_titular,
+  // tempo_entrega… nomes que não existem na tabela. Conectado, a tela inteira dizia
+  // "Não informado" em campos que o lojista tinha preenchido.
+  const d = A.configuracoes({ lojaResp: {
+    id: 'l1', nome: 'Du Pellegrini',
+    empresa_razao_social: 'DU PELLEGRINI LTDA', empresa_cnpj: '00.000.000/0001-00',
+    empresa_ie: '123', empresa_email: 'x@y.com', empresa_responsavel: 'Fabrício',
+    endereco_logradouro: 'Av João Clímaco', endereco_municipio: 'Valença', endereco_uf: 'BA',
+    endereco_cep: '45400-000', pix_nome: 'Fabrício',
+    tempo_estimado_balcao: 30, tempo_estimado_delivery: 45, tempo_estimado_local: 20,
+  } })
+  const campos = {}
+  for (const s of d.abas.config) for (const c of s.campos) campos[c.rotulo] = c.valor
+  assert.strictEqual(campos['Razão social'], 'DU PELLEGRINI LTDA')
+  assert.strictEqual(campos['Responsável'], 'Fabrício')
+  assert.strictEqual(campos['Inscrição estadual'], '123')
+  assert.strictEqual(campos['E-mail'], 'x@y.com')
+  assert.strictEqual(campos['Rua / avenida'], 'Av João Clímaco')
+  assert.strictEqual(campos['CEP'], '45400-000')
+  assert.strictEqual(campos['Cidade'], 'Valença')
+  assert.strictEqual(campos['Nome do titular Pix'], 'Fabrício')
+  assert.strictEqual(campos['Tempo delivery (min)'], '45')
+  assert.strictEqual(campos['Tempo consumo local (min)'], '20')
+})
+
+test('as modalidades vêm da lista da loja, não de três flags', () => {
+  const d = A.configuracoes({ lojaResp: { id: 'l1', modalidades_pedido: ['entrega', 'consumo_local'] } })
+  assert.strictEqual(d.abas.config[3].campos[0].valor, 'Entrega · Consumir no local')
+  // balcao e retirada dizem a mesma coisa: não pode sair repetido
+  const d2 = A.configuracoes({ lojaResp: { id: 'l1', modalidades_pedido: ['retirada', 'balcao'] } })
+  assert.strictEqual(d2.abas.config[3].campos[0].valor, 'Retirada na loja')
+  // formato antigo continua lido (cache guardado, demonstração)
+  const d3 = A.configuracoes({ lojaResp: { id: 'l1', aceita_entrega: true, aceita_retirada: false, aceita_local: true } })
+  assert.ok(/Consumir no local/.test(d3.abas.config[3].campos[0].valor))
+})
+
+test('numeração e tempo zero não somem da tela', () => {
+  const d = A.configuracoes({ lojaResp: { id: 'l1', numeracao_diaria: false, tempo_estimado_delivery: 0 } })
+  const numeracao = d.abas.config.find((s) => /Numeração/.test(s.titulo)).campos[0].valor
+  assert.strictEqual(numeracao, 'Sequencial, sem reiniciar')
+  const tempos = d.abas.config.find((s) => /Pix e tempos/.test(s.titulo)).campos
+  assert.strictEqual(tempos.find((c) => /delivery/.test(c.rotulo)).valor, '0', 'zero é resposta, não vazio')
+})
