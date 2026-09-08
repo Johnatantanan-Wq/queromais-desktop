@@ -52,7 +52,7 @@ function popup(titulo, conteudo, largura) {
     + '<div style="font-size:16px;font-weight:800;color:#111">' + esc(titulo) + '</div>'
     + '<button type="button" data-fechar-ficha="1" style="width:32px;height:32px;border:1px solid #e5e7eb;'
     + 'border-radius:9px;background:#fff;color:#6b7280;cursor:pointer;font-family:inherit;font-size:14px">✕</button></div>'
-    + '<div style="flex:1;overflow:auto;padding:22px 24px">' + conteudo + '</div></div></div>'
+    + '<div data-corpo-popup="1" style="flex:1;overflow:auto;padding:22px 24px">' + conteudo + '</div></div></div>'
 }
 
 function painel(titulo, conteudo) {

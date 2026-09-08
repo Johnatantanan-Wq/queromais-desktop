@@ -185,7 +185,13 @@ async function irPara(href) {
 async function irParaVenda() {
   await irPara('/admin/pedidos')
   clicar($('[data-acao="venda-manual"]'))
-  await esperar(60)
+  await esperar(80)
+}
+
+/** A venda manual mora num POPUP, não no palco — é lá que se olha o conteúdo dela. */
+const vendaNaTela = () => {
+  const f = doc.getElementById('eloFicha')
+  return f ? f.innerHTML : ''
 }
 
 beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
@@ -469,7 +475,7 @@ test('os botões DENTRO da ficha também respondem', async () => {
 test('venda manual: dá para fechar uma venda inteira só clicando', async () => {
   await abrirApp()
   await irParaVenda()
-  assert.ok(/Venda manual/.test(conteudo()), 'a tela do PDV abre')
+  assert.ok(/Venda manual/.test(vendaNaTela()), 'a tela do PDV abre')
 
   // 1. cliente — retirada, para não depender de bairro e endereço
   clicar($('[data-venda-tipo="retirada"]'))
@@ -483,13 +489,13 @@ test('venda manual: dá para fechar uma venda inteira só clicando', async () =>
   // 2. produtos — dois cliques no mesmo produto viram quantidade 2
   clicar($('[data-acao="venda:etapa:produtos"]'))
   await esperar(40)
-  const produto = doc.querySelector('#econtent [data-venda-add]')
+  const produto = doc.querySelector('#eloFicha [data-venda-add]')
   const nomeProduto = produto.getAttribute('data-venda-add')
   clicar(produto)
   await esperar(40)
   clicar(doc.querySelector('[data-venda-add="' + nomeProduto + '"]'))
   await esperar(40)
-  assert.ok(/1 item\(ns\)/.test(conteudo()), 'um produto, duas unidades')
+  assert.ok(/1 item\(ns\)/.test(vendaNaTela()), 'um produto, duas unidades')
   assert.ok(doc.querySelector('[data-venda-menos]'), 'o carrinho aparece')
 
   // 3. pagamento — dinheiro com troco
@@ -501,15 +507,15 @@ test('venda manual: dá para fechar uma venda inteira só clicando', async () =>
   troco.value = '500'
   troco.dispatchEvent(new win.Event('input', { bubbles: true }))
   await esperar(40)
-  assert.ok(/Troco a separar/.test(conteudo()))
+  assert.ok(/Troco a separar/.test(vendaNaTela()))
 
   // fecha
   const antes = registroDeTeste.listar().length
   clicar($('[data-acao="venda:fechar"]'))
   await esperar(80)
   assert.strictEqual(registroDeTeste.listar().length, antes + 1, 'a venda foi gravada de verdade')
-  assert.ok(/registrada/.test(conteudo()), 'a tela vira recibo: ' + conteudo().slice(0, 200))
-  assert.ok(/Seu Antônio/.test(conteudo()))
+  assert.ok(/registrada/.test(vendaNaTela()), 'a tela vira recibo: ' + vendaNaTela().slice(0, 200))
+  assert.ok(/Seu Antônio/.test(vendaNaTela()))
   // O id do produto tem que ir junto: é ele que o painel exige para lançar o pedido
   // quando o app está conectado.
   const gravada = registroDeTeste.listar()[0]
@@ -523,7 +529,7 @@ test('venda manual: o app barra a venda incompleta em vez de gravar torto', asyn
   await esperar(40)
   clicar($('[data-acao="venda:etapa:pagamento"]'))
   await esperar(40)
-  assert.ok(/Adicione ao menos um item/.test(conteudo()), 'sem item, a tela diz o que falta')
+  assert.ok(/Adicione ao menos um item/.test(vendaNaTela()), 'sem item, a tela diz o que falta')
   assert.ok(!$('[data-acao="venda:fechar"]'), 'e o botão de fechar nem existe')
 })
 
@@ -534,7 +540,7 @@ test('venda manual: "Venda manual" da Gestão de pedido abre o PDV', async () =>
   assert.ok(bt, 'o botão existe no quadro de pedidos')
   clicar(bt)
   await esperar(60)
-  assert.ok(/Venda manual/.test(conteudo()) && /1\. cliente/.test(conteudo()),
+  assert.ok(/Venda manual/.test(vendaNaTela()) && /1\. cliente/.test(vendaNaTela()),
     'clicar leva para o PDV do app, não para o painel')
 })
 
@@ -543,12 +549,12 @@ test('venda manual: cancelar limpa o pedido montado', async () => {
   await irParaVenda()
   clicar($('[data-acao="venda:etapa:produtos"]'))
   await esperar(40)
-  clicar(doc.querySelector('#econtent [data-venda-add]'))
+  clicar(doc.querySelector('#eloFicha [data-venda-add]'))
   await esperar(40)
-  assert.ok(/1 item\(ns\)/.test(conteudo()))
+  assert.ok(/1 item\(ns\)/.test(vendaNaTela()))
   clicar($('[data-acao="venda:cancelar"]'))
   await esperar(40)
-  assert.ok(/0 item\(ns\)/.test(conteudo()) && /1\. cliente/.test(conteudo()))
+  assert.ok(/0 item\(ns\)/.test(vendaNaTela()) && /1\. cliente/.test(vendaNaTela()))
 })
 
 test('todo botão de toda tela do menu responde ao clique', async () => {

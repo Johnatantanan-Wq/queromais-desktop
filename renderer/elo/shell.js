@@ -546,7 +546,7 @@ if (typeof document !== 'undefined') {
 
   /** Põe ou tira uma unidade do item no pedido que está sendo montado. */
   function mexerNoItem(nome, delta) {
-    const catalogo = (DADOS_TELA && DADOS_TELA.categorias) || []
+    const catalogo = dadosDaVenda().categorias || []
     const produto = catalogo.reduce((achado, c) => achado
       || (c.itens || []).find((i) => i.nome === nome), null)
     const atual = VENDA.itens.find((i) => i.nome === nome)
@@ -562,7 +562,7 @@ if (typeof document !== 'undefined') {
 
   /** Fecha a venda: manda para o main gravar e mostra o recibo com o número. */
   function fecharVenda() {
-    const dados = DADOS_TELA || {}
+    const dados = dadosDaVenda()
     const falta = TelaVenda.oQueFalta(VENDA, dados.taxasBairro)
     if (falta) { avisar(falta, 'aviso'); return }
     const t = TelaVenda.totais(VENDA, dados.taxasBairro)
@@ -637,6 +637,9 @@ if (typeof document !== 'undefined') {
   // Trocar a métrica redesenha com o dado que já está na mão — sem nova consulta,
   // como no painel (o servidor manda as três séries de uma vez).
   function redesenharTelaAtual() {
+    // Com a venda aberta em popup, é ELE que precisa se redesenhar: redesenhar o
+    // palco atrás mandaria os cliques da venda para uma tela que ninguém está vendo.
+    if (redesenharVendaPopup()) return
     const tela = telaDe(ROTA)
     if (!tela || !DADOS_TELA) return
     document.getElementById('econtent').innerHTML = tela.desenhar(DADOS_TELA, { online: ONLINE, ts: Date.now(), demo: DEMO })
@@ -800,7 +803,7 @@ if (typeof document !== 'undefined') {
     const btCliente = e.target.closest ? e.target.closest('[data-venda-cliente]') : null
     if (btCliente) {
       const chave = btCliente.getAttribute('data-venda-cliente')
-      const c2 = ((DADOS_TELA && DADOS_TELA.clientes) || []).find((x) => (x.telefone || x.nome) === chave)
+      const c2 = (dadosDaVenda().clientes || []).find((x) => (x.telefone || x.nome) === chave)
       if (c2) { VENDA.nome = c2.nome || ''; VENDA.telefone = c2.telefone || ''; VENDA.bairro = c2.bairro || VENDA.bairro }
       redesenharTelaAtual()
       return
@@ -1182,7 +1185,7 @@ if (typeof document !== 'undefined') {
       if (destino && destino.app === 'comanda') {
         const pedido = acao.indexOf('venda:imprimir:') === 0
           ? { numero: VENDA.numero, cliente: VENDA.nome || 'Consumidor',
-            valor: TelaVenda.totais(VENDA, (DADOS_TELA || {}).taxasBairro).total,
+            valor: TelaVenda.totais(VENDA, dadosDaVenda().taxasBairro).total,
             itens: VENDA.itens.map((i) => i.qtd + '× ' + i.nome) }
           : acharNoDado(acao.split(':').pop())
         imprimirComanda(btAcao, pedido)
@@ -1197,19 +1200,17 @@ if (typeof document !== 'undefined') {
       }
       if (destino && destino.app === 'limpar-selecao') { SEL_DESPACHO = []; redesenharTelaAtual(); return }
       if (destino && destino.app === 'limpar-filtros-fin') { zerarFiltrosFin(); redesenharTelaAtual(); return }
-      // Abrir a venda manual: é tela do APP, não do painel.
+      // Venda manual: popup sobre a tela em que se está.
       if (destino && destino.app === 'venda') {
-        if (ROTA !== '/admin/venda') { ROTA = '/admin/venda'; pintar(); abrirRota(ROTA) }
+        VENDA = TelaVenda.vendaVazia()
+        abrirVendaPopup()
         return
       }
       if (destino && destino.app === 'venda-cliente') {
         const c3 = acharNoDado(acao.split(':')[2])
         VENDA = TelaVenda.vendaVazia()
         if (c3) { VENDA.nome = c3.nome || ''; VENDA.telefone = c3.telefone || ''; VENDA.bairro = c3.bairro || '' }
-        fecharFicha()
-        ROTA = '/admin/venda'
-        pintar()
-        abrirRota(ROTA)
+        abrirVendaPopup()
         return
       }
       if (destino && destino.app === 'entrada-menu') { MENU_ENTRADA = !MENU_ENTRADA; redesenharTelaAtual(); return }
@@ -1429,6 +1430,41 @@ if (typeof document !== 'undefined') {
     if (e.key === 'Escape') fecharFicha()
   })
 
+  /**
+   * De onde a venda tira o cardápio, os clientes e as taxas. Com o popup aberto, é
+   * dele — a tela ATRÁS é outra (o quadro de pedidos, por exemplo), e ler dali fazia
+   * o clique no produto não achar o catálogo e sumir.
+   */
+  function dadosDaVenda() {
+    return VENDA_POPUP || DADOS_TELA || {}
+  }
+
+  function abrirVendaPopup() {
+    const desenhar = () => {
+      abrirPopup('Venda manual', TelaVenda.htmlVenda(VENDA_POPUP, {
+        online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
+      }), 980)
+    }
+    if (VENDA_POPUP) { desenhar(); return }
+    ipcRenderer.invoke('venda-cardapio').then((r) => {
+      VENDA_POPUP = (r && r.dados) || null
+      if (!VENDA_POPUP) { avisar('Não deu para abrir a venda manual agora.', 'erro'); return }
+      desenhar()
+    }).catch(() => avisar('Não deu para abrir a venda manual agora.', 'erro'))
+  }
+
+  /** A venda em popup se redesenha no próprio popup, não no palco atrás dele. */
+  function redesenharVendaPopup() {
+    const ficha = document.getElementById('eloFicha')
+    if (!ficha || !VENDA_POPUP) return false
+    const corpo = ficha.querySelector('[data-corpo-popup]')
+    if (!corpo) return false
+    corpo.innerHTML = TelaVenda.htmlVenda(VENDA_POPUP, {
+      online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
+    })
+    return true
+  }
+
   function abrirPopupPedido() {
     const p = PEDIDO_NA_CONVERSA
     if (!p) return
@@ -1480,6 +1516,10 @@ if (typeof document !== 'undefined') {
   let PROVEDOR_WHATS = null
   // Qual conversa está aberta na tela do WhatsApp.
   let CONVERSA_ABERTA = null
+  // A venda manual abre em POPUP, sobre a tela em que se está — quem vende no balcão
+  // não quer perder de vista o quadro de pedidos para lançar uma venda.
+  let VENDA_POPUP = null
+
   // O pedido aberto no popup da conversa, e se está em modo de edição.
   let PEDIDO_NA_CONVERSA = null
   let EDITANDO_PEDIDO = false
