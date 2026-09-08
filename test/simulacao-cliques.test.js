@@ -15,6 +15,10 @@ const { JSDOM } = require('jsdom')
 const raiz = path.join(__dirname, '..')
 const demo = require('../src-electron/demo-dados')
 const registroDeTeste = require('../src-electron/vendas-locais').criarRegistro({ proximoNumero: 1044 })
+const pedidosLocais = require('../src-electron/pedidos-locais')
+// recriado a cada teste: a varredura de botões avança tudo, e o próximo teste
+// começaria com o quadro no fim.
+let etapasDeTeste = pedidosLocais.criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -49,7 +53,11 @@ function responder(canal, args) {
   if (canal === 'financeiro-abas-carregar') return ok(demo.telasComAbas().financeiro)
   if (canal === 'atendimento-abas-carregar') return ok(demo.telasComAbas().atendimento)
   if (canal === 'estoque-abas-carregar') return ok(demo.telasComAbas().estoque)
-  if (canal === 'pedidos-carregar') return ok(demo.listas().pedidos)
+  if (canal === 'pedidos-carregar') return ok(etapasDeTeste.aplicar(demo.listas().pedidos))
+  if (canal === 'pedido-avancar') {
+    const nova = etapasDeTeste.avancar(args.pedido.numero, args.etapa)
+    return nova ? { ok: true, status: nova, numero: args.pedido.numero } : { ok: false, erro: 'última etapa' }
+  }
   if (canal === 'clientes-carregar') return ok(demo.listas().clientes)
   if (canal === 'carrinhos-carregar') return ok(demo.listas().carrinhos)
   if (canal === 'cardapio-carregar') return ok(demo.listas().cardapio)
@@ -142,7 +150,7 @@ async function irParaVenda() {
   await esperar(60)
 }
 
-beforeEach(async () => { chamadas.length = 0 })
+beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -541,4 +549,34 @@ test('quando o painel fica pronto, o menu e a tela recarregam na hora', async ()
     assert.ok(chamadas.some((c) => c.canal === 'menu-carregar'), 'pede o menu do painel na hora')
     assert.ok(chamadas.some((c) => c.canal === 'visao-geral-carregar'), 'e recarrega a tela aberta')
   } finally { modoDemo = true; painelResponde = true }
+})
+
+test('clicar em Aceitar move o pedido de coluna — a primeira ação de operação do app', async () => {
+  await abrirApp()
+  await irPara('/admin/pedidos')
+  const antes = conteudo()
+  const bt = doc.querySelector('#econtent [data-acao^="avancar:"]')
+  assert.ok(bt, 'o cartão precisa do botão da etapa')
+  const numero = bt.getAttribute('data-acao').split(':')[1]
+  clicar(bt)
+  await esperar(80)
+  assert.ok(chamadas.some((c) => c.canal === 'pedido-avancar'), 'o clique tem de pedir o avanço')
+  assert.ok(aviso().className.includes('on'), 'e dizer o que aconteceu')
+  assert.notStrictEqual(conteudo(), antes, 'o quadro se redesenha')
+  // o cartão saiu da coluna em que estava
+  const depois = doc.querySelector('[data-pedido="' + numero + '"]')
+  assert.ok(depois, 'o pedido continua no quadro, só que noutra coluna')
+})
+
+test('avançar de novo continua andando, sem travar no primeiro clique', async () => {
+  await abrirApp()
+  await irPara('/admin/pedidos')
+  for (let i = 0; i < 2; i++) {
+    const bt = doc.querySelector('#econtent [data-acao^="avancar:"]')
+    if (!bt) break
+    clicar(bt)
+    await esperar(80)
+  }
+  const avancos = chamadas.filter((c) => c.canal === 'pedido-avancar').length
+  assert.ok(avancos >= 2, 'esperava pelo menos 2 avanços, veio ' + avancos)
 })

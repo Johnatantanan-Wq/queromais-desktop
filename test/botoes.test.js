@@ -83,9 +83,23 @@ function varrer() {
 
 const shell = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'elo', 'shell.js'), 'utf8')
 
+/** Ações que o shell trata ele mesmo, antes de consultar o mapa de destinos —
+ *  `acao === 'x'` e `acao.indexOf('x:') === 0`. Elas não precisam (nem devem) estar
+ *  em acoes.js: se estivessem, o clique abriria o painel em vez de FAZER. */
+function tratadasNoShell() {
+  const t = new Set()
+  for (const m of shell.matchAll(/acao === '([^']+)'/g)) t.add(m[1])
+  for (const m of shell.matchAll(/acao\.indexOf\('([^']+)'\) === 0/g)) t.add(m[1])
+  return t
+}
+const ehTratadaNoShell = (a) => {
+  for (const x of tratadasNoShell()) if (a === x || a.indexOf(x) === 0) return true
+  return false
+}
+
 test('todo botão desenhado tem destino declarado — nenhum clique morre calado', () => {
   const { acoes } = varrer()
-  const semDestino = [...acoes].filter(([a]) => !Acoes.destinoDe(a)).map(([a, t]) => a + ' (' + t + ')')
+  const semDestino = [...acoes].filter(([a]) => !Acoes.destinoDe(a) && !ehTratadaNoShell(a)).map(([a, t]) => a + ' (' + t + ')')
   assert.deepStrictEqual(semDestino, [], 'ações sem destino em acoes.js: ' + semDestino.join(', '))
   assert.ok(acoes.size > 60, 'a varredura precisa achar os botões de verdade (achou ' + acoes.size + ')')
 })

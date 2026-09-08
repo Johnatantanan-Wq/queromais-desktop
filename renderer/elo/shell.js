@@ -111,6 +111,7 @@ if (typeof document !== 'undefined') {
   const { ipcRenderer } = require('electron')
   const brand = require('../../src-electron/brand')
   const TelaCaixa = require('./tela-caixa')
+  const TelaQuadro = require('./tela-quadro')
   const TelaVisaoGeral = require('./tela-visao-geral')
   const Acoes = require('./acoes')
 
@@ -875,6 +876,29 @@ if (typeof document !== 'undefined') {
       }
       if (acao === 'impressao:teste' || acao === 'impressao:comanda') {
         imprimirComanda(btAcao, null, acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda')
+        return
+      }
+
+      // Avançar o pedido no quadro: aceitar → em produção → pronto → entregar. A
+      // primeira ação de OPERAÇÃO que o app faz — o painel continua sendo quem baixa
+      // estoque, lança no caixa, emite a nota e avisa o cliente; o app só pede.
+      if (acao.indexOf('avancar:') === 0) {
+        const numero = acao.split(':').slice(1).join(':')
+        const pedido = ((DADOS_TELA || {}).itens || []).find((x) => String(x.numero) === String(numero))
+        if (!pedido) { avisar('Não achei esse pedido na tela — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('pedido-avancar', { pedido, etapa: pedido.etapa }).then((r) => {
+          if (r && r.ok) {
+            avisar('Pedido #' + numero + ' → ' + (TelaQuadro.ROTULO_ETAPA[r.status] || 'próxima etapa') + '.', 'ok')
+            carregarTelaNativa(ROTA)
+          } else {
+            btAcao.disabled = false
+            avisar((r && r.erro) || 'Não deu para avançar este pedido.', 'erro')
+          }
+        }).catch(() => {
+          btAcao.disabled = false
+          avisar('Não deu para falar com o painel. O pedido não mudou.', 'erro')
+        })
         return
       }
 

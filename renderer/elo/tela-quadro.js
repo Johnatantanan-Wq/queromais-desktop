@@ -33,6 +33,12 @@ function clarear(hex, peso) {
 
 // Rótulos de consumo local: "prontos para entrega" não existe para quem come na mesa.
 const TITULOS_LOCAL = { pronto: 'Prontos para servir', transito: 'Servidos', entregue: 'Fechados' }
+/** Como a etapa é dita ao lojista depois que o pedido anda. */
+const ROTULO_ETAPA = {
+  em_producao: 'Em produção', pronto: 'Pronto', em_entrega: 'Em trânsito',
+  entregue: 'Entregue', servido: 'Servido',
+  producao: 'Em produção', transito: 'Em trânsito',
+}
 const ACAO = { analise: 'Aceitar', producao: 'Marcar pronto', pronto: 'Entregar', transito: 'Confirmar entrega', entregue: null }
 const FILTROS = [
   { chave: 'todos', rotulo: 'Todos' }, { chave: 'delivery', rotulo: 'Delivery' },
@@ -221,4 +227,4 @@ function htmlQuadro(dados, estado) {
     + 'aceitar, imprimir e despachar ainda são pelo painel</div></div>'
 }
 
-module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, emFaixa, COLUNAS, ACAO, FILTROS }
+module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, emFaixa, COLUNAS, ACAO, ROTULO_ETAPA, FILTROS }

@@ -25,7 +25,8 @@ const DESTINOS = {
   'entrega:entregue': { rota: '/admin/caixa', o: 'marcar como entregue' },
 
   // ── Pedidos e despacho ──
-  'avancar': { rota: '/admin/pedidos', o: 'avançar o pedido de etapa' },
+  // 'avancar' saiu do mapa: o app FAZ (ver shell.js → pedido-avancar). Deixar aqui
+  // faria o clique abrir o painel em vez de mexer no pedido.
   'novo-pedido': { app: 'venda' },
   'venda-manual': { app: 'venda' },
   'imprimir': { app: 'comanda' },

@@ -608,10 +608,12 @@ async function createWindow() {
         const chave = CANAIS_LISTA[canal]
         ipcMain.handle(canal, () => {
           const dados = dadosDemo.listas()[chave]
-          // Pedidos: as vendas fechadas no app entram na frente das que vieram do painel.
-          if (chave === 'pedidos' && registroVendas.listar().length) {
+          // Pedidos: as vendas fechadas no app entram na frente das que vieram do painel,
+          // e as etapas que o lojista mudou aqui dentro valem por cima.
+          if (chave === 'pedidos') {
             const manuais = registroVendas.listar().map(registroVendas.comoPedido)
-            return { dados: { ...dados, itens: manuais.concat(dados.itens) }, offline: false, ts: Date.now(), demo: true }
+            const juntos = manuais.length ? { ...dados, itens: manuais.concat(dados.itens) } : dados
+            return { dados: registroEtapas.aplicar(juntos), offline: false, ts: Date.now(), demo: true }
           }
           return { dados, offline: false, ts: Date.now(), demo: true }
         })
@@ -636,6 +638,15 @@ async function createWindow() {
       // A venda fechada aqui recebe número, entra no quadro de pedidos, no caixa e no
       // extrato. É o ensaio do modo offline: fechar venda sem depender do servidor.
       const registroVendas = require('./vendas-locais').criarRegistro({ proximoNumero: 1044 })
+      // Em demonstração o quadro anda de verdade: "Aceitar" move o cartão de coluna e
+      // ele fica lá. Sem servidor, o registro mora na memória desta sessão.
+      const registroEtapas = require('./pedidos-locais').criarRegistro()
+      ipcMain.handle('pedido-avancar', (e, args) => {
+        const pedido = (args && args.pedido) || {}
+        const nova = registroEtapas.avancar(pedido.numero, args && args.etapa)
+        if (!nova) return { ok: false, erro: 'O pedido já está na última etapa.' }
+        return { ok: true, status: nova, numero: pedido.numero, demo: true }
+      })
       ipcMain.handle('venda-cardapio', () => ({
         dados: {
           categorias: dadosDemo.listas().cardapio.categorias,
@@ -707,6 +718,9 @@ async function createWindow() {
     // demonstração a venda é gravada localmente (vendas-locais.js), então este canal
     // só existe fora dele.
     if (!DEMO) require('./venda-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    // Mexer no pedido (aceitar → produzir → pronto → entregar) passa pela mesma view
+    // logada. Em demonstração o quadro anda sozinho, sem rede — ver mais acima.
+    if (!DEMO) require('./pedido-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
