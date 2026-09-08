@@ -104,36 +104,31 @@ test('coluna vazia diz que não há pedido (menos a de análise, que tem a confi
   assert.ok(/aceitos automaticamente/i.test(h), 'a configuração continua na coluna de análise')
 })
 
-test('cada CARTÃO corre a faixa na cor do título — na altura dele, não da coluna', () => {
+test('cada COLUNA leva a cor do título no fundo, bem clara', () => {
   const h = Q.htmlQuadro(dados, {})
   for (const c of Q.COLUNAS) {
-    const daColuna = dados.itens.filter((p) => p.etapa === c.id)
-    if (!daColuna.length && c.id !== 'analise') continue
-    const claro = Q.clarear(c.cor, 0.86)
-    assert.ok(h.includes('background:' + claro), c.titulo + ' precisa da faixa ' + claro)
-  }
-  // uma faixa por cartão (mais a da configuração, que mora na coluna de análise)
-  const faixas = (h.match(/border-radius:14px;padding:5px/g) || []).length
-  assert.strictEqual(faixas, dados.itens.length + 1, 'uma faixa por cartão, nem mais nem menos')
-})
-
-test('coluna sem cartão não pinta faixa nenhuma — cor não sobra na tela', () => {
-  const h = Q.htmlQuadro({ ...dados, itens: [], aceiteAutomatico: false }, {})
-  const faixas = (h.match(/border-radius:14px;padding:5px/g) || []).length
-  assert.strictEqual(faixas, 1, 'só a da configuração em Em análise: ' + faixas)
-  for (const c of Q.COLUNAS) {
-    if (c.id === 'analise') continue
-    assert.ok(!h.includes('background:' + Q.clarear(c.cor, 0.86)), c.titulo + ' não pode ter faixa vazia')
+    const claro = Q.clarear(c.cor, 0.9)
+    assert.ok(h.includes('background:' + claro), c.titulo + ' precisa do fundo ' + claro)
+    // cabeçalho cheio em cima, fundo claro embaixo — nessa ordem
+    assert.ok(h.indexOf('background:' + claro) < h.indexOf('background:' + c.cor + ';padding:11px 14px'),
+      'o fundo da coluna abre o bloco, e o cabeçalho vem dentro: ' + c.titulo)
   }
 })
 
-test('a faixa é clara o bastante para o cartão branco continuar na frente', () => {
+test('as colunas têm a mesma altura e rolam por dentro', () => {
+  // Alturas soltas deixavam manchas de cor de tamanhos diferentes na tela; e uma
+  // coluna cheia empurrava as vizinhas para baixo.
+  const h = Q.htmlQuadro(dados, {})
+  assert.ok(/align-items:stretch/.test(h), 'as cinco colunas terminam juntas')
+  assert.strictEqual((h.match(/overflow-y:auto/g) || []).length, 5, 'cada uma rola por dentro')
+})
+
+test('coluna vazia continua com a cor — é ela que diz que a etapa existe', () => {
+  const h = Q.htmlQuadro({ ...dados, itens: [] }, {})
   for (const c of Q.COLUNAS) {
-    const claro = Q.clarear(c.cor, 0.86)
-    const n = parseInt(claro.slice(1), 16)
-    const luz = (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255
-    assert.ok(luz > 0.85, c.titulo + ': faixa escura demais (' + claro + ', luz ' + luz.toFixed(2) + ')')
+    assert.ok(h.includes('background:' + Q.clarear(c.cor, 0.9)), c.titulo + ' sem fundo')
   }
+  assert.ok(/Nenhum pedido no momento/.test(h))
 })
 
 test('clarear: 100% vira branco, 0% devolve a própria cor', () => {

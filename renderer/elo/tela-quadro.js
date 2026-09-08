@@ -123,16 +123,6 @@ function barraFiltros(atual, termo) {
     + '</div>'
 }
 
-/**
- * Põe o cartão sobre um trilho na cor da coluna. A faixa acompanha a ALTURA DO CARTÃO
- * e nada mais: um bloco contínuo pela coluna inteira espalhava a cor pela tela e
- * empatava colunas cheias com colunas vazias (ajuste pedido em 07/09).
- */
-function emFaixa(html, coluna) {
-  return '<div style="background:' + clarear(coluna.cor, 0.86) + ';border-radius:14px;padding:5px">'
-    + html + '</div>'
-}
-
 function cartao(p, coluna, consumoLocal) {
   const atrasado = coluna.limite != null && p.esperaMin > coluna.limite
   const acao = ACAO[coluna.id]
@@ -210,21 +200,28 @@ function htmlQuadro(dados, estado) {
     const doColuna = itens.filter((p) => p.etapa === c.id)
     const titulo = estado.consumoLocal ? (TITULOS_LOCAL[c.id] || c.titulo) : c.titulo
     const cartoes = doColuna.length
-      ? doColuna.map((p) => emFaixa(cartao(p, c, estado.consumoLocal), c)).join('')
-      : (c.id === 'analise' ? '' : '<div style="padding:20px 12px;text-align:center;color:#9ca3af;font-size:12.5px">Nenhum pedido no momento.</div>')
-    return '<div style="display:flex;flex-direction:column;min-width:0">'
-      + '<div style="border-radius:12px;background:' + c.cor + ';padding:11px 14px;display:flex;align-items:center;justify-content:space-between">'
+      ? doColuna.map((p) => cartao(p, c, estado.consumoLocal)).join('')
+      : (c.id === 'analise' ? '' : '<div style="padding:22px 12px;text-align:center;color:#9ca3af;font-size:12.5px">Nenhum pedido no momento.</div>')
+    // A coluna INTEIRA leva a cor do título, bem clara, e todas têm a mesma altura —
+    // é o que faz o quadro parecer um quadro. Alturas soltas deixavam manchas de
+    // tamanhos diferentes na tela (ajuste pedido em 08/09). Quando os cartões passam
+    // da altura, a coluna rola por dentro, sem empurrar as vizinhas.
+    return '<div style="display:flex;flex-direction:column;min-width:0;border-radius:12px;overflow:hidden;'
+      + 'background:' + clarear(c.cor, 0.9) + '">'
+      + '<div style="background:' + c.cor + ';padding:11px 14px;display:flex;align-items:center;'
+      + 'justify-content:space-between;flex-shrink:0">'
       + '<span style="font-size:13px;font-weight:800;color:#fff">' + esc(titulo) + '</span>'
       + '<span style="font-size:15px;font-weight:800;color:#fff">' + doColuna.length + '</span></div>'
-      + '<div style="display:flex;flex-direction:column;gap:10px;padding-top:10px">'
-      + (c.id === 'analise' ? emFaixa(painelAnalise(dados), c) : '') + cartoes + '</div></div>'
+      + '<div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:10px">'
+      + (c.id === 'analise' ? painelAnalise(dados) : '') + cartoes + '</div></div>'
   }).join('')
 
   return '<div>' + faixaIndicadores(dados.kpis || {}) + barraAcoes(dados) + barraFiltros(filtro, estado.termoPedido)
-    + '<div style="display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:14px;align-items:start;animation:eloFadeUp .5s ease both">'
+    + '<div style="display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:14px;align-items:stretch;'
+    + 'height:calc(100vh - 350px);min-height:380px;animation:eloFadeUp .5s ease both">'
     + colunas + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:16px">'
     + 'imprimir e escolher o entregador ainda são pelo painel</div></div>'
 }
 
-module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, emFaixa, COLUNAS, ACAO, ROTULO_ETAPA, FILTROS }
+module.exports = { htmlQuadro, tempoDeEspera, passaNoFiltro, clarear, COLUNAS, ACAO, ROTULO_ETAPA, FILTROS }
