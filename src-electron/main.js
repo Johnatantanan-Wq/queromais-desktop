@@ -257,6 +257,73 @@ const HANDLE_W    = 6
 // Ambas as plataformas usam frame: false com titlebar HTML de 44px
 const HEADER = 44
 
+// ─── Zoom da tela ────────────────────────────────────────────────────────────
+// O app roda sem menu (Menu.setApplicationMenu([]) + setMenu(null)), e no
+// Electron os atalhos de zoom vêm justamente dos itens de menu (zoomIn/zoomOut/
+// resetZoom) — sem menu, Ctrl/Cmd +/− simplesmente não existiam. Aqui o zoom é
+// próprio: atalhos capturados na tecla, Ctrl+roda do mouse e os botões da barra.
+const ZOOM_PASSOS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
+global.zoomFator = 1
+let _salvarZoom = null
+
+function aplicarZoom(fator) {
+  const f = Math.min(2, Math.max(0.5, Number(fator) || 1))
+  global.zoomFator = f
+  // Só o conteúdo (cardápio admin e WhatsApp) escala. A sidebar e a barra de
+  // título são HTML da janela e ficam do mesmo tamanho de propósito: os bounds
+  // das views são calculados em pixels a partir delas (posicionarViews).
+  for (const v of [global.cardapioView, global.whatsappView]) {
+    try {
+      if (v && v.webContents && !v.webContents.isDestroyed()) v.webContents.setZoomFactor(f)
+    } catch (_) {}
+  }
+  // Gravação adiada: o Ctrl+roda dispara vários eventos seguidos e o
+  // electron-store escreve em disco de forma síncrona — salvar a cada passo
+  // travaria o processo principal (o mesmo que desenha a tela e imprime).
+  if (_salvarZoom) clearTimeout(_salvarZoom)
+  _salvarZoom = setTimeout(() => {
+    try { setConfig({ zoom_factor: global.zoomFator }) } catch (_) {}
+  }, 500)
+  try { global.mainWindow?.webContents.send('zoom-status', { fator: f }) } catch (_) {}
+  return f
+}
+global.aplicarZoom = aplicarZoom
+
+function passoZoom(direcao) {
+  const atual = global.zoomFator || 1
+  // Índice do passo mais próximo do atual — o Ctrl+roda pode deixar valor quebrado.
+  let i = 0
+  for (let k = 1; k < ZOOM_PASSOS.length; k++) {
+    if (Math.abs(ZOOM_PASSOS[k] - atual) < Math.abs(ZOOM_PASSOS[i] - atual)) i = k
+  }
+  const prox = Math.min(ZOOM_PASSOS.length - 1, Math.max(0, i + (direcao > 0 ? 1 : -1)))
+  return aplicarZoom(ZOOM_PASSOS[prox])
+}
+
+// Atalhos de teclado direto no webContents: funcionam sem trazer a barra de
+// menu de volta, tanto na janela quanto dentro das views.
+function ligarAtalhosZoom(wc) {
+  if (!wc || wc.isDestroyed()) return
+  wc.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const mod = process.platform === 'darwin' ? input.meta : input.control
+    if (!mod || input.alt) return
+    const tecla = input.key
+    if (tecla === '+' || tecla === '=' || input.code === 'NumpadAdd') {
+      passoZoom(1); event.preventDefault()
+    } else if (tecla === '-' || tecla === '_' || input.code === 'NumpadSubtract') {
+      passoZoom(-1); event.preventDefault()
+    } else if (tecla === '0' || input.code === 'Numpad0') {
+      aplicarZoom(1); event.preventDefault()
+    }
+  })
+  // Ctrl + roda do mouse: o Chromium avisa a intenção, quem aplica somos nós.
+  wc.on('zoom-changed', (event, direcao) => {
+    passoZoom(direcao === 'in' ? 1 : -1)
+    try { event.preventDefault() } catch (_) {}
+  })
+}
+
 function posicionarViews() {
   const win = global.mainWindow
   if (!win || !global.cardapioView || !global.whatsappView) return
@@ -321,6 +388,9 @@ async function createWindow() {
   if (typeof global.mainWindow.removeMenu === 'function') {
     global.mainWindow.removeMenu()
   }
+  ligarAtalhosZoom(global.mainWindow.webContents)
+  global.zoomFator = getConfig().zoomFator || 1
+  global.mainWindow.webContents.send('zoom-status', { fator: global.zoomFator })
 
   // ── BrowserView: cardápio admin (sessão persistente = cache em disco) ────
   // Sessão persistente: cache de imagens/assets sobrevive entre sessões
@@ -436,6 +506,17 @@ async function createWindow() {
   global.mainWindow.addBrowserView(global.whatsappView)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
   global.whatsappView.webContents.loadURL(WA_URL)
+
+  // Zoom: atalhos dentro das views (é onde o cursor está o dia inteiro) e o
+  // tamanho escolhido reaplicado a cada carga — o Electron devolve a página
+  // ao 100% quando ela navega, então não basta aplicar uma vez.
+  for (const v of [global.cardapioView, global.whatsappView]) {
+    ligarAtalhosZoom(v.webContents)
+    v.webContents.on('did-finish-load', () => {
+      try { v.webContents.setZoomFactor(global.zoomFator || 1) } catch (_) {}
+    })
+  }
+  aplicarZoom(getConfig().zoomFator || 1)
 
   // ── Blindagem: view NUNCA vira zumbi ──────────────────────────────────────
   // Antes não havia recuperação nenhuma: se o renderer de uma view morria
@@ -666,6 +747,12 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => {
   if (process.platform === 'win32') app.quit()
   else global.mainWindow?.hide()
+})
+
+ipcMain.on('zoom-passo', (_e, { direcao }) => passoZoom(direcao))
+ipcMain.on('zoom-reset', () => aplicarZoom(1))
+ipcMain.on('zoom-pedir',  () => {
+  try { global.mainWindow?.webContents.send('zoom-status', { fator: global.zoomFator || 1 }) } catch (_) {}
 })
 
 ipcMain.on('change-view', (event, { view }) => {

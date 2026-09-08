@@ -86,6 +86,18 @@
     #tc button:hover    { background: var(--line); color: var(--ink); }
     #tc #tc-close:hover { background: var(--red);  color: #fff; }
 
+    /* ── Tamanho da tela (zoom) ── */
+    #zc { display: flex; align-items: center; gap: 2px; margin-right: 6px; -webkit-app-region: no-drag; }
+    #zc button {
+      height: 26px; min-width: 28px; padding: 0 7px; border-radius: 6px; border: none;
+      background: none; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .12s, color .12s;
+      -webkit-app-region: no-drag; pointer-events: auto;
+    }
+    #zc button:hover { background: var(--line); color: var(--ink); }
+    #z-lvl { font-size: 11px; font-weight: 600; min-width: 42px; }
+
     /* ── Divisor da tela dividida ── */
     #split-handle {
       display: none; position: fixed; top: 44px; bottom: 0; width: 6px;
@@ -161,6 +173,11 @@
   <span class="tb-title" id="tb-title">Cardápio Admin</span>
   <span class="tb-version" id="tb-version"></span>
   <div style="flex:1"></div>
+  <div id="zc">
+    <button id="z-out" title="Diminuir a tela (Ctrl −)">A−</button>
+    <button id="z-lvl" title="Voltar ao tamanho normal (Ctrl 0)">100%</button>
+    <button id="z-in"  title="Aumentar a tela (Ctrl +)">A+</button>
+  </div>
   <div id="tc">
     <button onclick="ipcRenderer.send('window-minimize')">─</button>
     <button onclick="ipcRenderer.send('window-maximize')">□</button>
@@ -202,6 +219,14 @@ try {
     __logo.textContent = __b.logo_sigla
   }
 } catch (_) { /* sem nodeIntegration → mantém o padrão do HTML */ }
+
+// ── Tamanho da tela: os botões só pedem, quem aplica e guarda é o main ──
+const zLvl = document.getElementById('z-lvl')
+document.getElementById('z-in').addEventListener('click',  () => ipcRenderer.send('zoom-passo', { direcao: 1 }))
+document.getElementById('z-out').addEventListener('click', () => ipcRenderer.send('zoom-passo', { direcao: -1 }))
+zLvl.addEventListener('click', () => ipcRenderer.send('zoom-reset'))
+ipcRenderer.on('zoom-status', (_e, { fator }) => { zLvl.textContent = Math.round((fator || 1) * 100) + '%' })
+ipcRenderer.send('zoom-pedir')   // o main pode ter aplicado o salvo antes desta tela existir
 
 let viewAtual = 'cardapio'
 let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0

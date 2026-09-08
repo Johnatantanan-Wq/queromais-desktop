@@ -46,6 +46,9 @@ function getConfig() {
     // escrita em whatsapp_envios/whatsapp_config/whatsapp_bot_envios.
     waAccessToken: _store.get('wa_access_token') || '',
     waRefreshToken: _store.get('wa_refresh_token') || '',
+    // Tamanho da tela escolhido no app (Ctrl/Cmd +/− ou os botões da barra).
+    // Fica guardado por marca — o balcão configura uma vez e reabre assim.
+    zoomFator: Number(_store.get('zoom_factor')) || 1,
   }
 }
 
