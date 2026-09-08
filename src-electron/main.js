@@ -552,11 +552,13 @@ async function createWindow() {
 
     // Escrita no painel, pela MESMA view logada: sem token novo, sem sessão paralela.
     // É por aqui que a venda manual do app vira pedido de verdade.
-    const enviarAoPainel = async (caminho, corpo) => {
+    // O método é parâmetro porque nem tudo que escreve é POST: a configuração do
+    // WhatsApp é PUT, e mandar POST nela devolveria 405 sem explicação na tela.
+    const enviarAoPainel = async (caminho, corpo, metodo) => {
       const wc = global.cardapioView?.webContents
       if (!wc || wc.isDestroyed()) return null
       return wc.executeJavaScript(
-        "fetch(" + JSON.stringify(caminho) + ",{method:'POST',credentials:'include',"
+        "fetch(" + JSON.stringify(caminho) + ",{method:" + JSON.stringify(metodo || 'POST') + ",credentials:'include',"
         + "headers:{'content-type':'application/json'},body:" + JSON.stringify(JSON.stringify(corpo))
         + "}).then(r=>r.json().catch(()=>null)).catch(()=>null)", true)
     }
@@ -650,11 +652,21 @@ async function createWindow() {
       let whatsDemo = { estado: 'sem_config', provedor: 'evolution', ativo: false }
       ipcMain.handle('whatsapp-carregar', () => ({ dados: whatsDemo, offline: false, ts: Date.now(), demo: true }))
       ipcMain.handle('whatsapp-conectar', () => {
-        whatsDemo = { estado: 'connecting', provedor: 'evolution', ativo: true }
+        whatsDemo = { ...whatsDemo, estado: 'connecting', provedor: 'evolution', ativo: true }
         return { ok: true, estado: 'connecting', qr: dadosDemo.qrFicticio(), pairingCode: 'DEMO-2026', demo: true }
       })
       ipcMain.handle('whatsapp-desconectar', () => {
-        whatsDemo = { estado: 'close', provedor: 'evolution', ativo: false }
+        whatsDemo = { ...whatsDemo, estado: 'close', ativo: false }
+        return { ok: true, demo: true }
+      })
+      ipcMain.handle('whatsapp-salvar', (e, args) => {
+        const provedor = (args && args.provedor) || 'desativado'
+        whatsDemo = {
+          ...whatsDemo, ...((args && args.campos) || {}),
+          provedor, ativo: provedor !== 'desativado',
+          // Trocar de caminho derruba a conexão do anterior — como no painel.
+          estado: provedor === 'evolution' ? 'close' : 'indisponivel',
+        }
         return { ok: true, demo: true }
       })
       const acoesCaixa = require('./caixa-acoes')

@@ -93,16 +93,33 @@ test('a ficha de abertura pede o fundo e já vem com zero', () => {
   assert.ok(h.includes('data-acao="caixa:abrir:confirmar"'))
 })
 
-test('as janelas de AÇÃO são popup centralizado; as de consulta seguem laterais', () => {
+test('TODA janela do app é popup centralizado, como as nove do painel', () => {
+  // Levantamento do painel (08/09): ficha do pedido, ficha do cliente, concluir
+  // entrega, lançamento de entrada — todas centralizadas. Nenhuma lateral.
   const Ficha = require('../renderer/elo/ficha')
   const pop = Ficha.popup('Sangria', '<p>x</p>')
   assert.ok(/align-items:center;justify-content:center/.test(pop), 'o popup fica no meio da tela')
   assert.ok(/border-radius:16px/.test(pop) && /box-shadow:0 24px 64px/.test(pop), 'cantos e sombra do formato do painel')
-  assert.ok(/data-fechar-ficha="1"/.test(pop), 'fecha pelo fundo e pelo ✕, como a ficha')
-  assert.strictEqual(pop.indexOf('id="eloFicha"') >= 0, true, 'usa o mesmo id — fecharFicha() serve para os dois')
+  assert.ok(/data-fechar-ficha="1"/.test(pop), 'fecha pelo fundo e pelo ✕')
+  assert.ok(pop.indexOf('id="eloFicha"') >= 0, 'mesmo id — fecharFicha() serve para todas')
+})
 
-  const lateral = Ficha.painel('Pedido #1042', '<p>x</p>')
-  assert.ok(/justify-content:flex-end/.test(lateral), 'a ficha de consulta continua encostada na direita')
+test('abrirFicha passou a abrir popup — nenhuma janela ficou lateral', () => {
+  const fs = require('fs')
+  const path = require('path')
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'elo', 'shell.js'), 'utf8')
+  assert.ok(/function abrirFicha\(titulo, corpo, largura\) \{\s*\n\s*abrirPopup\(/.test(shell),
+    'abrirFicha tem de delegar ao popup')
+  assert.ok(!/Ficha\.painel\(/.test(shell), 'nada no shell pode mais abrir a ficha lateral')
+})
+
+test('a largura acompanha o que a janela carrega, como no painel', () => {
+  const fs = require('fs')
+  const path = require('path')
+  const shell = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'elo', 'shell.js'), 'utf8')
+  // pedido inteiro é maior que ficha de cliente — 720 e 560, os números do painel
+  assert.ok(/fichaPedido\([\s\S]{0,400}?\), 720\)/.test(shell), 'ficha do pedido em 720')
+  assert.ok(/fichaCliente\(item\), 560\)/.test(shell), 'ficha do cliente em 560')
 })
 
 test('o shell abre as janelas do caixa como popup, não como ficha lateral', () => {

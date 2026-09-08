@@ -60,7 +60,10 @@ const TELAS = [
   },
   {
     canal: 'whatsapp-carregar', cache: 'whatsapp',
-    rotas: { statusResp: '/api/admin/whatsapp/status' },
+    rotas: {
+      statusResp: '/api/admin/whatsapp/status',
+      configResp: '/api/admin/whatsapp/config',
+    },
     adaptar: (r) => A.whatsapp(r),
     valida: (r) => r.statusResp && r.statusResp.estado,
   },

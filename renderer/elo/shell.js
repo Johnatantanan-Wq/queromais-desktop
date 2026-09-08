@@ -220,7 +220,8 @@ if (typeof document !== 'undefined') {
     '/admin/whatsapp': {
       canal: 'whatsapp-carregar',
       desenhar: (dados, estado) => TelaWhatsapp.htmlWhatsapp(
-        { ...(dados || {}), webAberto: VIEW === 'whatsapp', qr: QR_WHATS, pairingCode: CODIGO_WHATS }, estado),
+        { ...(dados || {}), webAberto: VIEW === 'whatsapp', qr: QR_WHATS, pairingCode: CODIGO_WHATS },
+        { ...estado, provedorWhats: PROVEDOR_WHATS }),
       erro: 'Não deu para saber como está a conexão do WhatsApp.',
     },
     '/admin/caixa': {
@@ -489,13 +490,14 @@ if (typeof document !== 'undefined') {
   // ── Ficha (painel lateral) ───────────────────────────────────────────────
   // Abre ao clicar numa linha, num cartão do quadro ou numa mesa. Painel, não página:
   // no balcão se abre um pedido e se volta para a lista em seguida.
-  function abrirFicha(titulo, corpo) {
-    fecharFicha()
-    const div = document.createElement('div')
-    div.innerHTML = Ficha.painel(titulo, corpo)
-    document.body.appendChild(div.firstChild)
+  // Toda janela do app é POPUP centralizado. Foi o que o levantamento do painel
+  // mostrou (08/09): as nove janelas de lá — ficha do pedido, ficha do cliente,
+  // concluir entrega, lançamento de entrada — são centralizadas, e nenhuma é
+  // lateral. Muda só a largura: 420 para confirmar algo, 560 para uma ficha,
+  // 720 para um pedido inteiro.
+  function abrirFicha(titulo, corpo, largura) {
+    abrirPopup(titulo, corpo, largura || 620)
   }
-  /** Janela de AÇÃO: centralizada, como as do painel — ver Ficha.popup. */
   function abrirPopup(titulo, corpo, largura) {
     fecharFicha()
     const div = document.createElement('div')
@@ -582,18 +584,18 @@ if (typeof document !== 'undefined') {
         + ((i.sabores || []).length ? ' (' + i.sabores.map((s2) => s2.nome).join(', ') + ')' : '')
         + (i.obs ? ' — ' + i.obs : '')),
       obs: p.obs || '',
-    }))
+    }), 720)
   }
 
   function abrirFichaDe(chave) {
     const item = acharNoDado(chave)
     if (!item) return
     if (ROTA === '/admin/pedidos' || ROTA === '/admin/despacho') {
-      abrirFicha('Pedido #' + (item.numero || item.pedido || chave), Ficha.fichaPedido(item))
+      abrirFicha('Pedido #' + (item.numero || item.pedido || chave), Ficha.fichaPedido(item), 720)
     } else if (ROTA === '/admin/clientes' || ROTA === '/admin/fidelidade') {
-      abrirFicha(item.nome || 'Cliente', Ficha.fichaCliente(item))
+      abrirFicha(item.nome || 'Cliente', Ficha.fichaCliente(item), 560)
     } else if (ROTA === '/admin/cardapio') {
-      abrirFicha(item.nome || 'Produto', Ficha.fichaProduto(item))
+      abrirFicha(item.nome || 'Produto', Ficha.fichaProduto(item), 560)
     }
   }
 
@@ -738,7 +740,7 @@ if (typeof document !== 'undefined') {
     const itemCardapio = e.target.closest ? e.target.closest('[data-item]') : null
     if (itemCardapio && !e.target.closest('[data-acao]')) {
       const produto = acharNoDado(itemCardapio.getAttribute('data-item'))
-      if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto))
+      if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto), 560)
       return
     }
     // ── Visão geral: tirar uma parte do cálculo do faturamento ──
@@ -902,6 +904,13 @@ if (typeof document !== 'undefined') {
       }
       return
     }
+    // Escolher o caminho do WhatsApp: só marca na tela; quem grava é o Salvar.
+    const btProv = e.target.closest ? e.target.closest('[data-provedor-whats]') : null
+    if (btProv) {
+      PROVEDOR_WHATS = btProv.getAttribute('data-provedor-whats')
+      redesenharTelaAtual()
+      return
+    }
     const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
     if (btAcao) {
       const acao = btAcao.getAttribute('data-acao')
@@ -949,6 +958,31 @@ if (typeof document !== 'undefined') {
         VIEW = 'cardapio'
         ipcRenderer.send('change-view', { view: VIEW })
         carregarTelaNativa(ROTA)
+        return
+      }
+      if (acao.indexOf('whatsapp:salvar:') === 0) {
+        const provedor = acao.split(':').pop()
+        const campos = {}
+        for (const el of document.querySelectorAll('#econtent [data-campo-whats]')) {
+          const v = ('' + el.value).trim()
+          // Segredo em branco quer dizer "mantenha o que já está lá" — mandar vazio
+          // apagaria a credencial gravada.
+          if (v) campos[el.getAttribute('data-campo-whats')] = v
+        }
+        btAcao.disabled = true
+        ipcRenderer.invoke('whatsapp-salvar', { provedor, campos }).then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) {
+            PROVEDOR_WHATS = null
+            avisar('WhatsApp configurado.', 'ok')
+            carregarTelaNativa(ROTA)
+          } else {
+            avisar((r && r.erro) || 'Não deu para salvar.', 'erro')
+          }
+        }).catch(() => {
+          btAcao.disabled = false
+          avisar('Não deu para falar com o painel. Nada foi salvo.', 'erro')
+        })
         return
       }
       if (acao === 'whatsapp:conectar' || acao === 'whatsapp:desconectar') {
@@ -1244,6 +1278,9 @@ if (typeof document !== 'undefined') {
   // O QR vive só enquanto o pareamento não termina: é da sessão, não do cache.
   let QR_WHATS = null
   let CODIGO_WHATS = null
+  // O provedor que o lojista clicou, antes de salvar. Sem isto, clicar num cartão
+  // não mudaria nada até o servidor responder.
+  let PROVEDOR_WHATS = null
 
   // ── ficha do caixa ──
   let MOTIVO_CAIXA = null

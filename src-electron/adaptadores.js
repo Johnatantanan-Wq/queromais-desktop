@@ -169,16 +169,26 @@ function campos(fonte, pares) {
  * Estado do WhatsApp. O painel devolve o estado do Evolution; o modo "web" não tem
  * estado no servidor — quem sabe se a conversa está aberta é a própria janela.
  */
-function whatsapp({ statusResp }) {
-  if (!statusResp) return null
-  const s = statusResp
+function whatsapp({ statusResp, configResp }) {
+  if (!statusResp && !configResp) return null
+  const s = statusResp || {}
+  const c = configResp || {}
   return {
     estado: s.estado || 'indisponivel',
-    provedor: s.provedor || 'desativado',
-    ativo: s.ativo !== false,
-    numero: s.numero || null,
-    // O modo em uso: Evolution quando o provedor está de pé; senão, quem manda é a janela.
-    modo: (s.provedor === 'evolution' && s.estado === 'open') ? 'evolution' : null,
+    // O provedor escolhido vem da CONFIG; o status só sabe do Evolution.
+    provedor: c.provedor || s.provedor || 'desativado',
+    ativo: c.ativo === true || s.ativo === true,
+    numero: c.numero_envio || s.numero || null,
+    // Credenciais: as que não são segredo vêm inteiras; das outras vem só se existem.
+    evolution_url: c.evolution_url || '',
+    evolution_instance: c.evolution_instance || '',
+    zapi_instance_id: c.zapi_instance_id || '',
+    phone_number_id: c.phone_number_id || '',
+    tem_evolution_api_key: !!c.tem_evolution_api_key,
+    tem_zapi_token: !!c.tem_zapi_token,
+    tem_access_token: !!c.tem_access_token,
+    // Servidor Evolution da própria plataforma: não se pede credencial, só o QR.
+    evolution_gerenciada: !!c.evolution_gerenciada,
   }
 }
 
@@ -323,11 +333,14 @@ const PROVEDOR_WHATS = {
 /** WhatsApp: qual caminho está em uso e como está a conexão. */
 function whatsappDaLoja(r) {
   if (!r) return []
+  // No painel, a aba Configurações › WhatsApp é um LINK para /admin/whatsapp: a
+  // configuração e a tela são a mesma coisa. Aqui vale o mesmo — este resumo mostra
+  // como está, e o menu WhatsApp é onde se mexe.
   return [{ titulo: 'Conexão', colunas: 3, campos: [
     { rotulo: 'Caminho', valor: PROVEDOR_WHATS[r.provedor] || texto(r.provedor) },
     { rotulo: 'Situação', valor: ESTADO_WHATS[r.estado] || texto(r.estado) },
-    { rotulo: 'Envio automático', valor: r.ativo === false ? 'desligado' : 'ligado' },
-    { rotulo: 'Onde conectar', valor: 'menu WhatsApp — escolha entre Evolution (API) e WhatsApp Web' },
+    { rotulo: 'Envio automático', valor: r.ativo === true ? 'ligado' : 'desligado' },
+    { rotulo: 'Onde se configura', valor: 'menu WhatsApp — os mesmos cinco caminhos do painel' },
   ] }]
 }
 
