@@ -665,6 +665,18 @@ async function createWindow() {
       const registroCardapio = require('./cardapio-local').criarRegistro()
       // Compras em demonstração: anotar, comprar, voltar, excluir e receber ficam na sessão.
       const registroCompras = require('./compras-local').criarRegistro()
+      // Contas em demonstração: baixa e conta nova ficam na sessão.
+      const registroContas = require('./contas-local').criarRegistro()
+      const acoesContas = require('./contas-acoes')
+      ipcMain.handle('conta-baixar', (e, a) => {
+        const d = acoesContas.baixa(a && a.conta, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroContas.baixar(a.conta.id, d.corpo.valor, d.corpo.forma_pagamento, d.corpo.data)
+        return { ok: true, resumo: d.resumo, quita: d.quita, demo: true }
+      })
+      ipcMain.handle('conta-nova', (e, a) => {
+        const d = acoesContas.nova(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroContas.criar(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
       const acoesCompras = require('./compras-acoes')
       ipcMain.handle('compras-anotar', (e, a) => {
         const d = acoesCompras.anotar(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
@@ -811,7 +823,8 @@ async function createWindow() {
       for (const canal of Object.keys(CANAIS_ABAS)) {
         const chave = CANAIS_ABAS[canal]
         ipcMain.handle(canal, () => {
-          const dados = dadosDemo.telasComAbas()[chave]
+          const dadosBrutos = dadosDemo.telasComAbas()[chave]
+          const dados = chave === 'financeiro' ? registroContas.aplicar(dadosBrutos) : dadosBrutos
           // Financeiro: a venda do app aparece no extrato e no livro caixa, como no painel.
           if (chave === 'financeiro' && registroVendas.listar().length) {
             const movs = registroVendas.listar().map(registroVendas.comoMovimento)
@@ -876,6 +889,7 @@ async function createWindow() {
     if (!DEMO) require('./despacho-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./cardapio-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./compras-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./contas-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

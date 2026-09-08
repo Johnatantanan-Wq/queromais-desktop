@@ -118,6 +118,59 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+const FORMAS_CONTA = [
+  ['', '— forma —'], ['dinheiro', 'Dinheiro'], ['pix', 'Pix'], ['debito', 'Débito'], ['credito', 'Crédito'],
+  ['boleto', 'Boleto'], ['cheque', 'Cheque'], ['transferencia', 'Transferência'], ['debito_automatico', 'Débito automático'],
+]
+function seletorForma(escolhida) {
+  return '<label style="display:block;margin-bottom:14px">'
+    + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+    + 'letter-spacing:.06em;margin-bottom:6px">Forma de pagamento</span>'
+    + '<select data-campo="forma" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;'
+    + 'font-family:inherit;font-size:14px;font-weight:600;color:#111;background:#fff">'
+    + FORMAS_CONTA.map(([v, r]) => '<option value="' + v + '"' + (v === (escolhida || '') ? ' selected' : '') + '>' + esc(r) + '</option>').join('')
+    + '</select></label>'
+}
+
+/** Baixa: pagar ou receber uma conta, inteira ou em parte. O saldo já vem preenchido. */
+function fichaBaixa(conta, hojeBR) {
+  const c = conta || {}
+  const saldo = Math.max(0, (Number(c.valor) || 0) - (Number(c.valorPago) || 0))
+  const receber = c.direcao === 'receber'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + '<b style="color:#111">' + esc(c.descricao || '') + '</b>'
+    + (c.contraparte ? ' · ' + esc(c.contraparte) : '') + '<br>'
+    + 'Saldo: <b style="color:#111">' + esc(brl(saldo)) + '</b> de ' + esc(brl(c.valor))
+    + ' · vence ' + esc(('' + (c.vencimento || '')).split('-').reverse().join('/')) + '</div>'
+    + campo('Valor ' + (receber ? 'recebido' : 'pago'), 'valor', saldo.toFixed(2).replace('.', ','), 'Menos que o saldo é baixa parcial.')
+    + campo('Data', 'data', hojeBR || '', 'dd/mm/aaaa — não pode ser futura.')
+    + seletorForma(c.forma)
+    + campo('Observação (opcional)', 'observacao', '')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('conta:baixa:cancelar', 'Cancelar', false)
+    + botaoFicha('conta:baixa:confirmar:' + (c.id || ''), receber ? 'Registrar recebimento' : 'Registrar pagamento', true)
+    + '</div>'
+}
+
+/** Conta nova, avulsa. */
+function fichaNovaConta(direcao) {
+  const receber = direcao === 'receber'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + (receber ? 'Uma entrada que alguém deve à loja.' : 'Uma obrigação da loja, com vencimento.')
+    + ' Conta fixa mensal e parcelada ainda são pelo painel.</div>'
+    + campo('Descrição', 'descricao', '', receber ? 'Ex.: Repasse iFood setembro' : 'Ex.: Aluguel de outubro')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('Valor', 'valor', '') + campo('Vencimento', 'vencimento', '', 'dd/mm/aaaa') + '</div>'
+    + seletorForma('')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo(receber ? 'Quem paga (opcional)' : 'Fornecedor (opcional)', 'contraparte', '')
+    + campo('Categoria (opcional)', 'categoria', '') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('conta:nova:cancelar', 'Cancelar', false)
+    + botaoFicha('conta:nova:confirmar:' + direcao, 'Lançar conta', true)
+    + '</div>'
+}
+
 /** Recebi: dá entrada no estoque. Quantidade sugerida (2× o mínimo − saldo) e custo à vista. */
 function fichaRecebimento(item) {
   const i = item || {}
@@ -273,4 +326,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

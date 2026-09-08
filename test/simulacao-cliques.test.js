@@ -25,6 +25,7 @@ let filaDoTeste = new Map()
 let despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
 let cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
 let comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
+let contasDoTeste = require('../src-electron/contas-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -113,7 +114,18 @@ function responder(canal, args) {
   if (canal === 'insights-carregar') return ok(demo.apoioFinal().insights)
   if (canal === 'relatorios-carregar') return ok(demo.apoioFinal().relatorios)
   if (canal === 'configuracoes-carregar') return ok(demo.apoioFinal().configuracoes)
-  if (canal === 'financeiro-abas-carregar') return ok(demo.telasComAbas().financeiro)
+  if (canal === 'financeiro-abas-carregar') return ok(contasDoTeste.aplicar(demo.telasComAbas().financeiro))
+  if (canal === 'conta-baixar') {
+    const d = require('../src-electron/contas-acoes').baixa(args.conta, args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    contasDoTeste.baixar(args.conta.id, d.corpo.valor, d.corpo.forma_pagamento, d.corpo.data)
+    return { ok: true, resumo: d.resumo, quita: d.quita }
+  }
+  if (canal === 'conta-nova') {
+    const d = require('../src-electron/contas-acoes').nova(args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    contasDoTeste.criar(d.corpo); return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'atendimento-abas-carregar') return ok(demo.telasComAbas().atendimento)
   if (canal === 'estoque-abas-carregar') return ok(demo.telasComAbas().estoque)
   if (canal === 'pedidos-carregar') return ok(etapasDeTeste.aplicar(demo.listas().pedidos))
@@ -252,7 +264,8 @@ beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.cria
   filaDoTeste = new Map()
   despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
   cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
-  comprasDoTeste = require('../src-electron/compras-local').criarRegistro() })
+  comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
+  contasDoTeste = require('../src-electron/contas-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -1138,4 +1151,56 @@ test('venda manual: digitar o telefone nao mexe a tela — a busca so vem depois
   await esperar(500)
   assert.ok(/Clientes que batem/.test(vendaNaTela()), 'parou de digitar: a busca roda')
   assert.ok(/Maria Silva/.test(vendaNaTela()), 'e acha o cliente')
+})
+
+async function irParaContasAPagar() {
+  await irPara('/admin/financeiro')
+  clicar(doc.querySelector('[data-aba="pagar"]'))
+  await esperar(60)
+}
+
+test('Contas a pagar: Liquidar abre o popup com o saldo preenchido e quita a conta', async () => {
+  await abrirApp()
+  await irParaContasAPagar()
+  const bt = doc.querySelector('#econtent [data-acao^="conta:liquidar:"]')
+  assert.ok(bt, 'a conta pendente tem o botão Liquidar')
+  const id = bt.getAttribute('data-acao').slice('conta:liquidar:'.length)
+  clicar(bt)
+  await esperar(60)
+  const valor = doc.querySelector('#eloFicha [data-campo="valor"]')
+  assert.ok(valor && Number(valor.value.replace('.', '').replace(',', '.')) > 0, 'o saldo já vem preenchido: ' + (valor && valor.value))
+  doc.querySelector('#eloFicha [data-campo="forma"]').value = 'pix'
+  clicar(doc.querySelector('#eloFicha [data-acao^="conta:baixa:confirmar:"]'))
+  await esperar(100)
+  const ch = chamadas.find((c) => c.canal === 'conta-baixar')
+  assert.ok(ch && ch.args.conta.id === id, 'a baixa sai com a conta certa')
+  assert.ok(/Paga por inteiro em Pix/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('#econtent [data-acao="conta:liquidar:' + id + '"]'), 'quitada: o botão some')
+})
+
+test('Contas a pagar: valor acima do saldo é recusado sem fechar o popup', async () => {
+  await abrirApp()
+  await irParaContasAPagar()
+  clicar(doc.querySelector('#econtent [data-acao^="conta:liquidar:"]'))
+  await esperar(60)
+  doc.querySelector('#eloFicha [data-campo="valor"]').value = '999999'
+  clicar(doc.querySelector('#eloFicha [data-acao^="conta:baixa:confirmar:"]'))
+  await esperar(80)
+  assert.ok(/acima do saldo devedor/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.getElementById('eloFicha'), 'fica aberto para corrigir')
+})
+
+test('Contas a pagar: lançar conta nova entra na lista', async () => {
+  await abrirApp()
+  await irParaContasAPagar()
+  clicar(doc.querySelector('#econtent [data-acao="conta:nova:pagar"]'))
+  await esperar(60)
+  doc.querySelector('#eloFicha [data-campo="descricao"]').value = 'Conta de luz'
+  doc.querySelector('#eloFicha [data-campo="valor"]').value = '312,40'
+  doc.querySelector('#eloFicha [data-campo="vencimento"]').value = '20/09/2026'
+  clicar(doc.querySelector('#eloFicha [data-acao="conta:nova:confirmar:pagar"]'))
+  await esperar(100)
+  assert.ok(chamadas.some((c) => c.canal === 'conta-nova'), 'a conta sai')
+  assert.ok(/Conta a pagar lançada: Conta de luz/.test(aviso().textContent), aviso().textContent)
+  assert.ok(/Conta de luz/.test(conteudo()), 'e aparece na lista')
 })

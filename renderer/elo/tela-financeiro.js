@@ -575,7 +575,7 @@ function abaContas(d, estado, direcao) {
   return kpis + barraDeMes(mes, direcao === 'pagar' ? TIPOS_PAGAR : TIPOS_RECEBER, estado, direcao)
     + cartaoRepasses + cartao(titulo, nota, corpo, 0.09)
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
-    + (direcao === 'pagar' ? 'liquidar conta' : 'registrar recebimento') + ' ainda é pelo painel</div>'
+    + 'anexar nota, estornar baixa e conta fixa mensal ainda são pelo painel</div>'
 }
 
 // ── DRE ─────────────────────────────────────────────────────────────────────

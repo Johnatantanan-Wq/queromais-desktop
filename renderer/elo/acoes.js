@@ -106,9 +106,6 @@ const DESTINOS = {
   'exportar': { app: 'pdf' },
   'portal-contabil': { rota: '/admin/contabil', o: 'abrir o Portal do Contador' },
   'fin:limpar-filtros': { app: 'limpar-filtros-fin' },
-  'conta:nova': { rota: '/admin/financeiro', o: 'lançar a conta' },
-  'conta:liquidar': { rota: '/admin/financeiro', o: 'liquidar a conta' },
-  'conta:receber': { rota: '/admin/financeiro', o: 'registrar o recebimento' },
   'conta:receber-repasse': { rota: '/admin/financeiro', o: 'confirmar o repasse' },
 
   // ── Configurações ──

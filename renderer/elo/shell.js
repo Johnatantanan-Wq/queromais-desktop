@@ -1003,6 +1003,47 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Contas a pagar/receber: dar baixa e lançar conta nova. O painel registra cada
+      // baixa sem alterar o valor original da obrigação, e grava quem lançou.
+      if (acao.indexOf('conta:liquidar:') === 0 || acao.indexOf('conta:receber:') === 0) {
+        const id = acao.split(':').slice(2).join(':')
+        const conta = contaDaTela(id)
+        if (!conta) { avisar('Não achei essa conta na tela — recarregue.', 'erro'); return }
+        abrirPopup((conta.direcao === 'receber' ? 'Receber' : 'Pagar') + ' conta', Ficha.fichaBaixa(conta, hojeBR()), 480)
+        return
+      }
+      if (acao === 'conta:baixa:cancelar' || acao === 'conta:nova:cancelar') { fecharFicha(); return }
+      if (acao.indexOf('conta:baixa:confirmar:') === 0) {
+        const conta = contaDaTela(acao.slice('conta:baixa:confirmar:'.length))
+        if (!conta) { avisar('Não achei essa conta — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('conta-baixar', {
+          conta, valor: campoDaFicha('valor'), data: campoDaFicha('data'), forma: campoDaFicha('forma'), observacao: campoDaFicha('observacao'),
+        }).then((r) => {
+          if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada foi lançado.', 'erro') })
+        return
+      }
+      if (acao.indexOf('conta:nova:') === 0 && acao.indexOf('conta:nova:confirmar:') !== 0) {
+        const direcao = acao.slice('conta:nova:'.length)
+        abrirPopup('Nova conta a ' + direcao, Ficha.fichaNovaConta(direcao), 560)
+        const c = document.querySelector('#eloFicha [data-campo="descricao"]'); if (c) c.focus()
+        return
+      }
+      if (acao.indexOf('conta:nova:confirmar:') === 0) {
+        const direcao = acao.slice('conta:nova:confirmar:'.length)
+        btAcao.disabled = true
+        ipcRenderer.invoke('conta-nova', {
+          direcao, descricao: campoDaFicha('descricao'), valor: campoDaFicha('valor'), vencimento: campoDaFicha('vencimento'),
+          forma: campoDaFicha('forma'), contraparte: campoDaFicha('contraparte'), categoria: campoDaFicha('categoria'),
+        }).then((r) => {
+          if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada foi lançado.', 'erro') })
+        return
+      }
+
       // Compras: anotar, comprar, voltar, excluir e — o que importa — "Recebi", que dá
       // entrada no estoque. O painel grava; aqui se confere e se manda.
       if (acao === 'compras:adicionar-avulso') {
@@ -1629,6 +1670,14 @@ if (typeof document !== 'undefined') {
       online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
     })
     return true
+  }
+
+  function contaDaTela(id) {
+    return ((DADOS_TELA && DADOS_TELA.contas) || []).find((c) => String(c.id) === String(id)) || null
+  }
+  function hojeBR() {
+    const d = new Date()
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear()
   }
 
   /** Manda uma ação de Compras e devolve o resultado para a tela — nunca finge sucesso. */

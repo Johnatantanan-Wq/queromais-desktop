@@ -29,9 +29,12 @@ const PROMESSAS = [
   { palavra: 'editar', acao: 'editar-preco:' },
   { palavra: 'receber compra', acao: 'compras:recebi:' },
   { palavra: 'anotar item', acao: 'compras:adicionar-avulso' },
+  { palavra: 'liquidar conta', acao: 'conta:liquidar:' },
+  { palavra: 'registrar recebimento', acao: 'conta:receber:' },
 ]
 
 const TELAS = {
+  'contas a pagar': () => require('../renderer/elo/telas-abas').htmlComAbas('/admin/financeiro', demo.telasComAbas().financeiro, { aba: 'pagar', mesConta: '2026-09' }),
   compras: () => require('../renderer/elo/tela-compras').htmlCompras(demo.listasApoio().compras, {}),
   cardapio: () => require('../renderer/elo/tela-cardapio').htmlCardapio(demo.listas().cardapio, { online: true, ts: Date.now() }),
   despacho: () => require('../renderer/elo/tela-despacho').htmlDespacho(demo.listas().despacho, { visao: 'bairro' }),
