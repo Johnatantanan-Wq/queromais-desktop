@@ -22,6 +22,7 @@ let etapasDeTeste = pedidosLocais.criarRegistro()
 let caixaLocal = require('../src-electron/caixa-local').criarRegistro()
 let whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
 let filaDoTeste = new Map()
+let despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -117,7 +118,13 @@ function responder(canal, args) {
   if (canal === 'clientes-carregar') return ok(demo.listas().clientes)
   if (canal === 'carrinhos-carregar') return ok(demo.listas().carrinhos)
   if (canal === 'cardapio-carregar') return ok(demo.listas().cardapio)
-  if (canal === 'despacho-carregar') return ok(demo.listas().despacho)
+  if (canal === 'despacho-carregar') return ok(despachoDoTeste.aplicar(demo.listas().despacho))
+  if (canal === 'despacho-despachar') {
+    const d = require('../src-electron/despacho-acoes').despachar(args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    despachoDoTeste.despachar(d.chamadas, args.pedidos)
+    return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'entregadores-carregar') return ok(demo.listas().entregadores)
   if (canal === 'impressao-info') {
     return ok({ impressoras: [{ name: 'POS-80', displayName: 'POS-80', isDefault: true }],
@@ -214,7 +221,8 @@ const vendaNaTela = () => {
 
 beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
   whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
-  filaDoTeste = new Map() })
+  filaDoTeste = new Map()
+  despachoDoTeste = require('../src-electron/despacho-local').criarRegistro() })
 
 test('o app sobe, pinta o menu e abre a Visão geral', async () => {
   await abrirApp()
@@ -944,4 +952,32 @@ test('KDS: marcar o pedido inteiro pronto marca só o que falta', async () => {
   const chamada = chamadas.find((c) => c.canal === 'kds-pedido-pronto')
   assert.ok(chamada, 'o clique marca o pedido')
   assert.ok(/marcad/.test(aviso().textContent), aviso().textContent)
+})
+
+test('Despacho: sem entregador escolhido, o app recusa dizendo qual pedido', async () => {
+  await abrirApp()
+  await irPara('/admin/despacho')
+  const bt = doc.querySelector('#econtent [data-acao^="despachar:"]')
+  assert.ok(bt, 'cada linha tem o botão de despachar')
+  clicar(bt)
+  await esperar(90)
+  assert.ok(/Escolha o entregador de #/.test(aviso().textContent), aviso().textContent)
+  assert.ok(doc.querySelector('#econtent [data-acao^="despachar:"]'), 'o pedido continua na fila — nada saiu')
+})
+
+test('Despacho: escolher o entregador e despachar tira o pedido da fila', async () => {
+  await abrirApp()
+  await irPara('/admin/despacho')
+  const sel = doc.querySelector('#econtent [data-entregador-de="7"]')
+  assert.ok(sel, 'a linha do #7 tem o seletor')
+  sel.value = 'Tiago Moura'
+  sel.dispatchEvent(new win.Event('change', { bubbles: true }))
+  await esperar(40)
+  clicar(doc.querySelector('#econtent [data-acao="despachar:7"]'))
+  await esperar(120)
+  const ch = chamadas.find((c) => c.canal === 'despacho-despachar')
+  assert.ok(ch, 'o clique despacha')
+  assert.strictEqual(ch.args.pedidos[0].pedido, '7')
+  assert.ok(/Saiu: 1 pedido com Tiago Moura/.test(aviso().textContent), aviso().textContent)
+  assert.ok(!doc.querySelector('#econtent [data-acao="despachar:7"]'), 'o #7 saiu da fila de prontos')
 })

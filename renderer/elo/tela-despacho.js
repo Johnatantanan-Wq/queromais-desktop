@@ -53,9 +53,13 @@ function linhaPedido(p, entregadores, estado) {
   const atrasado = p.esperaMin > LIMITE_ESPERA
   const marcado = (estado.selecionados || []).indexOf(String(p.pedido)) >= 0
   const escolhido = (estado.entregadorDe || {})[String(p.pedido)] || ''
+  // O painel manda {id, nome}; o valor do select é o NOME (é o que a tela guarda), e a
+  // regra de despacho traduz para o id. Lista antiga com strings continua valendo.
   const opcoes = ['<option value=""' + (escolhido ? '' : ' selected') + '>— entregador —</option>']
-    .concat((entregadores || []).map((e) => '<option value="' + esc(e) + '"'
-      + (e === escolhido ? ' selected' : '') + '>' + esc(e) + '</option>')).join('')
+    .concat((entregadores || []).map((e) => {
+      const nome = (e && typeof e === 'object') ? (e.nome || '') : ('' + e)
+      return '<option value="' + esc(nome) + '"' + (nome === escolhido ? ' selected' : '') + '>' + esc(nome) + '</option>'
+    })).join('')
   return '<div data-linha="' + esc(p.pedido) + '" style="display:grid;'
     + 'grid-template-columns:34px 16px 70px 1fr 90px 190px 120px 190px 120px;align-items:center;gap:10px;'
     + 'padding:10px 14px;border-bottom:1px solid #eef0f3;background:' + (marcado ? 'var(--acento-suave)' : '#fff') + '">'
@@ -164,7 +168,7 @@ function htmlDespacho(dados, estado) {
       : '')
     + '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">' + fila + '</div>'
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
-    + 'despachar e confirmar entrega ainda são pelo painel</div></div>'
+    + 'confirmar a entrega ainda é pelo painel</div></div>'
     + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .09s both">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap">'
     + '<div><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:4px">Em trânsito ('

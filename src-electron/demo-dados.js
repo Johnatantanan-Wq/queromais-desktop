@@ -55,15 +55,15 @@ function caixa() {
     // entregas já entregues cujo dinheiro ninguém confirmou (a checagem que o painel
     // faz ao fechar: sem isso a venda fica fora do caixa)
     entregas: [
-      { pedido: '1040', cliente: 'Carla Nunes', entregador: 'Tiago', forma: 'dinheiro', valor: 132.40,
+      { id: 'desp-1040', pedido: '1040', cliente: 'Carla Nunes', entregador: 'Tiago', forma: 'dinheiro', valor: 132.40,
         saiuHa: 22, tipo: 'entrega', estado: 'transito', trocoPara: 150.00 },
-      { pedido: '1034', cliente: 'Sandra Reis', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88.00,
+      { id: 'desp-1034', pedido: '1034', cliente: 'Sandra Reis', entregador: 'Wesley', forma: 'cartao_entrega', valor: 88.00,
         saiuHa: 35, tipo: 'entrega', estado: 'transito', trocoPara: 0 },
-      { pedido: '1033', cliente: 'Otávio Brito', entregador: 'Tiago', forma: 'dinheiro', valor: 64.90,
+      { id: 'desp-1033', pedido: '1033', cliente: 'Otávio Brito', entregador: 'Tiago', forma: 'dinheiro', valor: 64.90,
         saiuHa: 48, tipo: 'entrega', estado: 'fechamento', trocoPara: 0 },
-      { pedido: '1044', cliente: 'Marina Prado', entregador: null, forma: 'pix', valor: 96.00,
+      { id: 'desp-1044', pedido: '1044', cliente: 'Marina Prado', entregador: null, forma: 'pix', valor: 96.00,
         saiuHa: 0, tipo: 'entrega', estado: 'preparo', trocoPara: 0 },
-      { pedido: '1045', cliente: 'Johnatan', entregador: null, forma: 'dinheiro', valor: 48.50,
+      { id: 'desp-1045', pedido: '1045', cliente: 'Johnatan', entregador: null, forma: 'dinheiro', valor: 48.50,
         saiuHa: 0, tipo: 'retirada', estado: 'pronto', trocoPara: 60.00 },
     ],
     historico: [
@@ -288,19 +288,25 @@ function listas() {
     despacho: {
       // fila agrupada por bairro, como o painel: quem despacha junta o mesmo lado da cidade
       prontos: [
-        { pedido: '7', cliente: 'Ilzadora Matos', bairro: 'Areal', esperaMin: 36, forma: 'pix', pago: true, valor: 28.99 },
-        { pedido: '10', cliente: 'Franciele Silva', bairro: 'Centro', esperaMin: 29, forma: 'cartao', pago: false, valor: 66.97 },
-        { pedido: '132', cliente: 'Ana Souza', bairro: 'São Félix', esperaMin: 18, forma: 'pix', pago: true, valor: 139.80 },
-        { pedido: '133', cliente: 'Bruno Lima', bairro: 'São Félix', esperaMin: 15, forma: 'dinheiro', pago: false, valor: 74.90 },
-        { pedido: '134', cliente: 'Carla Santos', bairro: 'São Félix', esperaMin: 12, forma: 'dinheiro', pago: false, valor: 98.90 },
-        { pedido: '135', cliente: 'Diego Ferreira', bairro: 'Guaibim', esperaMin: 47, forma: 'pix', pago: true, valor: 142.80 },
-        { pedido: '136', cliente: 'Elaine Costa', bairro: 'Guaibim', esperaMin: 9, forma: 'cartao', pago: false, valor: 64.90 },
+        { id: 'desp-7', pedido: '7', cliente: 'Ilzadora Matos', bairro: 'Areal', esperaMin: 36, forma: 'pix', pago: true, valor: 28.99 },
+        { id: 'desp-10', pedido: '10', cliente: 'Franciele Silva', bairro: 'Centro', esperaMin: 29, forma: 'cartao', pago: false, valor: 66.97 },
+        { id: 'desp-132', pedido: '132', cliente: 'Ana Souza', bairro: 'São Félix', esperaMin: 18, forma: 'pix', pago: true, valor: 139.80 },
+        { id: 'desp-133', pedido: '133', cliente: 'Bruno Lima', bairro: 'São Félix', esperaMin: 15, forma: 'dinheiro', pago: false, valor: 74.90 },
+        { id: 'desp-134', pedido: '134', cliente: 'Carla Santos', bairro: 'São Félix', esperaMin: 12, forma: 'dinheiro', pago: false, valor: 98.90 },
+        { id: 'desp-135', pedido: '135', cliente: 'Diego Ferreira', bairro: 'Guaibim', esperaMin: 47, forma: 'pix', pago: true, valor: 142.80 },
+        { id: 'desp-136', pedido: '136', cliente: 'Elaine Costa', bairro: 'Guaibim', esperaMin: 9, forma: 'cartao', pago: false, valor: 64.90 },
       ],
       emTransito: [
         { entregador: 'Tiago Moura', entregas: 2, dinheiroAReceber: 197.30, esperadoDeVolta: 247.30, rotaId: 'r1' },
         { entregador: 'Wesley Barros', entregas: 3, dinheiroAReceber: 88.00, esperadoDeVolta: 138.00, rotaId: 'r2' },
       ],
-      entregadores: ['Tiago Moura', 'Wesley Barros', 'Diego Rocha', 'Paulo Vieira'],
+      // Como o painel manda: com id, porque despachar é por uuid — só nome não sai.
+      entregadores: [
+        { id: 'a1a1a1a1-0000-4000-8000-000000000001', nome: 'Tiago Moura' },
+        { id: 'a1a1a1a1-0000-4000-8000-000000000002', nome: 'Wesley Barros' },
+        { id: 'a1a1a1a1-0000-4000-8000-000000000003', nome: 'Diego Rocha' },
+        { id: 'a1a1a1a1-0000-4000-8000-000000000004', nome: 'Paulo Vieira' },
+      ],
     },
     financeiro: {
       aReceber: 24800.00, aPagar: 17320.50, vencidas: 2,

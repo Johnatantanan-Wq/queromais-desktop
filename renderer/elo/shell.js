@@ -1003,6 +1003,37 @@ if (typeof document !== 'undefined') {
         return
       }
 
+      // Despacho: mandar pedido para a rua. As quatro formas (um, o bairro, os
+      // selecionados, em rota) viram a MESMA coisa — uma lista de pedidos — e daí
+      // uma chamada por entregador. O painel cria a rota e move para "em entrega".
+      if (acao.indexOf('despachar:') === 0 || acao.indexOf('despachar-bairro:') === 0
+        || acao === 'despachar-selecionados' || acao === 'despachar-rota') {
+        const prontos = (DADOS_TELA && DADOS_TELA.prontos) || []
+        let alvo
+        if (acao.indexOf('despachar:') === 0) {
+          const n = acao.slice('despachar:'.length)
+          alvo = prontos.filter((p) => String(p.pedido) === n)
+        } else if (acao.indexOf('despachar-bairro:') === 0) {
+          const b = acao.slice('despachar-bairro:'.length)
+          alvo = prontos.filter((p) => (p.bairro || '') === b)
+        } else {
+          alvo = prontos.filter((p) => SEL_DESPACHO.indexOf(String(p.pedido)) >= 0)
+        }
+        if (!alvo.length) { avisar('Marque os pedidos que vão sair.', 'aviso'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('despacho-despachar', {
+          pedidos: alvo, entregadorDe: ENTREGADOR_DE, entregadores: DADOS_TELA.entregadores || [],
+        }).then((r) => {
+          if (r && r.ok) {
+            for (const p of alvo) { delete ENTREGADOR_DE[String(p.pedido)] }
+            SEL_DESPACHO = SEL_DESPACHO.filter((n) => !alvo.some((p) => String(p.pedido) === n))
+            avisar('Saiu: ' + (r.resumo || 'pronto.'), r.parcial ? 'aviso' : 'ok')
+            carregarTelaNativa(ROTA)
+          } else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu para despachar.', 'erro') }
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada saiu.', 'erro') })
+        return
+      }
+
       // Fila da cozinha/bar: iniciar o preparo e marcar pronto. Quem move o item é o
       // painel — ele cuida do relógio e avisa o pedido quando o último fica pronto.
       if (acao.indexOf('kds:iniciar:') === 0 || acao.indexOf('kds:pronto:') === 0) {

@@ -613,6 +613,9 @@ async function createWindow() {
           const dados = dadosDemo.listas()[chave]
           // Pedidos: as vendas fechadas no app entram na frente das que vieram do painel,
           // e as etapas que o lojista mudou aqui dentro valem por cima.
+          if (chave === 'despacho') {
+            return { dados: registroDespacho.aplicar(dados), offline: false, ts: Date.now(), demo: true }
+          }
           if (chave === 'pedidos') {
             const manuais = registroVendas.listar().map(registroVendas.comoPedido)
             const juntos = manuais.length ? { ...dados, itens: manuais.concat(dados.itens) } : dados
@@ -649,6 +652,15 @@ async function createWindow() {
       const registroCaixa = require('./caixa-local').criarRegistro()
       // A fila da cozinha também anda em demonstração: o estado do item fica na
       // sessão e é aplicado por cima do que a demonstração devolve.
+      // O despacho também sai em demonstração: o pedido some de "prontos" e o
+      // entregador ganha a linha em "em trânsito".
+      const registroDespacho = require('./despacho-local').criarRegistro()
+      ipcMain.handle('despacho-despachar', (e, args) => {
+        const d = require('./despacho-acoes').despachar(args || {})
+        if (!d.ok) return { ok: false, erro: d.motivo }
+        registroDespacho.despachar(d.chamadas, (args && args.pedidos) || [])
+        return { ok: true, resumo: d.resumo, demo: true }
+      })
       const estadosKds = new Map()
       const comEstados = (dept) => ({
         ...dept,
@@ -817,6 +829,7 @@ async function createWindow() {
     if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./whatsapp-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./kds-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./despacho-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no
