@@ -79,10 +79,11 @@ const dadosPeriodo = {
   bairros: [],
 }
 
-test('os quatro botões de período aparecem, com o atual marcado', () => {
-  const h = t.htmlVisaoGeral(dadosPeriodo, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
-  for (const p of ['dia', 'ontem', 'semana', 'mes']) assert.ok(h.includes('data-periodo="' + p + '"'), 'falta ' + p)
-  const depois = h.split('data-periodo="dia"')[1].slice(0, 60)
+test('os quatro botões de período são os do painel, com o atual marcado', () => {
+  const h = t.htmlVisaoGeral(dadosPeriodo, { metrica: 'faturamento', periodo: 'hoje', online: true, ts: Date.now() })
+  // Os mesmos do painel: Hoje · Esta semana · Este mês · Mês anterior.
+  for (const p of ['hoje', 'semana', 'mes', 'mes_anterior']) assert.ok(h.includes('data-periodo="' + p + '"'), 'falta ' + p)
+  const depois = h.split('data-periodo="hoje"')[1].slice(0, 60)
   assert.ok(/is-on/.test(depois), 'o período atual deve vir marcado: ' + depois)
   const outro = h.split('data-periodo="mes"')[1].slice(0, 60)
   assert.ok(!/is-on/.test(outro), 'os demais não podem vir marcados')
@@ -103,4 +104,51 @@ test('período sem movimento nenhum não quebra o gráfico', () => {
   const h = t.htmlVisaoGeral(vazio, { metrica: 'faturamento', periodo: 'dia', online: true, ts: Date.now() })
   assert.ok(h.includes('<svg'))
   assert.ok(!h.includes('NaN'))
+})
+
+// ── o que veio da tela real do painel (07/09) ──
+const completa = require('../src-electron/demo-dados').visaoGeral('semana')
+
+test('a faixa HOJE mostra os dois números do dia, independentes do período', () => {
+  const h = t.htmlVisaoGeral(completa, { periodo: 'mes' })
+  const faixa = h.split('Faturamento bruto')[1].slice(0, 200)
+  assert.ok(/3\.440,79/.test(faixa), 'o faturamento de hoje não muda com o período: ' + faixa)
+})
+
+test('Detalhes do faturamento soma as partes e mostra o total', () => {
+  const h = t.detalhesDoFaturamento(completa, [])
+  assert.ok(h.includes('Total dos produtos') && h.includes('Taxas de serviço (gorjeta)'))
+  assert.ok(/Faturamento<\/span><span[^>]*>R\$ 3\.440,79/.test(h), 'produtos + gorjeta = 3.440,79')
+})
+
+test('tirar uma parte do cálculo muda o total — é a pergunta "por que não bate"', () => {
+  const semGorjeta = t.detalhesDoFaturamento(completa, ['taxaServico'])
+  assert.ok(/Faturamento<\/span><span[^>]*>R\$ 3\.217,76/.test(semGorjeta), 'sem a gorjeta, sobra o produto')
+  assert.ok(/opacity:\.45/.test(semGorjeta), 'a linha desligada fica apagada')
+})
+
+test('o desconto entra como negativo, nunca somando', () => {
+  const comDesconto = t.detalhesDoFaturamento(
+    { composicao: { produtos: 100, taxaEntrega: 0, taxaServico: 0, descontos: 30 } }, [])
+  assert.ok(/− R\$ 30,00/.test(comDesconto))
+  assert.ok(/Faturamento<\/span><span[^>]*>R\$ 70,00/.test(comDesconto))
+})
+
+test('Análise dos pedidos por: troca entre forma, canal e tipo', () => {
+  const porForma = t.htmlVisaoGeral(completa, { segmento: 'forma' })
+  assert.ok(porForma.includes('Cartão de crédito') && porForma.includes('Ticket médio'))
+  const porCanal = t.htmlVisaoGeral(completa, { segmento: 'canal' })
+  assert.ok(porCanal.includes('Mesa') && !porCanal.includes('Cartão de crédito'))
+  assert.ok(porCanal.includes('data-seg-visao'), 'o seletor fica na tela')
+})
+
+test('o ticket médio da análise sai do próprio segmento', () => {
+  const h = t.htmlVisaoGeral(completa, { segmento: 'forma' })
+  // Cartão de crédito: 1336,93 em 20 pedidos = 66,85 — o mesmo do painel.
+  assert.ok(h.includes('66,85'), 'ticket médio por forma')
+})
+
+test('segmento sem dado avisa em vez de desenhar rosca vazia', () => {
+  const h = t.htmlVisaoGeral({ ...completa, segmentos: { forma: [] } }, { segmento: 'forma' })
+  assert.ok(/Nada encontrado para o período/.test(h))
 })

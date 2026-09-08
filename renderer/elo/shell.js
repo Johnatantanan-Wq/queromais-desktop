@@ -132,6 +132,8 @@ if (typeof document !== 'undefined') {
   const BUSCA_BLOCO = {}        // Gestão › Produtos: busca de cada bloco
   const SUB_GESTAO = {}         // Gestão: sub-aba de cada aba (entrada, movimentações, fichas)
   let PERIODO_MOV = 'mes'       // Gestão › Movimentações: período escolhido
+  let SEG_VISAO = 'forma'       // Visão geral: análise por forma | canal | tipo
+  let FORA_DO_FAT = []          // Visão geral: partes tiradas do cálculo do faturamento
   let FICHA_ABERTA = null       // Gestão › Fichas técnicas: produto escolhido na lista
   let PERIODO_REL = '30dias'    // Relatórios e Insights: período escolhido
   let ABA_REL = 'vendas'        // Relatórios: aba escolhida
@@ -206,7 +208,9 @@ if (typeof document !== 'undefined') {
   const NATIVAS = {
     '/admin': {
       canal: 'visao-geral-carregar',
-      desenhar: (dados, estado) => TelaVisaoGeral.htmlVisaoGeral(dados, { ...estado, metrica: METRICA, periodo: PERIODO }),
+      desenhar: (dados, estado) => TelaVisaoGeral.htmlVisaoGeral(dados, {
+      ...estado, metrica: METRICA, periodo: PERIODO, segmento: SEG_VISAO, foraDoFaturamento: FORA_DO_FAT,
+    }),
       argumentos: () => ({ periodo: PERIODO }),
       erro: 'Não deu para carregar os números agora.',
     },
@@ -704,6 +708,18 @@ if (typeof document !== 'undefined') {
       if (produto) abrirFicha(produto.nome || 'Produto', Ficha.fichaProduto(produto))
       return
     }
+    // ── Visão geral: tirar uma parte do cálculo do faturamento ──
+    // É o que responde "por que o faturamento não bate": entrega e gorjeta entram ou
+    // não, conforme quem pergunta.
+    const linhaComp = e.target.closest ? e.target.closest('[data-comp-fat]') : null
+    if (linhaComp) {
+      const chave = linhaComp.getAttribute('data-comp-fat')
+      const i = FORA_DO_FAT.indexOf(chave)
+      if (i >= 0) FORA_DO_FAT.splice(i, 1); else FORA_DO_FAT.push(chave)
+      redesenharTelaAtual()
+      return
+    }
+
     // ── Venda manual: o PDV é a única tela do app que escreve ──
     const btTipoVenda = e.target.closest ? e.target.closest('[data-venda-tipo]') : null
     if (btTipoVenda) { VENDA.tipo = btTipoVenda.getAttribute('data-venda-tipo'); redesenharTelaAtual(); return }
@@ -1046,6 +1062,11 @@ if (typeof document !== 'undefined') {
   // O <select> de entregador do Despacho guarda a escolha: sem isso ele voltava para
   // "— entregador —" no primeiro redesenho, e quem despacha achava que não salvou.
   document.addEventListener('change', (e) => {
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-seg-visao')) {
+      SEG_VISAO = e.target.value
+      redesenharTelaAtual()
+      return
+    }
     // Os filtros do Financeiro são <select>: mudam no change, não no clique.
     const FIN_SELECTS = {
       'data-categoria-fin': 'categoria', 'data-forma-fin': 'forma', 'data-origem-fin': 'origem',

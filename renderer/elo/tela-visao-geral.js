@@ -9,6 +9,7 @@
 // continuar desenhando com dado de cache, sem internet.
 
 const G = require('./graficos')
+const L = require('./tela-lista')
 
 const esc = G.esc
 
@@ -75,10 +76,10 @@ function cartaoKpi(chave, dados, metricaAtiva) {
 }
 
 const PERIODOS = [
-  { chave: 'dia', rotulo: 'Hoje' },
-  { chave: 'ontem', rotulo: 'Ontem' },
-  { chave: 'semana', rotulo: 'Semana' },
-  { chave: 'mes', rotulo: 'Mês' },
+  { chave: 'hoje', rotulo: 'Hoje' },
+  { chave: 'semana', rotulo: 'Esta semana' },
+  { chave: 'mes', rotulo: 'Este mês' },
+  { chave: 'mes_anterior', rotulo: 'Mês anterior' },
 ]
 
 function botoesPeriodo(atual) {
@@ -95,6 +96,96 @@ function bloco(titulo, subtitulo, conteudo, atraso, acao) {
     + '<div><div style="font-size:15px;font-weight:800;color:#111111;margin-bottom:4px">' + esc(titulo) + '</div>'
     + (subtitulo ? '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">' + esc(subtitulo) + '</div>' : '')
     + '</div>' + (acao || '') + '</div>' + conteudo + '</div>'
+}
+
+/**
+ * Faixa "HOJE" — os dois números do dia, sempre, independentes do período escolhido.
+ * É a primeira coisa que o dono olha ao abrir o sistema: como está HOJE, agora.
+ */
+function faixaHoje(dados) {
+  const h = dados.hoje || {}
+  const item = (rotulo, valor) => '<div class="ecard" style="padding:14px 20px;min-width:0">'
+    + '<div style="font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em">'
+    + esc(rotulo) + '</div>'
+    + '<div style="font-size:24px;font-weight:800;color:#111;letter-spacing:-.03em;margin-top:6px">'
+    + esc(valor) + '</div></div>'
+  return '<div><div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;'
+    + 'letter-spacing:.12em;margin-bottom:8px">Hoje</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px">'
+    + item('Faturamento bruto', 'R$ ' + fmtBRL(h.faturamento))
+    + item('Pedidos', fmtInt(h.pedidos)) + '</div></div>'
+}
+
+/**
+ * Detalhes do faturamento — a tela mostra DE ONDE vem o número, linha a linha, e deixa
+ * tirar cada parte da conta. É a resposta para "por que o faturamento não bate com o
+ * que eu esperava": entrega e gorjeta entram ou não, conforme quem pergunta.
+ */
+function detalhesDoFaturamento(dados, fora) {
+  const c = dados.composicao || {}
+  const PARTES = [
+    { chave: 'produtos', rotulo: 'Total dos produtos', valor: Number(c.produtos) || 0 },
+    { chave: 'taxaEntrega', rotulo: 'Taxas de entrega', valor: Number(c.taxaEntrega) || 0 },
+    { chave: 'taxaServico', rotulo: 'Taxas de serviço (gorjeta)', valor: Number(c.taxaServico) || 0 },
+    { chave: 'descontos', rotulo: 'Total de descontos', valor: -(Number(c.descontos) || 0), negativa: true },
+  ]
+  const desligadas = fora || []
+  const total = PARTES.filter((p) => desligadas.indexOf(p.chave) < 0).reduce((s2, p) => s2 + p.valor, 0)
+
+  const linhas = PARTES.map((p) => {
+    const ligada = desligadas.indexOf(p.chave) < 0
+    return '<div data-comp-fat="' + esc(p.chave) + '" style="display:flex;align-items:center;gap:10px;'
+      + 'padding:9px 0;border-bottom:1px solid #eef0f3;cursor:pointer' + (ligada ? '' : ';opacity:.45') + '">'
+      + '<span style="width:16px;height:16px;border-radius:4px;flex-shrink:0;border:1.5px solid '
+      + (ligada ? 'var(--acento);background:var(--acento)' : '#d0d4db;background:#fff')
+      + ';color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">'
+      + (ligada ? '✓' : '') + '</span>'
+      + '<span style="flex:1;min-width:0;font-size:13px;font-weight:600;color:#111">' + esc(p.rotulo) + '</span>'
+      + '<span style="font-size:13.5px;font-weight:700;color:' + (p.negativa ? '#b42318' : '#111') + '">'
+      + (p.negativa ? '− ' : '') + 'R$ ' + esc(fmtBRL(Math.abs(p.valor))) + '</span></div>'
+  }).join('')
+
+  return '<div>' + linhas
+    + '<div style="display:flex;justify-content:space-between;gap:12px;border-top:2px solid #111;'
+    + 'margin-top:8px;padding-top:11px;font-size:16px;font-weight:800;color:#111">'
+    + '<span>Faturamento</span><span style="color:var(--acento-texto)">R$ ' + esc(fmtBRL(total)) + '</span></div></div>'
+}
+
+const SEGMENTOS = [
+  { chave: 'forma', rotulo: 'Forma de pagamento' },
+  { chave: 'canal', rotulo: 'Canal de venda' },
+  { chave: 'tipo', rotulo: 'Tipo de pedido' },
+]
+
+/** Análise dos pedidos por forma, canal ou tipo — rosca + tabela com ticket médio. */
+function analisePor(dados, escolhido) {
+  const chave = SEGMENTOS.some((x) => x.chave === escolhido) ? escolhido : 'forma'
+  const linhas = ((dados.segmentos || {})[chave]) || []
+  const seletor = '<select data-seg-visao style="height:32px;max-width:220px;border:1px solid #e5e7eb;'
+    + 'border-radius:9px;background:#fff;font-family:inherit;font-size:12.5px;color:#111;padding:0 9px;cursor:pointer">'
+    + SEGMENTOS.map((x) => '<option value="' + x.chave + '"' + (x.chave === chave ? ' selected' : '') + '>'
+      + esc(x.rotulo) + '</option>').join('') + '</select>'
+
+  if (!linhas.length) {
+    return { seletor, corpo: '<div class="evazio">Nada encontrado para o período.</div>' }
+  }
+  const cores = G.PALETA
+  const corpo = '<div style="display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:center">'
+    + '<div style="justify-self:center">'
+    + G.donut(linhas.map((l, i) => ({ value: Number(l.faturamento) || 0, color: cores[i % cores.length] }))) + '</div>'
+    + L.apenasGrade({
+      colunas: ['Item', 'Faturamento', 'Pedidos', 'Ticket médio'],
+      grade: '1fr 160px 110px 140px', direita: [1, 2, 3],
+    }, linhas.map((l) => ({
+      chave: l.rotulo,
+      celulas: [
+        { texto: l.rotulo, forte: true, cor: '#111' },
+        { texto: 'R$ ' + fmtBRL(l.faturamento), forte: true, cor: '#111' },
+        fmtInt(l.pedidos),
+        'R$ ' + fmtBRL(l.pedidos ? (Number(l.faturamento) || 0) / l.pedidos : 0),
+      ],
+    }))) + '</div>'
+  return { seletor, corpo }
 }
 
 function htmlVisaoGeral(dados, estado) {
@@ -162,12 +253,18 @@ function htmlVisaoGeral(dados, estado) {
     ? bloco('Pedidos por bairro', 'entregas no período', G.barras(comCor(dados.bairros), { fmt: fmtInt }), 0.13)
     : ''
 
+  const analise = analisePor(dados, estado.segmento)
+
   return '<div style="display:flex;flex-direction:column;gap:18px">'
+    + faixaHoje(dados)
     + kpis
     + bloco(m.titulo, (dados.periodo && dados.periodo.rotulo) || '', grafico + legenda, 0.04, botoesPeriodo(estado.periodo || (dados.periodo && dados.periodo.chave) || 'semana'))
+    + bloco('Detalhes do faturamento', 'Clique no valor para adicioná-lo ou removê-lo do cálculo do faturamento.',
+      detalhesDoFaturamento(dados, estado.foraDoFaturamento), 0.06)
+    + bloco('Análise dos pedidos por', '', analise.corpo, 0.08, analise.seletor)
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + canais + formas + '</div>'
     + (motivos ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px">' + motivos + bairros + '</div>' : bairros)
     + '</div>'
 }
 
-module.exports = { htmlVisaoGeral, variacao, fmtBRL, fmtInt, METRICAS, PERIODOS }
+module.exports = { htmlVisaoGeral, variacao, fmtBRL, fmtInt, METRICAS, PERIODOS, SEGMENTOS, detalhesDoFaturamento }

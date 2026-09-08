@@ -233,7 +233,10 @@ function caixa() {
 /** Visão geral por período. `dia`/`ontem` vêm hora a hora; `semana`/`mes`, dia a dia.
  *  Cada período traz também o anterior, para a comparação dos KPIs e do gráfico. */
 function visaoGeral(periodo) {
-  const p = ['dia', 'ontem', 'semana', 'mes'].indexOf(periodo) >= 0 ? periodo : 'semana'
+  // Os períodos do painel: Hoje · Esta semana · Este mês · Mês anterior. 'hoje' é o dia
+  // hora a hora; 'mes_anterior' repete a curva do mês contra o mês antes dele.
+  const APELIDOS = { hoje: 'dia', mes_anterior: 'mes' }
+  const p = APELIDOS[periodo] || (['dia', 'ontem', 'semana', 'mes'].indexOf(periodo) >= 0 ? periodo : 'semana')
   const soma = (a) => Math.round(a.reduce((x, y) => x + y, 0) * 100) / 100
 
   // curva de um dia de restaurante: almoço e jantar
@@ -268,13 +271,37 @@ function visaoGeral(periodo) {
     ontem:  { labels: horas,   fat: fatOntem, ped: pedOntem, fatAnt: fatAnteontem, pedAnt: pedAnteontem, rotulo: 'Ontem · comparado com anteontem' },
     semana: { labels: dias7,   fat: fat7,   ped: ped7,   fatAnt: fat7Ant,      pedAnt: ped7Ant,      rotulo: 'Últimos 7 dias · comparado com os 7 anteriores' },
     mes:    { labels: diasMes, fat: fatMes, ped: pedMes, fatAnt: fatMesAnt,    pedAnt: pedMesAnt,    rotulo: 'Este mês · comparado com o mês anterior' },
+
   }[p]
 
   const totFat = soma(conjunto.fat), totPed = soma(conjunto.ped)
   const totFatAnt = soma(conjunto.fatAnt), totPedAnt = soma(conjunto.pedAnt)
   const proporcao = totFat / (soma(fat7) || 1)   // as quebras acompanham o tamanho do período
 
+  // Os dois números do dia, sempre — a faixa "HOJE" não muda com o período escolhido.
+  const doDia = { faturamento: 3440.79, pedidos: 60 }
+  // Como o faturamento é composto: é isso que a tela deixa somar e tirar.
+  const composicao = { produtos: 3217.76, taxaEntrega: 0, taxaServico: 223.03, descontos: 0 }
+  const segmentos = {
+    forma: [
+      { rotulo: 'Cartão de crédito', faturamento: 1336.93, pedidos: 20 },
+      { rotulo: 'PIX', faturamento: 1012.99, pedidos: 19 },
+      { rotulo: 'Cartão de débito', faturamento: 452.56, pedidos: 10 },
+      { rotulo: 'Dinheiro', faturamento: 415.28, pedidos: 11 },
+    ],
+    canal: [
+      { rotulo: 'Mesa', faturamento: 2890.40, pedidos: 44 },
+      { rotulo: 'Delivery', faturamento: 412.30, pedidos: 11 },
+      { rotulo: 'Balcão', faturamento: 138.09, pedidos: 5 },
+    ],
+    tipo: [
+      { rotulo: 'Consumo local', faturamento: 2890.40, pedidos: 44 },
+      { rotulo: 'Entrega', faturamento: 412.30, pedidos: 11 },
+      { rotulo: 'Retirada', faturamento: 138.09, pedidos: 5 },
+    ],
+  }
   return {
+    hoje: doDia, composicao, segmentos,
     periodo: { chave: p, rotulo: conjunto.rotulo },
     kpis: {
       faturamento: { atual: totFat, anterior: totFatAnt },
