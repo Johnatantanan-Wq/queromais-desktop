@@ -334,7 +334,19 @@ async function createWindow() {
       preload: path.join(__dirname, 'preload/cardapio.preload.js'),
     },
   })
-  global.cardapioView.webContents.loadURL(CARDAPIO_URL)
+  // Rede/DNS podem não estar prontos (o app sobe junto com o Windows). Sem o
+  // catch, a promise rejeitava no vazio e a view ficava em about:blank PRA
+  // SEMPRE: renderer vivo, nada pintado — e como fora do split as duas views
+  // ocupam o mesmo retângulo, o WhatsApp de baixo aparecia "preso" na tela.
+  global.cardapioView.webContents.loadURL(CARDAPIO_URL).catch((e) => {
+    log.error('[VIEW cardapio] load inicial falhou:', e && e.message)
+    setTimeout(() => {
+      const wc = global.cardapioView?.webContents
+      if (wc && !wc.isDestroyed()) {
+        wc.loadURL(CARDAPIO_URL).catch(() => {}) // daqui pra frente o did-fail-load reagenda
+      }
+    }, 3000)
+  })
 
   // Sem isto, ctrl+clique / clique do meio / target="_blank" num link da view
   // (ex.: menu lateral) cai no comportamento padrão do Electron: abre uma
@@ -435,7 +447,7 @@ async function createWindow() {
   global.mainWindow.addBrowserView(global.cardapioView)
   global.mainWindow.addBrowserView(global.whatsappView)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
-  global.whatsappView.webContents.loadURL(WA_URL)
+  global.whatsappView.webContents.loadURL(WA_URL).catch((e) => log.error('[VIEW whatsapp] load inicial falhou:', e && e.message))
 
   // ── Blindagem: view NUNCA vira zumbi ──────────────────────────────────────
   // Antes não havia recuperação nenhuma: se o renderer de uma view morria
@@ -461,6 +473,33 @@ async function createWindow() {
         wc.loadURL(destino).catch((e) => log.error(`[VIEW ${nome}] reload pós-queda falhou:`, e && e.message))
       }, espera)
     })
+    // Página que NUNCA carregou (DNS/rede fora no boot, 5xx do admin, timeout):
+    // o renderer fica VIVO e VAZIO, então nem 'render-process-gone' nem
+    // 'unresponsive' disparam — os dois únicos resgates que existiam aqui. A
+    // view vazia não pinta nada e, fora do split, o usuário vê a view de baixo
+    // presa na tela (WhatsApp no lugar do painel, sidebar respondendo a
+    // cliques sem mudar nada). Antes só reabrindo o app.
+    let falhas = 0
+    let timerRecarga = null
+    wc.on('did-fail-load', (_e, code, desc, urlFalhou, isMainFrame) => {
+      if (!isMainFrame) return
+      if (code === -3) return // ERR_ABORTED: navegação trocada por outra, não é falha
+      falhas = falhas + 1
+      const espera = Math.min(60_000, 1000 * 2 ** (falhas - 1))
+      log.error(`[VIEW ${nome}] did-fail-load (${code} ${desc}) em ${urlFalhou} — recarregando em ${espera}ms (falha ${falhas})`)
+      clearTimeout(timerRecarga)
+      timerRecarga = setTimeout(() => {
+        if (wc.isDestroyed()) return
+        wc.loadURL(urlInicial).catch((e) => log.error(`[VIEW ${nome}] recarga pós-falha falhou:`, e && e.message))
+      }, espera)
+    })
+    wc.on('did-finish-load', () => {
+      if (falhas) log.info(`[VIEW ${nome}] carregou depois de ${falhas} falha(s)`)
+      falhas = 0
+      clearTimeout(timerRecarga)
+      timerRecarga = null
+    })
+
     let timerTravada = null
     wc.on('unresponsive', () => {
       log.warn(`[VIEW ${nome}] não responde — 10s de tolerância antes de derrubar o renderer`)
@@ -575,6 +614,7 @@ async function createWindow() {
   // ── Watchdog: evita que BrowserViews cubram sidebar/titlebar ────────────────
   // Roda a cada 2s e corrige bounds automaticamente — defesa contra regressões
   // em futuras atualizações que possam re-introduzir o bug de congelamento
+  let _ultimaRecargaVazia = 0
   setInterval(() => {
     const win = global.mainWindow
     if (!win) return
@@ -603,6 +643,24 @@ async function createWindow() {
         win.setTopBrowserView(global.whatsappView)
       } else if (global.activeView !== 'split' && global.cardapioView) {
         win.setTopBrowserView(global.cardapioView)
+      }
+    } catch (_) {}
+
+    // Rede final: view do painel VIVA e VAZIA. Estar no topo não adianta — ela
+    // não pinta, e o usuário vê o WhatsApp de baixo. O did-fail-load cobre a
+    // falha de navegação; esta guarda cobre o resto (promise perdida antes dos
+    // listeners existirem, navegação abortada no boot, about:blank herdado).
+    try {
+      const wc = global.cardapioView && !global.cardapioView.webContents.isDestroyed()
+        ? global.cardapioView.webContents : null
+      if (wc && !wc.isLoading() && !wc.isCrashed()) {
+        const url = wc.getURL()
+        const vazia = !url || url.startsWith('about:')
+        if (vazia && Date.now() - _ultimaRecargaVazia > 15_000) {
+          _ultimaRecargaVazia = Date.now()
+          log.error('[WATCHDOG] view do cardápio vazia (' + JSON.stringify(url) + ') — recarregando', CARDAPIO_URL)
+          wc.loadURL(CARDAPIO_URL).catch((e) => log.error('[WATCHDOG] recarga falhou:', e && e.message))
+        }
       }
     } catch (_) {}
   }, 2000)

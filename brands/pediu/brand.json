@@ -13,6 +13,9 @@
   "dominio_cardapio": "https://app-pediu.com.br",
   "ipp_user": "pediu",
   "nome_comanda": "Comanda Pediu",
+  "nome_painel": "Painel Pediu!",
+  "logo_imagem": "icon-256.png",
+  "logo_sigla": "P",
   "icons": {
     "icns": "icons/icon.icns",
     "ico": "icons/icon.ico",

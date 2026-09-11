@@ -186,9 +186,12 @@ const { ipcRenderer } = require('electron')
 
 // Logo da barra lateral por marca: `logo_imagem` (arquivo em assets/, escrito
 // pelo apply-brand) ou `logo_sigla`. Sem nenhum dos dois, fica o "Q" do HTML —
-// Quero Mais e Pediu! seguem exatamente como estavam.
+// é o caso do Quero Mais, cuja sigla é essa mesma.
+const __b = (() => {
+  try { return require('../src-electron/brand') } catch (_) { return {} } // sem nodeIntegration → padrões do HTML
+})()
+
 try {
-  const __b = require('../src-electron/brand')
   const __logo = document.querySelector('.logo')
   if (__logo && __b.logo_imagem) {
     const img = document.createElement('img')
@@ -207,7 +210,17 @@ let viewAtual = 'cardapio'
 let splitRatio = 0.7, dragging = false, dragStartX = 0, dragStartRatio = 0
 let botAtivo = true
 
-const LABELS = { cardapio: 'Cardápio Admin', split: 'Tela Dividida', whatsapp: 'WhatsApp' }
+const LABELS = { cardapio: __b.nome_painel || 'Cardápio Admin', split: 'Tela Dividida', whatsapp: 'WhatsApp' }
+
+// O botão da sidebar também trazia 'Cardápio Admin' fixo no HTML
+try {
+  const __btn = document.getElementById('ni-cardapio')
+  if (__btn) {
+    __btn.title = LABELS.cardapio
+    __btn.setAttribute('aria-label', 'Abrir ' + LABELS.cardapio)
+  }
+  document.getElementById('tb-title').textContent = LABELS.cardapio
+} catch (_) {}
 
 function setActiveView(view) {
   viewAtual = view

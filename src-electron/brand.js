@@ -19,6 +19,9 @@ const PADRAO_QUEROMAIS = {
   dominio_cardapio: 'https://cardapio.prosistas.com.br',
   ipp_user: 'queromais',
   nome_comanda: 'Comanda QueroMais',
+  // Nome da aba do painel (titlebar + tooltip da sidebar). Antes era fixo
+  // 'Cardápio Admin' no HTML: o app do Pediu! abria escrito Cardápio Admin.
+  nome_painel: 'Cardápio Admin',
   // Identidade na barra lateral do app: sigla (padrão) ou arquivo de imagem
   // em assets/ (ex.: 'icon-256.png'), escolhido no brand.json da marca.
   logo_sigla: 'Q',
