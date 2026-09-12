@@ -3,7 +3,8 @@ const A = require('./contas-acoes')
 
 async function mandar(enviar, log, d, canal) {
   let r = null
-  try { r = await enviar(d.caminho, d.corpo) } catch (e) {
+  // O método é o da decisão: lançar é POST, editar e cancelar são PATCH por id.
+  try { r = await enviar(d.caminho, d.corpo, d.metodo) } catch (e) {
     if (log) log.warn('[CONTAS] ' + canal + ' falhou:', e && e.message)
     return { ok: false, erro: 'Não deu para falar com o painel agora. Nada foi lançado.' }
   }
@@ -29,6 +30,21 @@ function registrar({ ipcMain, enviar, log }) {
   ipcMain.handle('conta-nova', async (e, args) => {
     const d = A.nova(args || {})
     return d.ok ? mandar(enviar, log, d, 'conta-nova') : { ok: false, erro: d.motivo }
+  })
+  // Financeiro pelo app: lançamento avulso no extrato, editar e cancelar conta.
+  ipcMain.handle('lancamento-novo', async (e, args) => {
+    const d = A.lancamento(args || {})
+    return d.ok ? mandar(enviar, log, d, 'lancamento-novo') : { ok: false, erro: d.motivo }
+  })
+  ipcMain.handle('conta-editar', async (e, args) => {
+    const a = args || {}
+    const d = A.editar(a.conta, a)
+    return d.ok ? mandar(enviar, log, d, 'conta-editar') : { ok: false, erro: d.motivo }
+  })
+  ipcMain.handle('conta-cancelar', async (e, args) => {
+    const a = args || {}
+    const d = A.cancelar(a.conta, a.escopo)
+    return d.ok ? mandar(enviar, log, d, 'conta-cancelar') : { ok: false, erro: d.motivo }
   })
 }
 

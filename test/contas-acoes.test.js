@@ -127,3 +127,47 @@ test('mais de 60 parcelas é recusado antes de sair', () => {
   const r = C.nova({ direcao: 'pagar', descricao: 'x', valor: '100', vencimento: '05/10/2026', parcelas: 61 })
   assert.strictEqual(r.ok, false)
 })
+
+// ── FINANCEIRO pelo app: lançamento avulso, editar e cancelar conta ────────
+test('lançamento: receita ou despesa, com categoria do plano e a data — como o NovoLancamento do painel', () => {
+  const r = A.lancamento({ tipo: 'despesa', categoria: 'Energia', descricao: ' Conta de luz ', valor: '412,30', data: '10/09/2026', centroCusto: 'cozinha', forma: 'pix', contaFinanceiraId: 'b1' })
+  assert.strictEqual(r.ok, true)
+  assert.strictEqual(r.caminho, '/api/admin/lancamentos')
+  assert.strictEqual(r.metodo, 'POST')
+  assert.deepStrictEqual(r.corpo, { tipo: 'despesa', categoria: 'Energia', descricao: 'Conta de luz', valor: 412.3, data: '2026-09-10', centro_custo: 'cozinha', forma_pagamento: 'pix', conta_financeira_id: 'b1' })
+  assert.match(r.resumo, /Despesa.*412,30/)
+  const rec = A.lancamento({ tipo: 'receita', categoria: 'Outras receitas', descricao: 'Aluguel do espaço', valor: '300', data: '2026-09-10' })
+  assert.deepStrictEqual(rec.corpo, { tipo: 'receita', categoria: 'Outras receitas', descricao: 'Aluguel do espaço', valor: 300, data: '2026-09-10' })
+})
+
+test('lançamento: recusa o que o painel recusaria, com frase de gente', () => {
+  assert.match(A.lancamento({ tipo: 'x', categoria: 'Energia', descricao: 'a', valor: '1', data: '2026-09-10' }).motivo, /receita ou despesa/)
+  assert.match(A.lancamento({ tipo: 'despesa', categoria: '', descricao: 'a', valor: '1', data: '2026-09-10' }).motivo, /categoria/i)
+  assert.match(A.lancamento({ tipo: 'despesa', categoria: 'Energia', descricao: '', valor: '1', data: '2026-09-10' }).motivo, /descri/i)
+  assert.match(A.lancamento({ tipo: 'despesa', categoria: 'Energia', descricao: 'a', valor: '0', data: '2026-09-10' }).motivo, /maior que zero/)
+  assert.match(A.lancamento({ tipo: 'despesa', categoria: 'Energia', descricao: 'a', valor: '1', data: '31/02' }).motivo, /dd\/mm\/aaaa/)
+  assert.ok(A.CATEGORIAS_DESPESA.indexOf('Insumos') >= 0 && A.CATEGORIAS_RECEITA.indexOf('Vendas') >= 0)
+  assert.ok(A.CENTROS_CUSTO.some((c) => c.v === 'cozinha' && c.r === 'Cozinha'))
+})
+
+test('editar conta: só o que mudou viaja, por id — e conta quitada não se edita', () => {
+  const conta = { id: 'c1', direcao: 'pagar', descricao: 'Aluguel', valor: 1400, vencimento: '2026-09-10', categoria: 'Aluguel', contraparte: 'Imobiliária', situacao: 'pendente' }
+  const r = A.editar(conta, { descricao: 'Aluguel de setembro', valor: '1.450,00', vencimento: '15/09/2026', categoria: 'Aluguel', contraparte: 'Imobiliária', observacao: 'reajuste' })
+  assert.strictEqual(r.caminho, '/api/admin/contas/c1')
+  assert.strictEqual(r.metodo, 'PATCH')
+  assert.deepStrictEqual(r.corpo, { descricao: 'Aluguel de setembro', valor: 1450, vencimento: '2026-09-15', observacao: 'reajuste' })
+  assert.match(A.editar(conta, { descricao: 'Aluguel', valor: '1400', vencimento: '10/09/2026' }).motivo, /Nada mudou/)
+  assert.match(A.editar({ ...conta, situacao: 'paga' }, { valor: '1' }).motivo, /quitada/)
+  assert.match(A.editar(conta, { valor: '0' }).motivo, /maior que zero/)
+  assert.match(A.editar({}, {}).motivo, /identificação/)
+})
+
+test('cancelar conta: uma só, ou a série inteira quando é parcelada', () => {
+  const r = A.cancelar({ id: 'c1', descricao: 'Aluguel', situacao: 'pendente' })
+  assert.deepStrictEqual({ c: r.caminho, m: r.metodo, b: r.corpo }, { c: '/api/admin/contas/c1', m: 'PATCH', b: { acao: 'cancelar' } })
+  const serie = A.cancelar({ id: 'c2', descricao: 'NF 8821 — parcela 1/3', serie: 's1', situacao: 'pendente' }, 'serie')
+  assert.deepStrictEqual(serie.corpo, { acao: 'cancelar', escopo: 'serie' })
+  assert.match(serie.resumo, /série/)
+  assert.match(A.cancelar({ id: 'c1', situacao: 'paga' }).motivo, /quitada/)
+  assert.match(A.cancelar({ id: 'c1', situacao: 'cancelada' }).motivo, /já está cancelada/)
+})

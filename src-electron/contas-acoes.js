@@ -149,8 +149,87 @@ function nova({ direcao, descricao, valor, vencimento, forma, categoria, contrap
   }
 }
 
+
+// ── Lançamento avulso, editar e cancelar (Financeiro pelo app) ───────────────
+// As categorias são as do plano gerencial do painel (lib/financeiro/plano.ts): a lista
+// mora lá; aqui é cópia só para o select — o servidor é quem valida.
+const CATEGORIAS_DESPESA = ['Insumos', 'Mercadorias para revenda', 'Embalagens', 'Salários', 'Pró-labore', 'Encargos e benefícios',
+  'Taxa de serviço — repasse', 'Aluguel', 'Energia', 'Água', 'Gás', 'Internet', 'Entregadores', 'Combustível', 'Marketing', 'Comissões',
+  'Taxa cartão', 'Taxa gateway', 'Taxa iFood', 'Tarifas bancárias', 'Manutenção', 'Contabilidade', 'Software e sistemas', 'Impostos', 'Outras']
+const CATEGORIAS_RECEITA = ['Vendas', 'Taxa de serviço', 'Taxa de entrega', 'Outras receitas']
+const CENTROS_CUSTO = [
+  { v: 'administrativo', r: 'Administrativo' }, { v: 'cozinha', r: 'Cozinha' }, { v: 'bar', r: 'Bar' }, { v: 'salao', r: 'Salão' },
+  { v: 'delivery', r: 'Delivery' }, { v: 'marketing', r: 'Marketing' }, { v: 'financeiro', r: 'Financeiro' }, { v: 'outros', r: 'Outros' },
+]
+
+/** Lançamento manual no extrato: uma receita ou uma despesa que já aconteceu. */
+function lancamento({ tipo, categoria, descricao, valor, data, centroCusto, forma, contaFinanceiraId } = {}) {
+  if (tipo !== 'receita' && tipo !== 'despesa') return { ok: false, motivo: 'Diga se é receita ou despesa.' }
+  const cat = ('' + (categoria || '')).trim()
+  if (!cat) return { ok: false, motivo: 'Escolha a categoria.' }
+  const desc = ('' + (descricao || '')).trim()
+  if (!desc) return { ok: false, motivo: 'Diga do que é o lançamento (descrição).' }
+  const v = arred(valorDigitado(valor))
+  if (!isFinite(v) || v <= 0) return { ok: false, motivo: 'Informe um valor maior que zero.' }
+  const d = dataISO(data)
+  if (!d) return { ok: false, motivo: 'Informe a data no formato dd/mm/aaaa.' }
+  const corpo = { tipo, categoria: cat, descricao: desc, valor: v, data: d }
+  const cc = ('' + (centroCusto || '')).trim()
+  if (cc) corpo.centro_custo = cc
+  const f = ('' + (forma || '')).trim()
+  if (f) corpo.forma_pagamento = f
+  const conta = ('' + (contaFinanceiraId || '')).trim()
+  if (conta) corpo.conta_financeira_id = conta
+  return {
+    ok: true, caminho: '/api/admin/lancamentos', metodo: 'POST', corpo,
+    resumo: (tipo === 'receita' ? 'Receita' : 'Despesa') + ' lançada: ' + desc + ', ' + brl(v) + ' em ' + d.split('-').reverse().join('/') + '.',
+  }
+}
+
+/** Editar uma conta em aberto: descrição, valor, vencimento, categoria, contraparte, observação. */
+function editar(conta, campos) {
+  const c = conta || {}, k = campos || {}
+  if (!c.id) return { ok: false, motivo: 'Esta conta veio sem identificação — recarregue a tela.' }
+  if (c.situacao === 'paga' || c.situacao === 'recebida') return { ok: false, motivo: 'Conta quitada não se edita — estorne a baixa pelo painel antes.' }
+  if (c.situacao === 'cancelada') return { ok: false, motivo: 'Conta cancelada não se edita.' }
+  const corpo = {}
+  if (k.descricao !== undefined) {
+    const desc = ('' + k.descricao).trim()
+    if (!desc) return { ok: false, motivo: 'A descrição não pode ficar em branco.' }
+    if (desc !== ('' + (c.descricao || '')).trim()) corpo.descricao = desc
+  }
+  if (k.valor !== undefined && ('' + k.valor).trim() !== '') {
+    const v = arred(valorDigitado(k.valor))
+    if (!isFinite(v) || v <= 0) return { ok: false, motivo: 'Informe um valor maior que zero.' }
+    if (Math.abs(v - (Number(c.valor) || 0)) > 0.001) corpo.valor = v
+  }
+  if (k.vencimento !== undefined && ('' + k.vencimento).trim() !== '') {
+    const venc = dataISO(k.vencimento)
+    if (!venc) return { ok: false, motivo: 'Informe o vencimento no formato dd/mm/aaaa.' }
+    if (venc !== c.vencimento) corpo.vencimento = venc
+  }
+  if (k.categoria !== undefined && ('' + k.categoria).trim() !== ('' + (c.categoria || '')).trim()) corpo.categoria = ('' + k.categoria).trim() || null
+  if (k.contraparte !== undefined && ('' + k.contraparte).trim() !== ('' + (c.contraparte || '')).trim()) corpo.contraparte = ('' + k.contraparte).trim() || null
+  if (k.observacao !== undefined && ('' + k.observacao).trim() !== ('' + (c.observacao || '')).trim()) corpo.observacao = ('' + k.observacao).trim()
+  if (!Object.keys(corpo).length) return { ok: false, motivo: 'Nada mudou.' }
+  return { ok: true, caminho: '/api/admin/contas/' + c.id, metodo: 'PATCH', corpo, resumo: 'Conta "' + (corpo.descricao || c.descricao || '') + '" salva.' }
+}
+
+/** Cancelar: a conta some da régua (não é apagada). Parcelada pode cancelar a série. */
+function cancelar(conta, escopo) {
+  const c = conta || {}
+  if (!c.id) return { ok: false, motivo: 'Esta conta veio sem identificação — recarregue a tela.' }
+  if (c.situacao === 'paga' || c.situacao === 'recebida') return { ok: false, motivo: 'Conta quitada não se cancela — estorne a baixa pelo painel.' }
+  if (c.situacao === 'cancelada') return { ok: false, motivo: 'Esta conta já está cancelada.' }
+  const serie = escopo === 'serie' && c.serie
+  const corpo = serie ? { acao: 'cancelar', escopo: 'serie' } : { acao: 'cancelar' }
+  return { ok: true, caminho: '/api/admin/contas/' + c.id, metodo: 'PATCH', corpo,
+    resumo: serie ? 'A série inteira foi cancelada.' : 'Conta "' + (c.descricao || '') + '" cancelada.' }
+}
+
 function brl(v) {
   return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-module.exports = { baixa, nova, saldoDe, dataISO, hojeISO, FORMAS, NOME_FORMA, parcelasSugeridas }
+module.exports = { baixa, nova, lancamento, editar, cancelar, saldoDe, dataISO, hojeISO, FORMAS, NOME_FORMA, parcelasSugeridas,
+  CATEGORIAS_DESPESA, CATEGORIAS_RECEITA, CENTROS_CUSTO }
