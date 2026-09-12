@@ -6,8 +6,35 @@ const { criarRegistro } = require('../src-electron/estoque-local')
 test('novo insumo: o grupo vem da aba e vira grupo_estoque + tipo', () => {
   const r = A.novoInsumo({ grupo: 'insumos', nome: 'Azeitona', unidade: 'kg', qtd: '2,5', minimo: '1', custo: '38,90' })
   assert.deepStrictEqual(r.corpo, { nome: 'Azeitona', unidade: 'kg', qtd_atual: 2.5, qtd_minima: 1, custo_unitario: 38.9, grupo_estoque: 'insumo', tipo: 'ingrediente' })
-  assert.strictEqual(A.novoInsumo({ grupo: 'revenda', nome: 'Coca 2L' }).corpo.tipo, 'produto_pronto', 'revenda é produto pronto')
+  // ⚠️ Revenda deixou de ser sinônimo de BEBIDA (painel, 09/09/2026): gelo, sorvete,
+  // salgadinho e doce são revenda e caíam em Insumos. O tipo agora é próprio.
+  assert.strictEqual(A.novoInsumo({ grupo: 'revenda', nome: 'Gelo 5kg' }).corpo.tipo, 'revenda')
   assert.strictEqual(A.novoInsumo({ grupo: 'producao', nome: 'Massa' }).corpo.grupo_estoque, 'producao')
+})
+
+test('⛔ uso e consumo é DESPESA, não estoque de produção', () => {
+  // Sacola, guardanapo e produto de limpeza só cabiam em "Embalagem", que o sistema
+  // trata como insumo de produção — e o gasto se misturava com o custo do prato.
+  const r = A.novoInsumo({ grupo: 'uso_consumo', nome: 'Sacola 40x50', unidade: 'un', custo: '0,18' })
+  assert.strictEqual(r.corpo.grupo_estoque, 'uso_consumo')
+  assert.strictEqual(r.corpo.tipo, 'uso_consumo', 'entrar como ingrediente sujaria a ficha técnica')
+  assert.match(r.resumo, /Uso e consumo/)
+  const Ficha = require('../renderer/elo/ficha')
+  assert.match(Ficha.fichaNovoInsumo('uso_consumo'), /nunca vira item de ficha técnica/)
+})
+
+test('o estoque agrupa os tipos novos no lugar certo', () => {
+  const Adapt = require('../src-electron/adaptadores')
+  const d = Adapt.estoque({ ingredientesResp: [
+    { nome: 'Gelo', tipo: 'revenda', qtd_atual: 10, unidade: 'un' },
+    { nome: 'Sacola', tipo: 'uso_consumo', qtd_atual: 500, unidade: 'un' },
+    { nome: 'Farinha', tipo: 'ingrediente', qtd_atual: 20, unidade: 'kg' },
+  ] })
+  const porId = {}
+  for (const c of d.categorias) porId[c.id] = c.subcategorias[0].itens.map((i) => i.nome)
+  assert.deepStrictEqual(porId.revenda, ['Gelo'], 'revenda que não é bebida caía em Insumos')
+  assert.deepStrictEqual(porId.uso_consumo, ['Sacola'])
+  assert.deepStrictEqual(porId.insumos, ['Farinha'])
 })
 
 test('novo insumo: campos em branco viram zero, não erro — cadastrar sem saldo é normal', () => {

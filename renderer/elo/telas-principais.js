@@ -253,7 +253,74 @@ function htmlFinanceiroVisao(d, estado) {
     + cabecalho('Financeiro', 'Vendas, recebimentos, contas e resultado da loja',
         '<div style="display:flex;gap:8px">' + botao('novo-lancamento', '+ Novo lançamento', true)
         + botao('exportar', 'Exportar ▾') + botao('portal-contabil', '📄 Portal Contábil') + '</div>')
-    + filtros + linha1 + linha2 + linha3 + faixaCanc + '</div>'
+    + filtros + linha1 + linha2 + linha3 + faixaCanc + quadroRecebimentos(d.recebimentos) + '</div>'
+}
+
+/**
+ * "Vendi × recebi": por onde entrou cada real, quanto a operadora levou e quanto sobrou.
+ *
+ * ⚠️ ORDEM FIXA (pedido do dono no painel, 09/09/2026): crédito, débito, dinheiro, PIX
+ * online, PIX manual. Ordenar por valor fazia a tabela trocar de ordem a cada período —
+ * e quem confere a maquininha procura sempre na mesma linha. O que não é dessas cinco
+ * (CRÉDITO FUNC, "cartão" histórico) vem depois, do maior para o menor.
+ *
+ * ⚠️ Os dois PIX ficam VIZINHOS e a taxa é a MESMA nas duas linhas: 'pix_online' é o
+ * mesmo PIX do cadastro de formas, só separado na exibição. Sem essa ligação a linha do
+ * gateway apareceria sem taxa nenhuma.
+ */
+const ORDEM_RECEBIMENTO = ['credito', 'debito', 'dinheiro', 'pix_online', 'pix']
+const ROTULO_RECEBIMENTO = {
+  credito: 'Crédito', debito: 'Débito', dinheiro: 'Dinheiro',
+  pix_online: 'PIX online (site)', pix: 'PIX manual',
+  cartao: 'Cartão', cartao_entrega: 'Cartão', a_receber: 'CRÉDITO FUNC', ifood: 'iFood',
+}
+
+function ordenarRecebimentos(linhas) {
+  return (linhas || []).slice().sort((a, b) => {
+    const ia = ORDEM_RECEBIMENTO.indexOf(a.forma)
+    const ib = ORDEM_RECEBIMENTO.indexOf(b.forma)
+    if (ia >= 0 && ib >= 0) return ia - ib
+    if (ia >= 0) return -1
+    if (ib >= 0) return 1
+    return (Number(b.bruto) || 0) - (Number(a.bruto) || 0)
+  })
+}
+
+function quadroRecebimentos(linhas) {
+  const lista = ordenarRecebimentos(linhas)
+  if (!lista.length) return ''
+  const soma = (c) => lista.reduce((s, l) => s + (Number(l[c]) || 0), 0)
+  const celula = (t, dir, forte, cor) => '<div style="padding:8px 10px;font-size:12.5px;font-weight:'
+    + (forte ? 800 : 600) + ';color:' + (cor || '#4b5563') + (dir ? ';text-align:right' : '') + '">' + esc(t) + '</div>'
+  const grade = '1fr 120px 150px 130px 120px 150px'
+  const cabecalho = '<div style="display:grid;grid-template-columns:' + grade + ';font-size:10.5px;font-weight:700;'
+    + 'color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#f4f5f7;border-bottom:1px solid #e5e7eb">'
+    + ['Forma', 'Recebimentos', 'Bruto', 'Taxa', '% efetivo', 'Líquido']
+      .map((c, i) => '<span style="padding:8px 10px' + (i ? ';text-align:right' : '') + '">' + esc(c) + '</span>').join('')
+    + '</div>'
+  const corpo = lista.map((l, i) => '<div style="display:grid;grid-template-columns:' + grade + ';background:'
+    + (i % 2 ? '#fafbfc' : '#fff') + ';border-bottom:1px solid #ececec">'
+    + celula(ROTULO_RECEBIMENTO[l.forma] || l.forma, false, true, '#111')
+    + celula(String(l.recebimentos || 0), true)
+    + celula(brl(l.bruto), true)
+    + celula(l.taxa ? '− ' + brl(l.taxa) : '—', true, false, l.taxa ? '#b42318' : '#9ca3af')
+    + celula(l.taxa ? num(l.pctEfetivo, 2) + '%' : '—', true)
+    + celula(brl(l.liquido), true, true, '#0A7A3E') + '</div>').join('')
+  const total = '<div style="display:grid;grid-template-columns:' + grade + ';font-size:13px;font-weight:800;'
+    + 'color:#111;padding-top:8px">'
+    + '<span style="padding:0 10px">Total</span><span></span>'
+    + '<span style="text-align:right;padding:0 10px">' + esc(brl(soma('bruto'))) + '</span>'
+    + '<span style="text-align:right;padding:0 10px;color:' + (soma('taxa') ? '#b42318' : '#9ca3af') + '">'
+    + (soma('taxa') ? '− ' + esc(brl(soma('taxa'))) : '—') + '</span>'
+    + '<span></span>'
+    + '<span style="text-align:right;padding:0 10px;color:var(--acento-texto)">' + esc(brl(soma('liquido'))) + '</span></div>'
+  return '<div class="ecard" style="padding:20px 22px;animation:eloFadeUp .5s ease .1s both">'
+    + '<div style="margin-bottom:14px"><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:3px">'
+    + 'Recebimentos — bruto, taxas e líquido</div>'
+    + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">o que o cliente pagou por forma, '
+    + 'o que a operadora levou e o que sobrou</div></div>'
+    + '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">' + cabecalho + corpo + '</div>'
+    + total + '</div>'
 }
 
 // ── Salão ───────────────────────────────────────────────────────────────────
@@ -318,4 +385,5 @@ function htmlSalao(dados, estado) {
     + 'abrir, transferir e fechar conta ainda são pelo painel</div></div></div>'
 }
 
-module.exports = { htmlClientes, htmlCarrinhos, htmlFinanceiroVisao, htmlSalao, brl, tempo, PERIODOS_FIN }
+module.exports = { htmlClientes, htmlCarrinhos, htmlFinanceiroVisao, htmlSalao, brl, tempo, PERIODOS_FIN,
+  quadroRecebimentos, ordenarRecebimentos, ORDEM_RECEBIMENTO, ROTULO_RECEBIMENTO }

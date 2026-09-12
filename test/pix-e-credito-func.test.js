@@ -72,3 +72,53 @@ test('o financeiro chama os dois Pix pelos nomes do painel', () => {
   assert.strictEqual(Fin.FORMA.pix_online, 'PIX online (site)')
   assert.strictEqual(Fin.FORMA.a_receber, 'CRÉDITO FUNC')
 })
+
+// ── "Vendi × recebi" na Visão geral do Financeiro ──────────────────────────
+const Principais = require('../renderer/elo/telas-principais')
+const demoDados = require('../src-electron/demo-dados')
+
+test('⚠️ o quadro de recebimentos tem ORDEM FIXA, não por valor', () => {
+  // Ordenar por valor fazia a tabela trocar de ordem a cada período — e quem confere a
+  // maquininha procura sempre na mesma linha.
+  const fora = [
+    { forma: 'pix', bruto: 305.75 }, { forma: 'credito', bruto: 1400 },
+    { forma: 'pix_online', bruto: 1653.65 }, { forma: 'dinheiro', bruto: 842.5 },
+    { forma: 'debito', bruto: 745.9 },
+  ]
+  assert.deepStrictEqual(Principais.ordenarRecebimentos(fora).map((l) => l.forma),
+    ['credito', 'debito', 'dinheiro', 'pix_online', 'pix'])
+})
+
+test('forma fora da ordem fixa vem depois, da maior para a menor', () => {
+  const l = Principais.ordenarRecebimentos([
+    { forma: 'a_receber', bruto: 100 }, { forma: 'ifood', bruto: 900 }, { forma: 'dinheiro', bruto: 10 },
+  ])
+  assert.deepStrictEqual(l.map((x) => x.forma), ['dinheiro', 'ifood', 'a_receber'])
+})
+
+test('os dois PIX ficam vizinhos, e o do site vem antes', () => {
+  const h = Principais.quadroRecebimentos([
+    { forma: 'pix', recebimentos: 5, bruto: 305.75, taxa: 3.06, pctEfetivo: 1, liquido: 302.69 },
+    { forma: 'pix_online', recebimentos: 23, bruto: 1653.65, taxa: 16.54, pctEfetivo: 1, liquido: 1637.11 },
+  ])
+  assert.ok(h.indexOf('PIX online (site)') < h.indexOf('PIX manual'))
+  // ⚠️ A taxa é a MESMA nas duas: sem essa ligação a linha do gateway apareceria sem
+  // taxa nenhuma, e o líquido do dia sairia maior do que o que cai na conta.
+  assert.match(h, /16,54/)
+  assert.match(h, /3,06/)
+})
+
+test('dinheiro não tem taxa — e isso aparece como traço, não como zero', () => {
+  const h = Principais.quadroRecebimentos([
+    { forma: 'dinheiro', recebimentos: 8, bruto: 842.5, taxa: 0, pctEfetivo: 0, liquido: 842.5 },
+  ])
+  assert.ok(!/− R\$ 0,00/.test(h), 'zero de taxa polui a coluna')
+})
+
+test('sem o dado do servidor, o quadro simplesmente não aparece', () => {
+  assert.strictEqual(Principais.quadroRecebimentos([]), '')
+  assert.strictEqual(Principais.quadroRecebimentos(null), '')
+  // ...e a Visão geral continua de pé.
+  const h = Principais.htmlFinanceiroVisao({ ...demoDados.telasComAbas().financeiro.visao, recebimentos: null }, {})
+  assert.match(h, /Faturamento/)
+})

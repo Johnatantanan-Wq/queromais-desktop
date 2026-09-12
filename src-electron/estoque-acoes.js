@@ -8,8 +8,13 @@
 const { valorDigitado } = require('./caixa-acoes')
 
 const UNIDADES = ['un', 'kg', 'g', 'l', 'ml', 'cx', 'pct']
-const GRUPO = { insumos: 'insumo', insumo: 'insumo', producao: 'producao', revenda: 'revenda' }
-const NOME_GRUPO = { insumo: 'Insumos', producao: 'Produção', revenda: 'Revenda' }
+// Os grupos que o estoque conhece. `uso_consumo` chegou em 09/09/2026 (sacola,
+// guardanapo, limpeza): é DESPESA da loja, não estoque de produção nem mercadoria —
+// antes só cabia em "Embalagem" e a despesa se misturava com o custo do prato.
+const GRUPO = { insumos: 'insumo', insumo: 'insumo', producao: 'producao', revenda: 'revenda',
+  uso_consumo: 'uso_consumo', 'uso e consumo': 'uso_consumo' }
+const NOME_GRUPO = { insumo: 'Insumos', producao: 'Produção', revenda: 'Revenda',
+  uso_consumo: 'Uso e consumo' }
 
 function sincronizar() {
   return { ok: true, caminho: '/api/admin/estoque/sincronizar-cardapio', corpo: {},
@@ -55,8 +60,9 @@ function novoInsumo({ grupo, nome, unidade, qtd, minimo, custo } = {}) {
     ok: true, caminho: '/api/admin/ingredientes',
     corpo: {
       nome: n, unidade: u, qtd_atual: q, qtd_minima: m, custo_unitario: c, grupo_estoque: g,
-      // bebida e produto pronto são o que se REVENDE; o resto entra como ingrediente
-      tipo: g === 'revenda' ? 'produto_pronto' : 'ingrediente',
+      // ⚠️ O TIPO segue o grupo: revenda que não é bebida tem tipo próprio desde
+      // 09/09, e uso e consumo nunca vira item de ficha técnica.
+      tipo: g === 'revenda' ? 'revenda' : (g === 'uso_consumo' ? 'uso_consumo' : 'ingrediente'),
     },
     resumo: n + ' cadastrado em ' + NOME_GRUPO[g] + (q ? ' com ' + q + ' ' + u : '') + '.',
   }

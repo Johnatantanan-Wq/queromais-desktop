@@ -929,6 +929,16 @@ function telasComAbas() {
         produtos: 829.41, taxaServico: 54.20, taxaEntrega: 0, descontos: 0,
         receitaLiquida: { valor: 812.26, variacao: -88.1 },
         ticketMedio: { valor: 126.23, variacao: 16.4 },
+        // "Vendi × recebi": por onde entrou cada real, o que a operadora levou e o que
+        // sobrou. Os dois PIX vizinhos, com a MESMA taxa — 'pix_online' é o mesmo PIX
+        // do cadastro de formas, só separado na exibição.
+        recebimentos: [
+          { forma: 'credito', recebimentos: 12, bruto: 1400.00, taxa: 42.00, pctEfetivo: 3.00, liquido: 1358.00 },
+          { forma: 'debito', recebimentos: 7, bruto: 745.90, taxa: 11.19, pctEfetivo: 1.50, liquido: 734.71 },
+          { forma: 'dinheiro', recebimentos: 8, bruto: 842.50, taxa: 0, pctEfetivo: 0, liquido: 842.50 },
+          { forma: 'pix_online', recebimentos: 23, bruto: 1653.65, taxa: 16.54, pctEfetivo: 1.00, liquido: 1637.11 },
+          { forma: 'pix', recebimentos: 5, bruto: 305.75, taxa: 3.06, pctEfetivo: 1.00, liquido: 302.69 },
+        ],
         cancelamentos: { qtd: 1, valor: 62.00 },
       },
       hoje: HOJE, rotuloPeriodo: '01/09/2026 a 07/09/2026',

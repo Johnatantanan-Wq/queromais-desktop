@@ -796,9 +796,19 @@ function rotuloUltimo(iso) {
 }
 
 // ── Gestão / estoque ────────────────────────────────────────────────────────
+// Os grupos do painel (lib/estoque/grupos.ts). Duas correções de 09/09/2026:
+//  • REVENDA deixou de ser sinônimo de bebida — gelo, sorvete, salgadinho e doce são
+//    revenda e caíam em Insumos;
+//  • USO E CONSUMO virou grupo próprio: sacola, guardanapo e produto de limpeza só
+//    cabiam em "Embalagem", que o sistema trata como insumo de produção — e a DESPESA
+//    se misturava com o custo do prato.
 const TIPO_CATEGORIA = {
   produto_pronto: { id: 'producao', nome: 'Produção Própria' },
   bebida: { id: 'revenda', nome: 'Revenda' },
+  revenda: { id: 'revenda', nome: 'Revenda' },
+  ingrediente: { id: 'insumos', nome: 'Insumos' },
+  embalagem: { id: 'insumos', nome: 'Insumos' },
+  uso_consumo: { id: 'uso_consumo', nome: 'Uso e consumo' },
   insumo: { id: 'insumos', nome: 'Insumos' },
 }
 const MOVIMENTO = { entrada: 'Entrada', saida: 'Saída', perda: 'Perda', ajuste: 'Ajuste', producao: 'Produção' }

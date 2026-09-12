@@ -172,7 +172,8 @@ function fichaNovoCliente() {
 }
 
 const UNIDADES_ESTOQUE = ['un', 'kg', 'g', 'l', 'ml', 'cx', 'pct']
-const NOME_GRUPO_ESTOQUE = { insumos: 'Insumos', producao: 'Produção própria', revenda: 'Revenda' }
+const NOME_GRUPO_ESTOQUE = { insumos: 'Insumos', producao: 'Produção própria', revenda: 'Revenda',
+  uso_consumo: 'Uso e consumo' }
 
 /** Novo insumo na Gestão: o grupo vem da aba; o resto é o mínimo que o painel exige. */
 function fichaNovoInsumo(grupo) {
@@ -181,7 +182,13 @@ function fichaNovoInsumo(grupo) {
     + '<select data-campo="unidade" style="width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 10px;font-family:inherit;font-size:14px;font-weight:600;color:#111;background:#fff">'
     + UNIDADES_ESTOQUE.map((u) => '<option value="' + u + '"' + (u === 'un' ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></label>'
   return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
-    + 'Entra em <b style="color:#111">' + esc(NOME_GRUPO_ESTOQUE[grupo] || grupo) + '</b>. Ligar ao produto do cardápio e ficha técnica ainda são pelo painel.</div>'
+    + 'Entra em <b style="color:#111">' + esc(NOME_GRUPO_ESTOQUE[grupo] || grupo) + '</b>. '
+    + (grupo === 'uso_consumo'
+      // Sacola, guardanapo, limpeza: é DESPESA da loja. Antes só cabia em "Embalagem",
+      // que o sistema trata como insumo de produção, e o gasto se misturava com o
+      // custo do prato.
+      ? 'Material de uso e consumo não entra no estoque de produção e nunca vira item de ficha técnica.'
+      : 'Ligar ao produto do cardápio e ficha técnica ainda são pelo painel.') + '</div>'
     + campo('Nome do item', 'nome', '', 'Ex.: Azeitona preta')
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + unidades + campo('Custo unitário', 'custo', '', 'Pode ser zero.') + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
