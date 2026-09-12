@@ -64,15 +64,75 @@ function paraOPainel(venda) {
   return { ok: true, corpo }
 }
 
-/** Registra o canal de escrita. `enviar` faz o POST por dentro da view logada. */
-function registrar({ ipcMain, enviar, log }) {
+// Regra da spec: sem internet só dinheiro. O app não gera QR de Pix, e a maquininha é
+// outra máquina — mas a decisão é do dono (spec F3), e a frase diz o que fazer.
+const SEM_INTERNET_FORMA = 'Sem internet só dá para fechar em dinheiro — Pix e cartão precisam de conexão. Troque a forma e feche de novo.'
+
+/** O que as telas precisam mostrar da venda enquanto ela espera na fila. */
+function resumoDaVenda(venda, corpo) {
+  return {
+    cliente: corpo.cliente_nome, telefone: venda.telefone || '', total: num(venda.total),
+    forma: venda.forma || 'dinheiro', tipo: corpo.tipo,
+    itens: (venda.itens || []).map((i) => (num(i.qtd) || 1) + '× ' + i.nome),
+    bairro: venda.bairro || '', observacao: venda.observacao || '',
+  }
+}
+
+/**
+ * Registra o canal de escrita. `enviar` faz o POST por dentro da view logada.
+ *
+ * Com `fila` (F3.3), a venda ganha id próprio e carimbo, e o app decide:
+ *  • sem internet → só dinheiro entra na fila (número provisório L-n); Pix e cartão
+ *    são recusados com o motivo, em vez de aceitar e falhar depois;
+ *  • com internet → sobe na hora; se a rede cair NO MEIO, vale a regra de cima;
+ *  • sessão expirada (401) ou servidor fora (5xx) → a venda já aconteceu no balcão:
+ *    entra na fila, qualquer forma — reenviar é seguro porque o servidor reconhece o id;
+ *  • o painel recusando (4xx) → erro na tela, como sempre. Um 400 não se cura sozinho.
+ */
+function registrar({ ipcMain, enviar, enviarComStatus, log, fila, online, gerarId, agora }) {
+  const idNovo = () => (gerarId ? gerarId() : require('crypto').randomUUID())
+  const carimbo = () => new Date(agora ? agora() : Date.now()).toISOString()
+
   ipcMain.handle('venda-registrar', async (evento, venda) => {
     const pronto = paraOPainel(venda)
     if (!pronto.ok) return pronto
+    const corpo = pronto.corpo
 
+    if (fila && enviarComStatus) {
+      corpo.id_cliente_app = idNovo()
+      corpo.criado_no_app_em = carimbo()
+      const soDinheiro = (venda.forma || 'dinheiro') === 'dinheiro'
+      const enfileirar = () => {
+        const item = fila.enfileirar({ tipo: 'venda', caminho: '/api/admin/venda', corpo, resumo: resumoDaVenda(venda, corpo) })
+        if (log) log.info('[VENDA] ' + item.provisorio + ' guardada na fila — sobe quando a internet voltar')
+        return { ok: true, provisorio: true, numero: item.provisorio, id_cliente_app: corpo.id_cliente_app }
+      }
+
+      if (online && !online()) {
+        if (!soDinheiro) return { ok: false, erro: SEM_INTERNET_FORMA }
+        return enfileirar()
+      }
+
+      let r = null
+      try { r = await enviarComStatus('/api/admin/venda', corpo) } catch (e) { r = null }
+      const status = r ? (Number(r.status) || 0) : 0
+      const body = r ? r.body : null
+      if (status >= 200 && status < 300 && body && !body.error) {
+        if (log) log.info('[VENDA] #' + body.numero + ' lançada no painel' + (body.repetida ? ' (já existia)' : ''))
+        return { ok: true, numero: body.numero, id: body.id, total: body.total }
+      }
+      if (status === 0) {
+        if (!soDinheiro) return { ok: false, erro: 'A conexão caiu no meio. ' + SEM_INTERNET_FORMA }
+        return enfileirar()
+      }
+      if (status === 401 || status === 403 || status >= 500) return enfileirar()
+      return { ok: false, erro: (body && body.error) || 'O painel recusou a venda.' }
+    }
+
+    // Sem fila (marcas sem shell elo): o caminho de sempre.
     let resposta = null
     try {
-      resposta = await enviar('/api/admin/venda', pronto.corpo)
+      resposta = await enviar('/api/admin/venda', corpo)
     } catch (e) {
       return { ok: false, erro: 'Sem conexão com o painel para lançar a venda.' }
     }
@@ -84,4 +144,4 @@ function registrar({ ipcMain, enviar, log }) {
   })
 }
 
-module.exports = { paraOPainel, registrar, FORMA_PEDIDO, FORMA_CAIXA }
+module.exports = { paraOPainel, registrar, resumoDaVenda, FORMA_PEDIDO, FORMA_CAIXA, SEM_INTERNET_FORMA }
