@@ -107,7 +107,11 @@ function htmlComanda(pedido, loja) {
     + '<div style="text-align:center;font-weight:800;font-size:14px">' + esc((loja && loja.nome) || 'Loja') + '</div>'
     + '<div style="text-align:center">' + esc((loja && loja.documento) || '') + '</div>'
     + linha
-    + '<div style="font-weight:800">PEDIDO #' + esc(pedido.numero) + '</div>'
+    // Venda feita sem internet (F3.3): o número é PROVISÓRIO e o papel diz isso — papel
+    // não se corrige depois, e o número oficial só existe quando a venda sobe.
+    + (pedido.provisorio
+      ? '<div style="font-weight:800">PEDIDO ' + esc(pedido.numero) + ' · PROVISÓRIO</div><div>(feito sem internet)</div>'
+      : '<div style="font-weight:800">PEDIDO #' + esc(pedido.numero) + '</div>')
     + '<div>' + esc(pedido.canal || '') + ' · ' + esc(pedido.hora || '') + '</div>'
     + '<div>Cliente: ' + esc(pedido.cliente || '') + '</div>'
     + (pedido.telefone ? '<div>Tel: ' + esc(pedido.telefone) + '</div>' : '')

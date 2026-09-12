@@ -46,3 +46,11 @@ test('impressão automática desligada aparece em vermelho', () => {
 test('enquanto não leu as impressoras, avisa em vez de dizer que não há', () => {
   assert.ok(/lendo as impressoras/i.test(I.htmlImpressao(null, {})))
 })
+
+test('a comanda da venda feita sem internet diz que o número é provisório', () => {
+  const h = I.htmlComanda({ numero: 'L-3', provisorio: true, cliente: 'Ana', canal: 'Retirada', hora: '20:12', valor: 30, itens: ['1× Pizza'] }, dados.loja)
+  assert.ok(h.includes('PEDIDO L-3'))
+  assert.ok(/PROVIS[ÓO]RIO/.test(h) && /sem internet/i.test(h))
+  const normal = I.htmlComanda({ numero: '1042', cliente: 'Ana', canal: 'Retirada', hora: '20:12', valor: 30, itens: ['1× Pizza'] }, dados.loja)
+  assert.ok(normal.includes('PEDIDO #1042') && !/PROVIS/.test(normal))
+})

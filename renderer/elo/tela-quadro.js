@@ -131,6 +131,11 @@ function cartao(p, coluna, consumoLocal) {
   if (p.canal) marcas.push(etiqueta(p.canal, p.canal === 'Mesa' ? 'mesa' : 'canal'))
   if (p.contaAberta) marcas.push(etiqueta('Conta aberta', 'conta'))
   else if (p.forma) marcas.push(etiqueta(p.forma, 'forma'))
+  // Venda feita sem internet (F3.3): ainda não existe no painel — mostra marcada e sem
+  // "avançar"; quem move é o painel, depois que ela sobe com o número oficial.
+  if (p.naoSincronizada) {
+    marcas.push('<span style="font-size:10.5px;font-weight:800;color:#8a6508;background:#fff9e8;border-radius:6px;padding:2px 7px">não sincronizada</span>')
+  }
   return '<div data-pedido="' + esc(p.numero) + '" class="ecard" style="padding:11px 13px;border-radius:12px;cursor:pointer;'
     + 'border-left:3px solid ' + (atrasado ? '#b42318' : coluna.cor) + '">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
@@ -143,7 +148,10 @@ function cartao(p, coluna, consumoLocal) {
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
     + '<span style="display:flex;gap:5px;flex-wrap:wrap">' + marcas.join('') + '</span>'
     + '<span style="font-size:13.5px;font-weight:800;color:#111">' + brl(p.valor) + '</span></div>'
-    + (rotuloAcao
+    + (p.naoSincronizada
+      ? '<div style="width:100%;margin-top:9px;height:30px;border-radius:9px;background:#fff9e8;color:#8a6508;'
+        + 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">⏳ sobe quando a internet voltar</div>'
+      : rotuloAcao
       ? '<button type="button" data-acao="avancar:' + esc(p.numero) + '" style="width:100%;margin-top:9px;height:30px;border:none;'
         + 'border-radius:9px;background:' + coluna.cor + ';color:#fff;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer">'
         + esc(rotuloAcao) + ' →</button>'

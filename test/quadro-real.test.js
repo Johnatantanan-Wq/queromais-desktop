@@ -135,3 +135,13 @@ test('clarear: 100% vira branco, 0% devolve a própria cor', () => {
   assert.strictEqual(Q.clarear('#2563eb', 1), '#ffffff')
   assert.strictEqual(Q.clarear('#2563eb', 0), '#2563eb')
 })
+
+// ── F3.3: a venda feita sem internet no quadro ─────────────────────────────
+test('a venda pendente aparece com o número provisório, marcada, e sem botão de avançar — quem move é o painel depois que ela sobe', () => {
+  const d = { ...dados, itens: [{ numero: 'L-1', pedido: 'L-1', etapa: 'producao', cliente: 'Bia', canal: 'Retirada', forma: 'dinheiro', valor: 30, esperaMin: 2, naoSincronizada: true, manual: true }].concat(dados.itens) }
+  const h = Q.htmlQuadro(d, {})
+  assert.ok(h.includes('#L-1'))
+  assert.ok(/não sincronizada/.test(h))
+  assert.ok(!h.includes('data-acao="avancar:L-1"'), 'não avança o que ainda não existe no painel')
+  assert.ok(h.includes('data-acao="avancar:12"'), 'os outros continuam avançando')
+})
