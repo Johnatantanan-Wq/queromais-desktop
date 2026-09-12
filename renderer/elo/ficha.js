@@ -84,6 +84,50 @@ function campo(rotulo, attr, valor, dica) {
     + '</label>'
 }
 
+const ESTILO_CAMPO = 'width:100%;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:0 12px;'
+  + 'font-family:inherit;font-size:14px;font-weight:600;color:#111;box-sizing:border-box;background:#fff'
+function rotuloCampo(rotulo) {
+  return '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+    + 'letter-spacing:.06em;margin-bottom:6px">' + esc(rotulo) + '</span>'
+}
+function dicaCampo(dica) {
+  return dica ? '<span style="display:block;font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:5px">' + esc(dica) + '</span>' : ''
+}
+/** Uma escolha entre poucas: `opcoes` = [{ v, r }], `atual` marca a atual. */
+function campoSelecao(rotulo, attr, opcoes, atual, dica) {
+  return '<label style="display:block;margin-bottom:14px">' + rotuloCampo(rotulo)
+    + '<select data-campo="' + esc(attr) + '" style="' + ESTILO_CAMPO + ';padding:0 10px">'
+    + (opcoes || []).map((o) => '<option value="' + esc(o.v) + '"' + (String(o.v) === String(atual == null ? '' : atual) ? ' selected' : '') + '>'
+      + esc(o.r) + '</option>').join('')
+    + '</select>' + dicaCampo(dica) + '</label>'
+}
+/** Liga/desliga. O shell lê com `marcadoNaFicha`, não com o valor. */
+function campoMarcar(rotulo, attr, marcado, dica) {
+  return '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer">'
+    + '<input type="checkbox" data-campo="' + esc(attr) + '"' + (marcado ? ' checked' : '')
+    + ' style="width:18px;height:18px;margin-top:1px;accent-color:var(--acento)">'
+    + '<span><span style="display:block;font-size:13px;font-weight:700;color:#111">' + esc(rotulo) + '</span>'
+    + (dica ? '<span style="display:block;font-size:11.5px;color:#9ca3af;font-weight:500;margin-top:2px">' + esc(dica) + '</span>' : '')
+    + '</span></label>'
+}
+/** Texto de várias linhas. */
+function campoArea(rotulo, attr, valor, dica) {
+  return '<label style="display:block;margin-bottom:14px">' + rotuloCampo(rotulo)
+    + '<textarea data-campo="' + esc(attr) + '" rows="3" style="' + ESTILO_CAMPO + ';height:auto;padding:10px 12px;resize:vertical">'
+    + esc(valor || '') + '</textarea>' + dicaCampo(dica) + '</label>'
+}
+/** Duas ou três colunas de campos. */
+function colunas(campos, n) {
+  return '<div style="display:grid;grid-template-columns:repeat(' + (n || 2) + ',minmax(0,1fr));gap:10px">' + campos.join('') + '</div>'
+}
+function tituloSecao(texto) {
+  return '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em;margin:6px 0 10px">' + esc(texto) + '</div>'
+}
+function avisoFicha(texto, tom) {
+  const cores = tom === 'erro' ? ['#fdeaea', '#b42318'] : ['#fff9e8', '#8a6508']
+  return '<div style="font-size:12px;font-weight:700;color:' + cores[1] + ';background:' + cores[0] + ';border-radius:9px;padding:9px 12px;margin-bottom:14px;line-height:1.45">' + esc(texto) + '</div>'
+}
+
 function botaoFicha(acao, rotulo, primaria) {
   return '<button type="button" data-acao="' + esc(acao) + '" style="height:40px;padding:0 18px;border-radius:10px;'
     + 'font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (primaria
@@ -661,4 +705,5 @@ function fichaFila(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila,
+  campo, campoSelecao, campoMarcar, campoArea, colunas, tituloSecao, avisoFicha, botaoFicha, brl }

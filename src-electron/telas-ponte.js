@@ -96,6 +96,9 @@ const TELAS = [
       contasResp: '/api/admin/contas-financeiras',
       salaoResp: '/api/admin/atendimento/salao',
       restoResp: '/api/admin/desktop/configuracoes',
+      // A comanda impressa (modelo, fonte, o que mostrar): a ficha de edição precisa do
+      // objeto inteiro, porque o PUT do painel é completo.
+      comandaResp: '/api/admin/comanda-config',
     },
     adaptar: (r) => A.configuracoes(r),
     valida: (r) => r.lojaResp && r.lojaResp.id,
@@ -110,6 +113,9 @@ const TELAS = [
       // Prestadores de Serviço (aba do painel desde 08/09/2026): quem emitiu NFS-e/CT-e
       // para a loja. Rota própria e já no ar — a aba não depende da rota do desktop.
       prestadoresResp: '/api/admin/estoque/prestadores',
+      // Fichas técnicas pela rota própria (no ar): produto, insumos e linhas COM ids —
+      // é o que a ficha de edição manda de volta.
+      fichasResp: '/api/admin/estoque/fichas',
     },
     adaptar: (r) => A.estoque(r),
     valida: (r) => Array.isArray(r.ingredientesResp),

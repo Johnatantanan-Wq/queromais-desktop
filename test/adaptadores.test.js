@@ -234,3 +234,70 @@ test('resposta de erro do painel não vira tela com dado inventado', () => {
   assert.doesNotThrow(() => A.salao({ error: 'Não autorizado' }))
   assert.doesNotThrow(() => A.estoque({ ingredientesResp: { error: 'x' } }))
 })
+
+// ── Dados BRUTOS para as fichas de Configurações (o que a tela edita) ──────
+test('configuracoes expõe o bruto com ids: é o que as fichas de edição precisam', () => {
+  const d = A.configuracoes({
+    lojaResp: { id: 'l1', nome: 'Pizzaria', telefone: '75 9', endereco: { rua: 'A', numero: '1', bairro: 'Centro', cidade: 'X', uf: 'BA', cep: '4' },
+      pix_chave: 'chave', modalidades_pedido: ['entrega'], tempo_estimado_balcao: 20, tempo_estimado_delivery: 45, tempo_estimado_local: 30,
+      modo_horario: 'automatico', timezone: 'America/Bahia', numeracao_diaria: true, maps_url: 'https://m',
+      horarios: { seg: { abre: '18:00', fecha: '23:00' }, dom: { abre: null, fecha: null } } },
+    bairrosResp: { bairros: ['Centro', 'Praia'], taxas_bairro: { Centro: { taxa: 5, ativo: true } }, taxa_padrao: 7, entrega_gratis_valor_min: 80 },
+    formasResp: [{ id: 'f1', metodo: 'pix', habilitado: true, tipos: ['delivery'], dias_recebimento: 0 }],
+    contasResp: [{ id: 'cf1', nome: 'BB', tipo: 'banco', ativo: true }],
+    salaoResp: { mesas: [{ id: 'm1', numero: '7', capacidade: 4, tipo: 'mesa', reservada: false }] },
+    comandaResp: { config: { modelo: 'compacto', fonte_escala: 100 }, existe: true },
+  })
+  const b = d.bruto
+  assert.strictEqual(b.loja.nome, 'Pizzaria')
+  assert.strictEqual(b.loja.endereco.bairro, 'Centro')
+  assert.deepStrictEqual(b.loja.modalidades, ['entrega'])
+  assert.deepStrictEqual(b.loja.tempos, { balcao: 20, delivery: 45, local: 30 })
+  assert.strictEqual(b.loja.numeracaoDiaria, true)
+  assert.deepStrictEqual(b.horarios.seg, { abre: '18:00', fecha: '23:00' })
+  assert.deepStrictEqual(b.horarios.dom, { abre: null, fecha: null })
+  assert.strictEqual(b.horarios.qua.abre, null, 'dia sem registro vem fechado, não some')
+  assert.strictEqual(b.timezone, 'America/Bahia')
+  assert.deepStrictEqual(b.bairros.bairros, ['Centro', 'Praia'])
+  assert.deepStrictEqual(b.bairros.taxas.Centro, { taxa: 5, ativo: true })
+  assert.strictEqual(b.bairros.entregaGratisAcima, 80)
+  assert.strictEqual(b.formas[0].id, 'f1')
+  assert.strictEqual(b.contasFinanceiras[0].id, 'cf1')
+  assert.deepStrictEqual(b.mesas[0], { id: 'm1', numero: '7', capacidade: 4, tipo: 'mesa', reservada: false })
+  assert.strictEqual(b.comanda.modelo, 'compacto')
+})
+
+test('o bruto não inventa: sem bairros, sem formas, sem comanda vem vazio — e a loja sem endereço vem com endereço vazio', () => {
+  const d = A.configuracoes({ lojaResp: { id: 'l1', nome: 'X' } })
+  assert.deepStrictEqual(d.bruto.bairros, { bairros: [], taxas: {}, taxaPadrao: 0, entregaGratisAcima: null })
+  assert.deepStrictEqual(d.bruto.formas, [])
+  assert.deepStrictEqual(d.bruto.contasFinanceiras, [])
+  assert.deepStrictEqual(d.bruto.mesas, [])
+  assert.strictEqual(d.bruto.comanda, null)
+  assert.deepStrictEqual(d.bruto.loja.endereco, { rua: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '' })
+})
+
+test('estoque: item, fornecedor e pendência levam o id — sem ele não há o que editar', () => {
+  const d = A.estoque({
+    ingredientesResp: [{ id: 'i1', nome: 'Muçarela', tipo: 'ingrediente', unidade: 'kg', qtd_atual: 4, qtd_minima: 2, custo_unitario: 30 }],
+    fornecedoresResp: [{ id: 'fo1', nome: 'Vale Verde', cnpj_cpf: '1', telefone: '2', email: 'a@b.c', endereco: 'Rua', observacoes: 'obs', tipo: 'fornecedor', ativo: true }],
+    pendenciasResp: [{ id: 'p1', tipo: 'falta', produto_nome: 'Queijo', qtd: 2, valor: 10, criado_em: '2026-09-10T10:00:00Z' }],
+    fichasResp: {
+      produtos: [{ id: 'pr1', nome: 'Pizza Calabresa G', preco: 59.9, categoria_id: 'c1' }],
+      insumos: [{ id: 'i1', nome: 'Muçarela', unidade: 'kg', custo_unitario: 30 }, { id: 'i2', nome: 'Calabresa', unidade: 'kg', custo_unitario: 40 }],
+      categorias: [{ id: 'c1', nome: 'Pizzas' }],
+      fichas: [{ produto_id: 'pr1', ingrediente_id: 'i1', qtd_consumida: 0.25 }, { produto_id: 'pr1', ingrediente_id: 'i2', qtd_consumida: 0.18 }],
+    },
+  })
+  assert.strictEqual(d.categorias[0].subcategorias[0].itens[0].id, 'i1')
+  assert.strictEqual(d.categorias[0].subcategorias[0].itens[0].tipo, 'ingrediente')
+  assert.strictEqual(d.fornecedores[0].id, 'fo1')
+  assert.strictEqual(d.fornecedores[0].email, 'a@b.c')
+  assert.strictEqual(d.nfEntrada.pendencias[0].id, 'p1')
+  assert.strictEqual(d.fichas[0].produtoId, 'pr1')
+  assert.strictEqual(d.fichas[0].produto, 'Pizza Calabresa G')
+  assert.strictEqual(d.fichas[0].categoria, 'Pizzas')
+  assert.deepStrictEqual(d.fichas[0].insumos.map((x) => [x.id, x.nome, x.qtd]), [['i1', 'Muçarela', '0,25 kg'], ['i2', 'Calabresa', '0,18 kg']])
+  assert.strictEqual(d.fichas[0].custo, 14.7, 'custo = soma qtd × custo do insumo')
+  assert.deepStrictEqual(d.insumos.map((x) => x.id), ['i1', 'i2'], 'a lista de insumos serve aos selects das fichas')
+})

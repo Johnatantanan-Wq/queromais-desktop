@@ -81,3 +81,23 @@ test('a ficha da fila mostra cada operação, o erro de quem não subiu, e as sa
   assert.ok(!h.includes('data-acao="fila:remover:a"'), 'o que ainda vai subir não se apaga')
   assert.ok(h.includes('data-acao="fila:tentar"') && h.includes('data-acao="fila:exportar"'))
 })
+
+// ── Fichas de Configurações/Financeiro/Gestão: os helpers de formulário ────
+test('campoSelecao desenha um select com a opção atual marcada', () => {
+  const h = F.campoSelecao('Tipo', 'tipo', [{ v: 'banco', r: 'Banco' }, { v: 'carteira', r: 'Carteira' }], 'carteira', 'onde cai')
+  assert.ok(/<select data-campo="tipo"/.test(h))
+  assert.ok(/value="carteira" selected/.test(h))
+  assert.ok(!/value="banco" selected/.test(h))
+  assert.ok(h.includes('onde cai'))
+})
+
+test('campoMarcar é uma caixa de marcar com o estado atual', () => {
+  assert.ok(/<input type="checkbox" data-campo="ativo" checked/.test(F.campoMarcar('Ativo', 'ativo', true)))
+  assert.ok(!/checked/.test(F.campoMarcar('Ativo', 'ativo', false)))
+  assert.ok(F.campoMarcar('Ativo', 'ativo', false, 'liga ou desliga').includes('liga ou desliga'))
+})
+
+test('campoArea é um texto de várias linhas com o valor atual', () => {
+  const h = F.campoArea('Observações', 'obs', 'linha 1')
+  assert.ok(/<textarea data-campo="obs"/.test(h) && h.includes('linha 1'))
+})

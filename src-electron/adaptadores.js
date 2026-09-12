@@ -344,11 +344,81 @@ function whatsapp({ statusResp, configResp }) {
   }
 }
 
-function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp, salaoResp, restoResp }) {
+/** Os sete dias no formato do PATCH /api/admin/horarios — aceita índice (0..6) ou sigla. */
+const DIAS_CHAVE = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
+const DIAS_LONGO = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
+function horariosBrutos(src) {
+  const h = src && typeof src === 'object' ? (src.horarios && typeof src.horarios === 'object' ? src.horarios : src) : {}
+  const saida = {}
+  DIAS_CHAVE.forEach((chave, i) => {
+    const d = h[chave] || h[i] || h[String(i)] || h[DIAS_LONGO[i]] || null
+    saida[chave] = { abre: d && d.abre ? d.abre : null, fecha: d && d.fecha ? d.fecha : null }
+  })
+  return saida
+}
+
+/**
+ * O que as fichas de edição precisam — com ids e no formato que as rotas de escrita
+ * aceitam. As seções de leitura (`abas`) resumem; aqui é o dado como veio.
+ */
+function brutoDeConfiguracoes({ lojaResp: l, horariosResp, bairrosResp, formasResp, contasResp, salaoResp, comandaResp, usuariosResp }) {
+  const e = l.endereco || {}
+  const b = bairrosResp && Array.isArray(bairrosResp.bairros) ? bairrosResp : null
+  const taxas = {}
+  if (b) {
+    for (const nome of Object.keys(b.taxas_bairro || {})) {
+      const t = b.taxas_bairro[nome]
+      taxas[nome] = typeof t === 'object' && t ? { taxa: num(t.taxa), ativo: t.ativo !== false } : { taxa: num(t), ativo: true }
+    }
+  }
+  const mesas = (salaoResp && (salaoResp.mesas || (salaoResp.salao && salaoResp.salao.mesas))) || []
+  const CAMPOS_FORMA = ['id', 'metodo', 'habilitado', 'tipos', 'taxa_extra', 'taxa_extra_tipo', 'observacao', 'bandeiras',
+    'recebimento_imediato', 'gera_receber', 'parcelas', 'dias_recebimento', 'tipo_vencimento', 'conta_financeira_id',
+    'taxa_operadora_pct', 'taxa_operadora_fixa', 'taxa_observacao']
+  return {
+    loja: {
+      id: texto(l.id), nome: texto(l.nome), telefone: texto(l.telefone || l.whatsapp), mapsUrl: texto(l.maps_url),
+      endereco: {
+        rua: texto(e.rua || l.endereco_rua), numero: texto(e.numero), complemento: texto(e.complemento),
+        bairro: texto(e.bairro), cidade: texto(e.cidade), uf: texto(e.uf), cep: texto(e.cep),
+      },
+      modalidades: Array.isArray(l.modalidades_pedido) ? l.modalidades_pedido.slice() : [],
+      tempos: { balcao: num(l.tempo_estimado_balcao), delivery: num(l.tempo_estimado_delivery), local: num(l.tempo_estimado_local) },
+      pixChave: texto(l.pix_chave), modoHorario: texto(l.modo_horario) || 'manual',
+      numeracaoDiaria: l.numeracao_diaria === true, aberta: !!l.aberta,
+    },
+    horarios: horariosBrutos(horariosResp || l.horarios),
+    timezone: texto(l.timezone),
+    bairros: {
+      bairros: b ? b.bairros.map(texto) : [], taxas,
+      taxaPadrao: b ? num(b.taxa_padrao) : 0,
+      entregaGratisAcima: b && b.entrega_gratis_valor_min != null ? num(b.entrega_gratis_valor_min) : null,
+    },
+    formas: (Array.isArray(formasResp) ? formasResp : []).map((f) => {
+      const o = {}
+      for (const k of CAMPOS_FORMA) if (f[k] !== undefined) o[k] = f[k]
+      return o
+    }),
+    contasFinanceiras: (Array.isArray(contasResp) ? contasResp : []).map((c) => ({
+      id: texto(c.id), nome: texto(c.nome), tipo: texto(c.tipo) || 'banco', ativo: c.ativo !== false,
+      diaFechamento: c.dia_fechamento == null ? null : num(c.dia_fechamento),
+      diaVencimento: c.dia_vencimento == null ? null : num(c.dia_vencimento),
+    })),
+    mesas: mesas.map((m) => ({
+      id: texto(m.id), numero: texto(m.numero), capacidade: num(m.capacidade || m.lugares),
+      tipo: texto(m.tipo) || 'mesa', reservada: !!m.reservada,
+    })),
+    comanda: comandaResp && comandaResp.config && typeof comandaResp.config === 'object' ? comandaResp.config : null,
+    usuarios: usuariosDaLoja(usuariosResp),
+  }
+}
+
+function configuracoes({ lojaResp, horariosResp, bairrosResp, usuariosResp, planoResp, whatsappResp, formasResp, contasResp, salaoResp, restoResp, comandaResp }) {
   if (!lojaResp) return null
   const l = lojaResp
   const endereco = l.endereco || {}
   return {
+    bruto: brutoDeConfiguracoes({ lojaResp, horariosResp, bairrosResp, formasResp, contasResp, salaoResp, comandaResp, usuariosResp }),
     abas: {
       config: [
         { titulo: '', colunas: 3, campos: [
@@ -892,7 +962,44 @@ function diaBR(iso) {
   return m ? m[3] + '/' + m[2] + '/' + m[1] : ''
 }
 
-function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoResp, prestadoresResp }) {
+/** Quantidade como gente escreve: 0,25 · 1 · 12,5. */
+function qtdTexto(v) {
+  const n = num(v)
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+}
+
+/**
+ * Fichas técnicas pela rota própria (/api/admin/estoque/fichas): produto, os insumos
+ * com id e quantidade, e o custo somado. Os ids são o que a ficha de edição precisa.
+ */
+function fichasTecnicas(r) {
+  if (!r || !Array.isArray(r.produtos)) return null
+  const insumoPorId = new Map((Array.isArray(r.insumos) ? r.insumos : []).map((i) => [i.id, i]))
+  const catPorId = new Map((Array.isArray(r.categorias) ? r.categorias : []).map((c) => [c.id, texto(c.nome)]))
+  const linhasPorProduto = new Map()
+  for (const f of (Array.isArray(r.fichas) ? r.fichas : [])) {
+    if (!linhasPorProduto.has(f.produto_id)) linhasPorProduto.set(f.produto_id, [])
+    linhasPorProduto.get(f.produto_id).push(f)
+  }
+  const custoDe = (i) => num(i.custo_unitario || i.custo_medio)
+  const fichas = r.produtos.map((p) => {
+    const linhas = linhasPorProduto.get(p.id) || []
+    const insumos = linhas.map((l) => {
+      const i = insumoPorId.get(l.ingrediente_id) || {}
+      return { id: texto(l.ingrediente_id), nome: texto(i.nome) || 'Insumo sem cadastro', qtdNum: num(l.qtd_consumida),
+        unidade: texto(i.unidade) || 'un', qtd: qtdTexto(l.qtd_consumida) + ' ' + (texto(i.unidade) || 'un') }
+    })
+    const custo = linhas.reduce((s, l) => s + num(l.qtd_consumida) * custoDe(insumoPorId.get(l.ingrediente_id) || {}), 0)
+    return { produtoId: texto(p.id), produto: texto(p.nome), categoria: catPorId.get(p.categoria_id) || '—',
+      preco: num(p.preco), custo: Math.round(custo * 100) / 100, insumos }
+  })
+  const insumos = (Array.isArray(r.insumos) ? r.insumos : []).map((i) => ({
+    id: texto(i.id), nome: texto(i.nome), unidade: texto(i.unidade) || 'un', custo: custoDe(i),
+  }))
+  return { fichas, insumos }
+}
+
+function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoResp, prestadoresResp, fichasResp }) {
   const itens = Array.isArray(ingredientesResp) ? ingredientesResp : []
   const porTipo = new Map()
   for (const i of itens) {
@@ -902,6 +1009,11 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
         subcategorias: [{ nome: cat.nome, itens: [] }] })
     }
     porTipo.get(cat.id).subcategorias[0].itens.push({
+      // O id é o que a ficha de edição manda de volta; sem ele não há o que editar.
+      id: texto(i.id),
+      tipo: texto(i.tipo) || 'ingrediente',
+      grupo: texto(i.grupo_estoque) || null,
+      permiteNegativo: !!i.permite_estoque_negativo,
       codigo: texto(i.codigo) || '—',
       nome: texto(i.nome),
       cardapio: i.produto_id ? true : (i.tipo === 'bebida' || i.tipo === 'produto_pronto' ? false : undefined),
@@ -913,13 +1025,17 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
       ativo: i.ativo !== false,
     })
   }
+  const ft = fichasTecnicas(fichasResp)
   return {
     ...abasDaGestao(gestaoResp),
+    // A rota própria de fichas (já no ar) manda; a da tela do desktop fica de reserva.
+    ...(ft ? { fichas: ft.fichas, insumos: ft.insumos } : {}),
     prestadores: prestadoresDaSefaz(prestadoresResp),
     categorias: [...porTipo.values()],
     nfEntrada: {
       notas: [],
       pendencias: (Array.isArray(pendenciasResp) ? pendenciasResp : []).map((p) => ({
+        id: texto(p.id),
         problema: rotuloPendencia(p.tipo),
         produto: texto(p.produto_nome || p.descricao),
         qtd: num(p.qtd),
@@ -931,6 +1047,8 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
       })),
     },
     fornecedores: (Array.isArray(fornecedoresResp) ? fornecedoresResp : []).map((f) => ({
+      id: texto(f.id), email: texto(f.email), endereco: texto(f.endereco), observacoes: texto(f.observacoes),
+      inscricao: texto(f.inscricao_estadual), tipo: texto(f.tipo) || 'fornecedor', ativo: f.ativo !== false,
       nome: texto(f.nome), cnpj: texto(f.cnpj_cpf) || '—', telefone: texto(f.telefone) || '—',
       ultima: f.ultima_compra_em ? diaDe(f.ultima_compra_em).split('-').reverse().slice(0, 2).join('/') : '—',
       mes: num(f.compras_mes),
