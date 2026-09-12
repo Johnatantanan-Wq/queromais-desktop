@@ -696,9 +696,16 @@ async function createWindow() {
         'insights-carregar': 'insights', 'relatorios-carregar': 'relatorios',
         'configuracoes-carregar': 'configuracoes', 'push-carregar': 'push',
       }
+      // Configurações em demonstração: as fichas salvam num registro local e a tela
+      // reflete — como no app conectado depois de recarregar.
+      const registroConfig = require('./config-local').criarRegistro()
+      require('./config-envio').registrar({ ipcMain, local: registroConfig, log })
       for (const canal of Object.keys(CANAIS_FINAIS)) {
         const chave = CANAIS_FINAIS[canal]
-        ipcMain.handle(canal, () => ({ dados: dadosDemo.apoioFinal()[chave], offline: false, ts: Date.now(), demo: true }))
+        ipcMain.handle(canal, () => {
+          const dados = dadosDemo.apoioFinal()[chave]
+          return { dados: chave === 'configuracoes' ? registroConfig.aplicar(dados) : dados, offline: false, ts: Date.now(), demo: true }
+        })
       }
       // ── Venda manual: a primeira tela do app que ESCREVE ──
       // A venda fechada aqui recebe número, entra no quadro de pedidos, no caixa e no
@@ -1067,6 +1074,9 @@ async function createWindow() {
     if (!DEMO) require('./estoque-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./loja-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./usuarios-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    // Configurações pelo app (loja, horários, bairros, formas, contas, mesas, colaborador,
+    // comanda): as mesmas rotas dos formulários do painel, com o método de cada uma.
+    if (!DEMO) require('./config-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

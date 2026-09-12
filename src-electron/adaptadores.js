@@ -1299,6 +1299,8 @@ function fechamentosDeEntrega(r) {
 }
 
 module.exports = {
+  // Formatadores das abas de Configurações: a demonstração redesenha com os mesmos.
+  rotasDeEntrega, formasDePagamento, mesasDoSalao, horariosDaLoja, usuariosDaLoja, fichasTecnicas,
   caixaCompleto, entregasDoCaixa, mesasDoCaixa, nfPendentes,
   entregadores, entregasDoRelatorio, fechamentosDeEntrega, rastreamentoDoBoard,
   financeiro, despesasDeServico, contasBancarias, prestadoresDaSefaz,

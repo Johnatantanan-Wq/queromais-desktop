@@ -648,6 +648,52 @@ function apoioFinal() {
       },
     },
     configuracoes: {
+      // O BRUTO: o que as fichas de edição precisam para vir preenchidas — os mesmos
+      // dados das abas de leitura, com id e no formato das rotas do painel.
+      bruto: {
+        loja: {
+          id: 'demo', nome: 'Pizzaria Demonstração', telefone: '(75) 3333-0000', mapsUrl: '',
+          endereco: { rua: 'Avenida Beira Mar', numero: '1200', complemento: '', bairro: 'Praia de Guaibim', cidade: 'Valença', uf: 'BA', cep: '45400-000' },
+          modalidades: ['entrega', 'retirada', 'consumo_local'], tempos: { balcao: 30, delivery: 45, local: 20 },
+          pixChave: '', modoHorario: 'manual', numeracaoDiaria: true, aberta: true,
+        },
+        horarios: {
+          dom: { abre: '10:00', fecha: '00:30' }, seg: { abre: '10:00', fecha: '23:30' }, ter: { abre: '10:00', fecha: '23:30' },
+          qua: { abre: '10:00', fecha: '23:30' }, qui: { abre: '10:00', fecha: '23:30' }, sex: { abre: '10:00', fecha: '23:30' },
+          sab: { abre: '10:00', fecha: '00:30' },
+        },
+        timezone: 'America/Bahia',
+        bairros: {
+          bairros: ['Praia de Guaibim', 'Centro', 'Bela Vista', 'São Félix'],
+          taxas: { 'Praia de Guaibim': { taxa: 5, ativo: true }, Centro: { taxa: 7, ativo: true }, 'Bela Vista': { taxa: 9, ativo: true }, 'São Félix': { taxa: 8, ativo: true } },
+          taxaPadrao: 7, entregaGratisAcima: 120,
+        },
+        formas: [
+          { id: 'f-dinheiro', metodo: 'dinheiro', habilitado: true, tipos: ['delivery', 'retirada', 'balcao', 'consumo_local'], recebimento_imediato: true, gera_receber: false },
+          { id: 'f-pix', metodo: 'pix', habilitado: true, tipos: ['delivery', 'retirada', 'balcao', 'consumo_local'], recebimento_imediato: true, gera_receber: false, conta_financeira_id: 'b1' },
+          { id: 'f-credito', metodo: 'credito', habilitado: true, tipos: ['retirada', 'balcao', 'consumo_local'], recebimento_imediato: false, gera_receber: true, parcelas: 1, dias_recebimento: 30, tipo_vencimento: 'dias_corridos', taxa_operadora_pct: 3.2, conta_financeira_id: 'b1' },
+          { id: 'f-debito', metodo: 'debito', habilitado: true, tipos: ['retirada', 'balcao', 'consumo_local'], recebimento_imediato: false, gera_receber: true, parcelas: 1, dias_recebimento: 1, tipo_vencimento: 'dias_uteis', taxa_operadora_pct: 1.5, conta_financeira_id: 'b1' },
+          { id: 'f-cartao-entrega', metodo: 'cartao_entrega', habilitado: true, tipos: ['delivery'], recebimento_imediato: false, gera_receber: true, dias_recebimento: 30, tipo_vencimento: 'dias_corridos' },
+        ],
+        // As mesmas contas da aba Contas bancárias do Financeiro (demo).
+        contasFinanceiras: [
+          { id: 'b1', nome: 'Banco do Brasil — corrente', tipo: 'banco', ativo: true, diaFechamento: null, diaVencimento: null },
+          { id: 'b2', nome: 'Nubank PJ', tipo: 'banco', ativo: true, diaFechamento: null, diaVencimento: null },
+          { id: 'b3', nome: 'Cartão Itaú Empresas', tipo: 'cartao_credito', ativo: true, diaFechamento: 28, diaVencimento: 5 },
+          { id: 'b4', nome: 'Gaveta do caixa', tipo: 'carteira', ativo: true, diaFechamento: null, diaVencimento: null },
+        ],
+        mesas: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ id: 'm' + n, numero: String(n), capacidade: n === 7 ? 6 : 4, tipo: 'mesa', reservada: false })),
+        comanda: {
+          modelo: 'atual', fonte_familia: 'ibm-plex-mono', fonte_escala: 100, fonte_peso: 'medio', espacamento_linhas: 1.15,
+          mostrar_logo: true, mostrar_nome_loja: true, mostrar_telefone_loja: true, mostrar_endereco_loja: false,
+          mostrar_nome_cliente: true, mostrar_telefone_cliente: true, mostrar_endereco_cliente: true, mostrar_pagamento: true,
+          mostrar_observacoes: true, mostrar_itens: true, mostrar_subtotal: true, mostrar_taxa: true, mostrar_desconto: true, mostrar_cupom: true,
+          adicional_destaque: true, texto_rodape: '', mensagem_final: 'Obrigado pela preferência!', promo_cardapio_proprio: false,
+          extra_ativa: false, extra_imprimir_auto: false, extra_copias: 1, extra_modelo: 'agradecimento',
+          extra_titulo: 'Obrigado pelo pedido!', extra_mensagem: 'Peça de novo pelo nosso cardápio.', extra_qr_tipo: 'cardapio', extra_qr_url: '', extra_cupom: '',
+        },
+        usuarios: [],
+      },
       abas: {
         config: [
           { titulo: '', colunas: 3, campos: [
