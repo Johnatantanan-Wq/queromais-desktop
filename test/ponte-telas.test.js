@@ -206,3 +206,45 @@ test('duas lojas não dividem o mesmo cache', async () => {
   assert.ok(cache.chaves().includes('clientes|loja-A') && cache.chaves().includes('clientes|loja-B'),
     'cada loja com a sua chave: ' + cache.chaves().join(','))
 })
+
+// ── A pré-carga aquece a MESMA chave que a tela lê ──────────────────────────
+// Foi o erro da primeira versão: ela buscava rotas soltas e guardava em chave própria
+// (`precarga:cardapio`). O app baixava tudo certinho e, na queda, a tela continuava
+// vazia — porque procurava o dado em OUTRA chave. Cache morto.
+test('aquecer pelo canal deixa o dado onde a tela vai procurar', async () => {
+  const guardado = new Map()
+  const cache = {
+    get: (k) => guardado.get(k) || null,
+    set: (k, v) => guardado.set(k, { ...v, ts: Date.now() }),
+    meta: (k) => (guardado.get(k) ? { ts: guardado.get(k).ts } : null),
+  }
+  const canais = {}
+  const ipcFalso = { handle: (canal, fn) => { canais[canal] = fn } }
+  const preCarga = ponte.iniciarPreCarga({ cache, lojaIdAtual: () => 'loja-1', intervaloMs: 1e9 })
+  ponte.registrar({
+    ipcMain: ipcFalso, cache, preCarga,
+    monitorRede: { online: () => true },
+    pedirAoPainel: async () => ({ secoes: [], loja: { id: 'loja-1' } }),
+    // Cada rota devolve o formato que o validador dela espera — senão a resposta é
+    // recusada e o teste não prova nada.
+    pedirTela: async (rota) => {
+      if (/\/clientes/.test(rota)) return [{ nome: 'Ana', telefone: '75988887766' }]
+      if (/caixa\/resumo/.test(rota)) return { aberto: null, resumo: {} }
+      if (/desktop\/venda/.test(rota)) return { categorias: [{ nome: 'Pizzas' }] }
+      return {}
+    },
+    abrirRota: () => ({ ok: true }),
+    lojaIdAtual: () => 'loja-1',
+  })
+
+  await preCarga.rodar()
+  preCarga.parar()
+
+  // A tela do PDV lê 'venda|loja-1'. Se a pré-carga guardou em outro lugar, isto falha.
+  assert.ok(guardado.has('venda|loja-1'), 'chaves guardadas: ' + [...guardado.keys()].join(', '))
+  assert.ok(guardado.has('clientes|loja-1'))
+
+  // E a tela, chamando o canal dela, encontra o que a pré-carga deixou — sem ir à rede.
+  const r = await canais['venda-cardapio'](null, undefined)
+  assert.ok(r && r.dados, 'a tela não achou o dado aquecido')
+})

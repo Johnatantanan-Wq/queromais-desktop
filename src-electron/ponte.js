@@ -89,15 +89,29 @@ async function buscarVarias({ rotas, pedirTela }) {
  * ⚠️ Roda em silêncio e nunca derruba nada: resposta ruim não apaga o que estava
  * guardado, e a falha vai para o log, não para a tela.
  */
-function iniciarPreCarga({ cache, pedirTela, lojaIdAtual, log, intervaloMs = 10 * 60 * 1000 }) {
+function iniciarPreCarga({ cache, lojaIdAtual, log, podeRodar, intervaloMs = 10 * 60 * 1000 }) {
   const preCarga = require('./pre-carga')
-  const chaveDe = (nome) => 'precarga:' + nome + '|' + lojaDaVez(cache, lojaIdAtual())
+  // Os carregadores só existem depois que a ponte registra os canais — por isso a
+  // pré-carga nasce desligada e é LIGADA de lá, com as mesmas funções.
+  let carregarCanal = async () => null
+  let chaveDoCanal = (c) => c
+  // ⛔ A idade vem da chave que a TELA lê, não de uma chave própria: é o mesmo dado.
+  const tsDe = (nome) => {
+    const item = preCarga.ITENS.find((i) => i.chave === nome)
+    if (!item) return 0
+    const g = cache.meta ? cache.meta(chaveDoCanal(item.canal)) : null
+    return g ? g.ts : 0
+  }
   let rodando = false
   async function rodar() {
     if (rodando) return
+    // Sem sessão o painel recusa tudo: insistir de 10 em 10 minutos só gasta chamada e
+    // enche o log de falha que não é falha. Quando o lojista entrar, a rodada seguinte
+    // pega tudo de uma vez.
+    if (podeRodar && !podeRodar()) return
     rodando = true
     try {
-      const r = await preCarga.rodada({ pedirTela, cache, chaveDe })
+      const r = await preCarga.rodada({ aquecer: carregarCanal, tsDe })
       if (log && (r.buscados.length || r.falhas.length)) {
         log.info('[PRE-CARGA] guardado: ' + (r.buscados.join(', ') || 'nada')
           + (r.falhas.length ? ' · sem resposta: ' + r.falhas.join(', ') : ''))
@@ -107,10 +121,10 @@ function iniciarPreCarga({ cache, pedirTela, lojaIdAtual, log, intervaloMs = 10 
     } finally { rodando = false }
   }
   const timer = setInterval(rodar, intervaloMs)
-  return { rodar, parar: () => clearInterval(timer), chaveDe, estado: () => preCarga.estado((n) => {
-    const g = cache.meta ? cache.meta(chaveDe(n)) : null
-    return g ? g.ts : 0
-  }) }
+  return {
+    rodar, parar: () => clearInterval(timer), estado: () => preCarga.estado(tsDe),
+    ligar: (fns) => { carregarCanal = fns.carregarCanal; chaveDoCanal = fns.chaveDoCanal },
+  }
 }
 
 /** Registra os canais. Chamado uma vez, no boot do main. */
@@ -135,7 +149,7 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   // loja não pode vazar para outra quando o lojista troca de loja.
   // O Caixa junta três rotas: o resumo, as entregas (aba Delivery) e o salão (aba
   // Mesas). As duas abas só existiam na demonstração até 08/09.
-  ipcMain.handle('caixa-carregar', () => buscarTela({
+  const carregarCaixa = () => buscarTela({
     cache,
     chave: 'caixa|' + lojaDaVez(cache, lojaIdAtual()),
     pedirAoPainel: async () => require('./adaptadores').caixaCompleto(await buscarVarias({
@@ -150,12 +164,18 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
       pedirTela,
     })),
     valida: (d) => d != null && Object.prototype.hasOwnProperty.call(d, 'aberto'),
-  }))
+  })
+  ipcMain.handle('caixa-carregar', carregarCaixa)
 
   // As demais telas vêm do catálogo (telas-ponte.js): uma linha por tela, com as
   // rotas do painel, o adaptador e o que conta como resposta boa.
+  // O carregamento de cada tela fica numa função nomeada porque DOIS caminhos a usam: o
+  // canal que o renderer chama, e a pré-carga, que aquece a MESMA chave do cache. Sem
+  // isso a pré-carga guardaria em chave própria e a tela não veria nada na queda.
+  const carregadores = { 'caixa-carregar': carregarCaixa }
+  const chaves = { 'caixa-carregar': () => 'caixa|' + lojaDaVez(cache, lojaIdAtual()) }
   for (const tela of TELAS) {
-    ipcMain.handle(tela.canal, (evento, args) => {
+    const carregar = (evento, args) => {
       // Tela que muda com a escolha do lojista (o período da Visão geral) leva o
       // parâmetro na rota E na chave do cache — senão a semana ficaria mostrando o
       // dado do dia guardado antes.
@@ -173,8 +193,16 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
         // O adaptador já devolveu no formato da tela; aqui só se recusa o vazio.
         valida: (d) => d != null,
       })
-    })
+    }
+    carregadores[tela.canal] = carregar
+    chaves[tela.canal] = () => tela.cache + '|' + lojaDaVez(cache, lojaIdAtual())
+    ipcMain.handle(tela.canal, carregar)
   }
+  // Entregues para quem mais precisa: a pré-carga aquece pelos MESMOS carregadores.
+  if (preCarga && preCarga.ligar) preCarga.ligar({
+    carregarCanal: (canal) => (carregadores[canal] ? carregadores[canal](null, undefined) : null),
+    chaveDoCanal: (canal) => (chaves[canal] ? chaves[canal]() : canal),
+  })
 
   // Telas que o painel ainda não expõe por rota de leitura: em vez de "No handler
   // registered" (que vira erro genérico na tela), o app diz o que falta.

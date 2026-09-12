@@ -944,7 +944,8 @@ async function createWindow() {
     // cada 10 min. Sem isso, o cache só tem o que o lojista abriu, e o cardápio (o mais
     // necessário) costuma ser o que falta na hora da queda.
     const preCarga = ponte.iniciarPreCarga({
-      cache: cacheDisco, pedirTela, log, lojaIdAtual: () => getConfig().lojaId,
+      cache: cacheDisco, log, lojaIdAtual: () => getConfig().lojaId,
+      podeRodar: () => !_semSessao,
     })
     // A primeira rodada espera a view logar: sem sessão tudo volta 401 e a rodada
     // gastaria as buscas à toa.

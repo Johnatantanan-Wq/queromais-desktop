@@ -10,14 +10,24 @@ const P = require('../src-electron/pre-carga')
 const AGORA = Date.parse('2026-09-11T22:00:00Z')
 const hAtras = (n) => AGORA - n * 3600 * 1000
 
-test('as cinco coisas que a spec manda guardar estão aqui', () => {
-  assert.deepStrictEqual(P.ITENS.map((i) => i.chave), ['cardapio', 'formas', 'bairros', 'caixa', 'clientes'])
+test('o que a spec manda guardar, com a validade dela', () => {
+  assert.deepStrictEqual(P.ITENS.map((i) => i.chave), ['cardapio', 'formas', 'caixa', 'clientes'])
   const porChave = Object.fromEntries(P.ITENS.map((i) => [i.chave, i.validadeMin]))
   assert.strictEqual(porChave.cardapio, 6 * 60)
   assert.strictEqual(porChave.formas, 12 * 60)
-  assert.strictEqual(porChave.bairros, 12 * 60)
   assert.strictEqual(porChave.clientes, 24 * 60)
   assert.strictEqual(porChave.caixa, 0, 'o caixa muda a cada venda: revalida sempre')
+})
+
+test('⛔ aquece pelo CANAL da tela, não por rota solta', () => {
+  // A primeira versão buscava rotas soltas e guardava em chave própria — que nenhuma
+  // tela lia. O app baixava tudo e, na queda, a tela continuava vazia.
+  for (const i of P.ITENS) {
+    assert.ok(i.canal, i.chave + ' sem canal')
+    assert.ok(!i.rota, i.chave + ' voltou a apontar rota solta — isso vira cache morto')
+  }
+  assert.strictEqual(P.ITENS.find((i) => i.chave === 'cardapio').canal, 'venda-cardapio')
+  assert.strictEqual(P.ITENS.find((i) => i.chave === 'caixa').canal, 'caixa-carregar')
 })
 
 test('revalida quando vence, e nunca antes', () => {
@@ -32,7 +42,7 @@ test('revalida quando vence, e nunca antes', () => {
 test('⛔ dado velho NÃO bloqueia a venda — ele é DITO', () => {
   // Bloquear a venda por cache velho pararia o balcão para proteger um preço, que é
   // exatamente o que o modo offline existe para evitar.
-  const e = P.estado((k) => ({ cardapio: hAtras(20), formas: hAtras(1), bairros: hAtras(1),
+  const e = P.estado((k) => ({ cardapio: hAtras(20), formas: hAtras(1),
     caixa: hAtras(0.1), clientes: hAtras(1) })[k], AGORA)
   assert.strictEqual(e.pronto, true, 'tudo que precisa existe — velho, mas existe')
   assert.strictEqual(e.velho.length, 1)
@@ -48,8 +58,8 @@ test('o que nunca foi baixado aparece com todas as letras', () => {
 })
 
 test('duas coisas faltando saem numa frase de gente', () => {
-  const e = P.estado((k) => (k === 'cardapio' || k === 'bairros' ? 0 : hAtras(1)), AGORA)
-  assert.match(e.aviso, /falta cardápio e taxa por bairro/)
+  const e = P.estado((k) => (k === 'cardapio' || k === 'clientes' ? 0 : hAtras(1)), AGORA)
+  assert.match(e.aviso, /falta cardápio e clientes recentes/)
 })
 
 test('tudo em dia não vira aviso nenhum', () => {
@@ -73,44 +83,52 @@ test('a idade é dita como gente fala', () => {
 })
 
 // ── a rodada ────────────────────────────────────────────────────────────────
-function cacheFalso(inicial) {
-  const m = new Map(Object.entries(inicial || {}))
-  return {
-    get: (k) => m.get(k) || null,
-    set: (k, v) => m.set(k, { ...v, ts: Date.now() }),
-    meta: (k) => (m.get(k) ? { ts: m.get(k).ts } : null),
-    tudo: () => m,
-  }
-}
 
-test('a rodada busca só o que está na hora', async () => {
-  const cache = cacheFalso({ 'p:cardapio': { body: { x: 1 }, ts: Date.now() } })
-  const pedidas = []
+test('a rodada aquece só o que está na hora', async () => {
+  const pedidos = []
   const r = await P.rodada({
-    cache, chaveDe: (n) => 'p:' + n,
-    pedirTela: async (rota) => { pedidas.push(rota); return { ok: true } },
+    tsDe: (k) => (k === 'cardapio' ? Date.now() : 0),
+    aquecer: async (canal) => { pedidos.push(canal); return { dados: { x: 1 }, offline: false } },
   })
-  assert.ok(!pedidas.some((x) => /desktop\/venda/.test(x)), 'o cardápio fresco não é buscado de novo')
-  assert.ok(r.buscados.includes('formas') && r.buscados.includes('clientes'))
+  assert.ok(!pedidos.includes('venda-cardapio'), 'o cardápio fresco não é buscado de novo')
+  assert.ok(r.buscados.includes('clientes') && r.buscados.includes('caixa'))
 })
 
-test('⚠️ resposta ruim NÃO apaga o que já estava guardado', () => {
-  // Mesma regra da ponte: um 401 no meio do turno não pode esvaziar o cardápio que já
-  // estava em disco — a tela ficaria vazia justo quando a sessão pisca.
+test('⚠️ cache respondendo NÃO conta como revalidado', () => {
+  // `offline: true` é o cache devolvendo o que já tinha. Contar isso como sucesso faria
+  // a pré-carga achar que atualizou, e o dado envelheceria sem ninguém ver.
   return P.rodada({
-    cache: cacheFalso(), chaveDe: (n) => 'p:' + n,
-    pedirTela: async () => ({ error: 'Não autorizado' }),
+    tsDe: () => 0,
+    aquecer: async () => ({ dados: { x: 1 }, offline: true }),
   }).then((r) => {
     assert.strictEqual(r.buscados.length, 0)
-    assert.strictEqual(r.falhas.length, 5)
+    assert.strictEqual(r.falhas.length, P.ITENS.length)
   })
 })
 
-test('uma rota que explode não derruba as outras', async () => {
+test('um canal que explode não derruba os outros', async () => {
   const r = await P.rodada({
-    cache: cacheFalso(), chaveDe: (n) => 'p:' + n,
-    pedirTela: async (rota) => { if (/clientes/.test(rota)) throw new Error('timeout'); return { ok: true } },
+    tsDe: () => 0,
+    aquecer: async (canal) => {
+      if (canal === 'clientes-carregar') throw new Error('timeout')
+      return { dados: { x: 1 }, offline: false }
+    },
   })
-  assert.strictEqual(r.falhas.length, 1)
-  assert.strictEqual(r.buscados.length, 4)
+  assert.deepStrictEqual(r.falhas, ['clientes'])
+  assert.strictEqual(r.buscados.length, P.ITENS.length - 1)
+})
+
+test('⚠️ sem sessão a pré-carga nem tenta — insistir só gasta chamada', async () => {
+  // Com a sessão caída o painel recusa tudo. Bater de 10 em 10 minutos enche o log de
+  // falha que não é falha, e não guarda nada. Quando o lojista entrar, a rodada
+  // seguinte pega tudo de uma vez.
+  const ponte = require('../src-electron/ponte')
+  let chamadas = 0
+  const pc = ponte.iniciarPreCarga({
+    cache: { meta: () => null }, lojaIdAtual: () => 'l1', podeRodar: () => false, intervaloMs: 1e9,
+  })
+  pc.ligar({ carregarCanal: async () => { chamadas++; return { dados: {}, offline: false } }, chaveDoCanal: (c) => c })
+  await pc.rodar()
+  pc.parar()
+  assert.strictEqual(chamadas, 0)
 })

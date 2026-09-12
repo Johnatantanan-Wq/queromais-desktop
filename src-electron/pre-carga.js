@@ -13,22 +13,29 @@
 // Bloquear a venda por cache velho seria parar o balcão para proteger um preço, que é
 // exatamente o que o modo offline existe para evitar.
 
-/** O que se guarda, de onde vem, e de quanto em quanto tempo revalidar.
+/**
+ * O que se guarda, de quanto em quanto tempo, e POR QUAL CANAL.
  *
- *  As validades são as que o dono fixou na spec: o cardápio muda o dia todo (6 h), as
- *  formas e as taxas mudam pouco (12 h), o cliente entra a qualquer hora mas o cadastro
- *  velho ainda atende (24 h). O caixa não tem prazo: revalida a cada ciclo, porque é a
- *  base do fechamento e muda a cada venda. */
+ * ⛔ `canal`, não `rota`. A primeira versão disto buscava rotas soltas e guardava em
+ * chaves próprias (`precarga:cardapio`) — que NENHUMA tela lia. Era cache morto: o app
+ * baixava tudo certinho e, na queda, a tela continuava vazia porque procurava o dado
+ * em outra chave. Aquecer é chamar o MESMO canal que a tela chama, para o dado cair na
+ * MESMA chave que ela lê.
+ *
+ * As validades são as que o dono fixou na spec: o cardápio muda o dia todo (6 h), as
+ * formas e as taxas mudam pouco (12 h), o cliente entra a qualquer hora mas o cadastro
+ * velho ainda atende (24 h). O caixa não tem prazo: revalida a cada ciclo, porque é a
+ * base do fechamento e muda a cada venda.
+ */
 const ITENS = [
-  { chave: 'cardapio', rotulo: 'cardápio', rota: '/api/admin/desktop/venda', validadeMin: 6 * 60,
+  { chave: 'cardapio', rotulo: 'cardápio', canal: 'venda-cardapio', validadeMin: 6 * 60,
     porque: 'sem ele não há venda' },
-  { chave: 'formas', rotulo: 'formas de pagamento', rota: '/api/admin/formas-pagamento', validadeMin: 12 * 60,
+  // Formas e bairros vêm juntos na tela de Configurações, que é onde o app já os lê.
+  { chave: 'formas', rotulo: 'formas de pagamento', canal: 'configuracoes-carregar', validadeMin: 12 * 60,
     porque: 'define o que pode ser cobrado' },
-  { chave: 'bairros', rotulo: 'taxa por bairro', rota: '/api/admin/bairros', validadeMin: 12 * 60,
-    porque: 'fecha a conta do delivery' },
-  { chave: 'caixa', rotulo: 'caixa do turno', rota: '/api/admin/caixa/resumo', validadeMin: 0,
+  { chave: 'caixa', rotulo: 'caixa do turno', canal: 'caixa-carregar', validadeMin: 0,
     porque: 'base do fechamento' },
-  { chave: 'clientes', rotulo: 'clientes recentes', rota: '/api/admin/clientes', validadeMin: 24 * 60,
+  { chave: 'clientes', rotulo: 'clientes recentes', canal: 'clientes-carregar', validadeMin: 24 * 60,
     porque: 'atender por telefone' },
 ]
 
@@ -96,18 +103,17 @@ function lista(nomes) {
  *
  * Devolve o que foi buscado e o que falhou, para o log dizer a verdade.
  */
-async function rodada({ pedirTela, cache, chaveDe, agora, valida }) {
+async function rodada({ aquecer, tsDe, agora }) {
   const hora = agora || Date.now()
   const buscados = []
   const falhas = []
   for (const item of ITENS) {
-    const chave = chaveDe(item.chave)
-    const guardado = cache.get(chave)
-    if (!precisaRevalidar(item, guardado && guardado.ts, hora)) continue
+    if (!precisaRevalidar(item, tsDe(item.chave), hora)) continue
     let r = null
-    try { r = await pedirTela(item.rota) } catch (e) { r = null }
-    const bom = r && !r.error && (!valida || valida(item.chave, r))
-    if (bom) { cache.set(chave, { status: 200, body: r }); buscados.push(item.chave) }
+    try { r = await aquecer(item.canal) } catch (e) { r = null }
+    // Vale só o que veio do SERVIDOR agora: `offline: true` é o cache devolvendo o que
+    // já tinha, e contar isso como sucesso faria a pré-carga achar que revalidou.
+    if (r && r.dados && !r.offline) buscados.push(item.chave)
     else falhas.push(item.chave)
   }
   return { buscados, falhas }
