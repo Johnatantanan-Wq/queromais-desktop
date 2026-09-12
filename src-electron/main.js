@@ -938,8 +938,20 @@ async function createWindow() {
         shell.openExternal('' + url)
         return { ok: true }
       })
-    } else ponte.registrar({
-      ipcMain, cache: cacheDisco, monitorRede,
+    } else {
+    // PRÉ-CARGA (F3.2): o que é preciso para VENDER sem internet — cardápio, formas,
+    // taxa de bairro, caixa do turno e clientes — é baixado de propósito, no boot e a
+    // cada 10 min. Sem isso, o cache só tem o que o lojista abriu, e o cardápio (o mais
+    // necessário) costuma ser o que falta na hora da queda.
+    const preCarga = ponte.iniciarPreCarga({
+      cache: cacheDisco, pedirTela, log, lojaIdAtual: () => getConfig().lojaId,
+    })
+    // A primeira rodada espera a view logar: sem sessão tudo volta 401 e a rodada
+    // gastaria as buscas à toa.
+    global.cardapioView.webContents.on('did-finish-load', () => { setTimeout(() => preCarga.rodar(), 4000) })
+
+    ponte.registrar({
+      ipcMain, cache: cacheDisco, monitorRede, preCarga,
       pedirAoPainel: pedirMenuAoPainel,
       pedirTela,
       lojaIdAtual: () => getConfig().lojaId,
@@ -952,6 +964,7 @@ async function createWindow() {
         return { ok: true }
       },
     })
+    }
 
     // Venda manual no app conectado: o PDV monta e o painel lança o pedido. No modo
     // demonstração a venda é gravada localmente (vendas-locais.js), então este canal

@@ -36,6 +36,8 @@ let painelResponde = true
 // Sessão do painel caída: o servidor responde, mas recusa (401) — e as telas vêm SEM
 // dado. É o estado real que o app conectado encontrou em 11/09.
 let sessaoDoPainel = true
+// O retrato da pré-carga que o main devolveria. null = ainda não perguntou.
+let preCargaDoTeste = null
 let ouvintes = {}
 const chamadas = []
 function responder(canal, args) {
@@ -141,6 +143,7 @@ function responder(canal, args) {
     contasDoTeste.baixar(args.conta.id, d.corpo.valor, d.corpo.forma_pagamento, d.corpo.data)
     return { ok: true, resumo: d.resumo, quita: d.quita }
   }
+  if (canal === 'pre-carga-estado') return preCargaDoTeste
   if (canal === 'usuario-editar') {
     const d = require('../src-electron/usuarios-acoes').editar(args.usuario, args.campos)
     return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
@@ -1582,4 +1585,39 @@ test('a sessão voltando recarrega sozinha — sem pedir clique nenhum', async (
     assert.ok(chamadas.some((c) => c.canal === 'menu-carregar'),
       'quem acabou de entrar não deve precisar clicar para os números aparecerem')
   } finally { modoDemo = true }
+})
+
+test('sem internet, a topbar diz se DÁ PARA VENDER com o que está guardado', async () => {
+  // O que importa na queda não é o "offline": é o que ainda dá para fazer. Descobrir
+  // que falta o cardápio no meio do aperto é tarde demais.
+  modoDemo = false
+  try {
+    preCargaDoTeste = { pronto: true, aviso: 'O que está guardado tem tempo: cardápio há 7 h. Dá para vender, mas o preço pode ter mudado.', falta: [], velho: [{ rotulo: 'cardápio' }] }
+    await abrirApp()
+    avisarDoMain('rede-mudou', false)
+    await esperar(80)
+    const chip = doc.getElementById('chipRede')
+    assert.strictEqual(chip.textContent, 'sem internet · dá para vender')
+    assert.match(chip.title, /preço pode ter mudado/)
+
+    preCargaDoTeste = { pronto: false, aviso: 'Sem internet, falta cardápio — ainda não foi baixado nenhuma vez.', falta: [{ rotulo: 'cardápio' }], velho: [] }
+    avisarDoMain('rede-mudou', true)
+    await esperar(60)
+    avisarDoMain('rede-mudou', false)
+    await esperar(80)
+    assert.strictEqual(doc.getElementById('chipRede').textContent, 'sem internet · falta dado')
+    assert.match(doc.getElementById('chipRede').title, /falta cardápio/)
+  } finally { modoDemo = true; preCargaDoTeste = null; sessaoDoPainel = true }
+})
+
+test('com internet, a pré-carga não polui a topbar', async () => {
+  modoDemo = false
+  try {
+    preCargaDoTeste = { pronto: false, aviso: 'Sem internet, falta cardápio.', falta: [{ rotulo: 'cardápio' }], velho: [] }
+    await abrirApp()
+    avisarDoMain('rede-mudou', true)
+    await esperar(80)
+    assert.strictEqual(doc.getElementById('chipRede').textContent, 'conectado',
+      'o aviso de pré-carga é para a QUEDA, não para o dia a dia')
+  } finally { modoDemo = true; preCargaDoTeste = null }
 })

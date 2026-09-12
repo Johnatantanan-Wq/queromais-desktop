@@ -77,13 +77,52 @@ async function buscarVarias({ rotas, pedirTela }) {
   return junto
 }
 
+/**
+ * PRÉ-CARGA (F3.2): o app baixa de propósito o que é preciso para VENDER sem internet.
+ *
+ * O cache que a ponte já mantém é oportunista — guarda o que o lojista abriu. Se ele
+ * não abriu o Cardápio hoje, não há cardápio guardado, e é exatamente ele que falta
+ * quando a rede cai. Aqui o app busca por conta própria: no boot e a cada 10 minutos,
+ * respeitando a validade de cada coisa (cardápio 6 h, formas e bairros 12 h, clientes
+ * 24 h; o caixa a cada rodada, porque muda a cada venda).
+ *
+ * ⚠️ Roda em silêncio e nunca derruba nada: resposta ruim não apaga o que estava
+ * guardado, e a falha vai para o log, não para a tela.
+ */
+function iniciarPreCarga({ cache, pedirTela, lojaIdAtual, log, intervaloMs = 10 * 60 * 1000 }) {
+  const preCarga = require('./pre-carga')
+  const chaveDe = (nome) => 'precarga:' + nome + '|' + lojaDaVez(cache, lojaIdAtual())
+  let rodando = false
+  async function rodar() {
+    if (rodando) return
+    rodando = true
+    try {
+      const r = await preCarga.rodada({ pedirTela, cache, chaveDe })
+      if (log && (r.buscados.length || r.falhas.length)) {
+        log.info('[PRE-CARGA] guardado: ' + (r.buscados.join(', ') || 'nada')
+          + (r.falhas.length ? ' · sem resposta: ' + r.falhas.join(', ') : ''))
+      }
+    } catch (e) {
+      if (log) log.warn('[PRE-CARGA] falhou:', e && e.message)
+    } finally { rodando = false }
+  }
+  const timer = setInterval(rodar, intervaloMs)
+  return { rodar, parar: () => clearInterval(timer), chaveDe, estado: () => preCarga.estado((n) => {
+    const g = cache.meta ? cache.meta(chaveDe(n)) : null
+    return g ? g.ts : 0
+  }) }
+}
+
 /** Registra os canais. Chamado uma vez, no boot do main. */
-function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual, semApi }) {
+function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual, semApi, preCarga }) {
   ipcMain.handle('menu-carregar', () => buscarMenu({ cache, pedirAoPainel, lojaId: lojaIdAtual() }))
   ipcMain.handle('rede-status', () => ({ online: monitorRede.online() }))
   ipcMain.handle('cache-get', (e, chave) => cache.get(chave))
   ipcMain.handle('cache-set', (e, a) => cache.set(a && a.chave, { status: 200, body: a && a.valor }))
   ipcMain.handle('abrir-rota', (e, href) => abrirRota(href))
+  // O que está guardado para vender sem internet — a tela avisa o que falta ANTES de a
+  // rede cair, em vez de o lojista descobrir na hora do aperto.
+  ipcMain.handle('pre-carga-estado', () => (preCarga ? preCarga.estado() : null))
   // Link que NÃO é do painel (o ponto do entregador no mapa) abre no navegador do
   // sistema: mapa é da internet, e trazê-lo para dentro do app faria um app
   // offline-first exibir um quadrado branco quando a rede cai.
@@ -146,4 +185,5 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
 }
 
 module.exports = {
+  iniciarPreCarga,
   lojaDaVez, buscarMenu, buscarTela, buscarVarias, registrar }

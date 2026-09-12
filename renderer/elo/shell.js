@@ -130,6 +130,9 @@ if (typeof document !== 'undefined') {
   // Sessão do painel: o servidor responde mas recusa (401). É diferente de estar sem
   // internet — e é o estado em que TODAS as telas vêm vazias sem dizer por quê.
   let SESSAO_OK = true
+  // O que está guardado para vender sem internet (F3.2). Serve para avisar ANTES da
+  // queda: descobrir que falta o cardápio no meio do aperto é tarde demais.
+  let PRE_CARGA = null
   let VIEW = 'cardapio'
   let DEMO = false
   let PERIODO = 'semana'        // Visão geral: dia | ontem | semana | mes
@@ -205,6 +208,12 @@ if (typeof document !== 'undefined') {
       $('chipRede').title = semSessao
         ? 'O painel está no ar, mas a sua sessão expirou — clique para entrar de novo.'
         : ''
+      // Sem internet, o que importa não é o "offline": é o que dá para fazer com o que
+      // está guardado. A pré-carga responde isso em uma frase.
+      if (!ONLINE && PRE_CARGA && PRE_CARGA.aviso) {
+        $('chipRede').textContent = PRE_CARGA.pronto ? 'sem internet · dá para vender' : 'sem internet · falta dado'
+        $('chipRede').title = PRE_CARGA.aviso
+      }
     }
   }
 
@@ -2130,8 +2139,15 @@ if (typeof document !== 'undefined') {
     carregarMenu()
     if (ehNativa(ROTA)) carregarTelaNativa(ROTA)
   })
+  /** O retrato do que está guardado. Perguntado no boot e sempre que a rede muda —
+   *  é na queda que a resposta importa. */
+  function lerPreCarga() {
+    ipcRenderer.invoke('pre-carga-estado').then((r) => { if (r) { PRE_CARGA = r; pintar() } }).catch(() => {})
+  }
+
   ipcRenderer.on('rede-mudou', (e, online) => {
     ONLINE = online
+    lerPreCarga()
     pintar()
     if (online) { carregarMenu(); if (ehNativa(ROTA)) carregarTelaNativa(ROTA) }
   })
@@ -2191,4 +2207,5 @@ if (typeof document !== 'undefined') {
   ipcRenderer.invoke('rede-status').then((r) => { ONLINE = !!(r && r.online); pintar() }).catch(() => {})
   carregarMenu()
   setInterval(carregarMenu, 30000)
+  if (!DEMO) { lerPreCarga(); setInterval(lerPreCarga, 5 * 60 * 1000) }
 }
