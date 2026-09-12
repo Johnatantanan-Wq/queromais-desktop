@@ -177,3 +177,17 @@ test('o fechamento provisório fica visível enquanto espera, e a conferência �
   g.guardarConferencia(null)
   assert.strictEqual(g.conferencia(), null)
 })
+
+test('o estado leva a lista resumida — é o que a ficha da fila mostra', async () => {
+  const f = nova(); f.enfileirar(venda(30))
+  f.enfileirar({ tipo: 'movimentacao', caminho: '/x', corpo: { id_cliente_app: gerarId(), tipo: 'sangria', valor: 10, motivo: 'Depósito' } })
+  await f.processar({ enviar: async () => ({ status: 422, body: { error: 'ruim' } }), online: () => true })
+  const itens = f.estado().itens
+  assert.strictEqual(itens.length, 2)
+  assert.deepStrictEqual(Object.keys(itens[0]).sort(), ['cliente', 'criadoEm', 'erro', 'id', 'provisorio', 'tipo', 'valor'])
+  assert.strictEqual(itens[0].provisorio, 'L-1')
+  assert.strictEqual(itens[0].valor, 30)
+  assert.strictEqual(itens[0].erro, 'ruim')
+  assert.strictEqual(itens[1].cliente, 'Depósito')
+  assert.strictEqual(itens[1].valor, 10)
+})

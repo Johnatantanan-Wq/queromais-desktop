@@ -587,4 +587,78 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+// ── F3.4: a conferência do fechamento feito sem internet ─────────────────────
+function horaDe(iso) {
+  const d = new Date(iso)
+  if (!isFinite(d.getTime())) return '—'
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+}
+const NOME_TIPO = { venda: 'Venda', sangria: 'Sangria', suprimento: 'Suprimento', ajuste: 'Ajuste' }
+const NOME_FORMA = { dinheiro: 'dinheiro', pix: 'Pix', cartao: 'cartão', credito: 'crédito', debito: 'débito', a_receber: 'crédito func' }
+
+/**
+ * O servidor achou movimentação que o app não viu enquanto estava sem internet (pedido
+ * do site, venda pelo app do garçom). A ficha mostra O QUE ficou de fora, o esperado
+ * novo e deixa o lojista confirmar a contagem — ou deixar para depois. Nunca fecha
+ * calado com número errado.
+ */
+function fichaConferencia(conf) {
+  const c = conf || {}
+  const lista = c.naoVistas || []
+  const e = c.esperado || {}
+  const ct = c.contados || {}
+  const linhas = lista.map((m) =>
+    '<div style="display:grid;grid-template-columns:52px 90px 1fr 100px;gap:8px;padding:8px 0;border-bottom:1px solid #f4f5f7;font-size:12.5px;align-items:center">'
+    + '<span style="color:#9ca3af;font-weight:600">' + esc(horaDe(m.criado_em)) + '</span>'
+    + '<span style="font-weight:700;color:' + (m.tipo === 'sangria' ? '#b42318' : '#111') + '">' + esc(NOME_TIPO[m.tipo] || m.tipo || '') + '</span>'
+    + '<span style="color:#4b5563;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(m.descricao || '')
+    + (m.forma ? ' <span style="color:#9ca3af">· ' + esc(NOME_FORMA[m.forma] || m.forma) + '</span>' : '') + '</span>'
+    + '<span style="text-align:right;font-weight:800;color:#111">' + brl(m.valor) + '</span></div>').join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">'
+    + 'Enquanto o app estava sem internet, o painel recebeu <b style="color:#111">' + lista.length + ' movimentaç' + (lista.length === 1 ? 'ão' : 'ões')
+    + '</b> que o app não viu. O turno só fecha de vez depois que você conferir.</div>'
+    + '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:4px 14px;margin-bottom:16px">' + (linhas || '<div class="evazio">Nada a mostrar.</div>') + '</div>'
+    + '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Esperado agora, com o que o app não viu</div>'
+    + linha('Dinheiro', brl(e.dinheiro)) + linha('Pix', brl(e.pix)) + linha('Cartão', brl(e.cartao)) + '</div>'
+    + campo('Dinheiro contado', 'dinheiro', ct.dinheiro != null ? String(ct.dinheiro) : '', 'O que você contou na gaveta na hora do fechamento. Corrija se for o caso.')
+    + campo('Pix conferido', 'pix', ct.pix != null ? String(ct.pix) : '')
+    + campo('Cartão conferido', 'cartao', ct.cartao != null ? String(ct.cartao) : '')
+    + campo('Observação (opcional)', 'observacao', '')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('caixa:conferencia:depois', 'Deixar para depois', false)
+    + botaoFicha('caixa:conferencia:confirmar', 'Confirmar e fechar de vez', true)
+    + '</div>'
+}
+
+/** O que espera para subir — e o que travou, com o erro do painel e a saída. */
+function fichaFila(estado) {
+  const e = estado || {}
+  const itens = e.itens || []
+  const linhas = itens.map((i) => {
+    const rotulo = i.tipo === 'venda' ? 'Venda ' + (i.provisorio || '') : i.tipo === 'movimentacao' ? 'Caixa' : 'Fechamento'
+    return '<div style="padding:9px 0;border-bottom:1px solid #f4f5f7">'
+      + '<div style="display:grid;grid-template-columns:52px 1fr 100px;gap:8px;align-items:center;font-size:12.5px">'
+      + '<span style="color:#9ca3af;font-weight:600">' + esc(horaDe(i.criadoEm)) + '</span>'
+      + '<span style="font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(rotulo) + ' — ' + esc(i.cliente || '') + '</span>'
+      + '<span style="text-align:right;font-weight:800;color:#111">' + brl(i.valor) + '</span></div>'
+      + (i.erro
+        ? '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;font-weight:700;color:#b42318">'
+          + '<span style="flex:1">✖ ' + esc(i.erro) + '</span>'
+          + '<button type="button" data-acao="fila:remover:' + esc(i.id) + '" style="height:28px;padding:0 10px;border:1px solid #f3c0bb;border-radius:8px;'
+          + 'background:#fff;color:#b42318;font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer">Desistir</button></div>'
+        : '<div style="margin-top:4px;font-size:11.5px;font-weight:600;color:#8a6508">⏳ esperando para subir</div>')
+      + '</div>'
+  }).join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">'
+    + (e.pendentes ? '<b style="color:#111">' + e.pendentes + '</b> esperando para subir' : 'Nada esperando')
+    + (e.comErro ? ' · <b style="color:#b42318">' + e.comErro + '</b> com erro' : '')
+    + '. Nada aqui foi apagado: o que não subir dá para exportar e lançar pelo painel.</div>'
+    + '<div style="border:1px solid #e5e7eb;border-radius:12px;padding:4px 14px;margin-bottom:16px">' + (linhas || '<div class="evazio">A fila está vazia.</div>') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
+    + botaoFicha('fila:exportar', 'Exportar pendentes', false)
+    + botaoFicha('fila:tentar', 'Tentar subir agora', true)
+    + '</div>'
+}
+
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila, brl }

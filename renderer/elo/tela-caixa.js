@@ -355,6 +355,55 @@ function abaHistorico(dados) {
       ] })), '150px 150px 1fr 150px 150px', [3, 4]))
 }
 
+// ── A fila e o fechamento provisório (F3.3/F3.4) ─────────────────────────────
+// O que foi feito sem internet fica À VISTA: quantas operações esperam, o que travou,
+// e o turno fechado provisoriamente — nunca escondido atrás de um "conectado".
+function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios) }
+function faixa(cor, fundo, borda, conteudo) {
+  return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:' + fundo + ';border:1px solid ' + borda
+    + ';border-left:4px solid ' + cor + ';border-radius:12px;padding:12px 16px;margin-bottom:18px;color:' + cor + '">' + conteudo + '</div>'
+}
+function botaoFaixa(acao, rotulo, cor) {
+  return '<button type="button" data-acao="' + esc(acao) + '" style="height:32px;padding:0 12px;border:1px solid ' + cor + ';border-radius:9px;'
+    + 'background:#fff;color:' + cor + ';font-family:inherit;font-size:12px;font-weight:800;cursor:pointer">' + esc(rotulo) + '</button>'
+}
+function faixaFila(f) {
+  if (!f || (!f.pendentes && !f.comErro)) return ''
+  if (f.comErro) {
+    return faixa('#b42318', '#fdeaea', '#f3c0bb',
+      '<div style="flex:1;min-width:220px"><div style="font-size:13px;font-weight:800">' + esc(plural(f.comErro, 'operação não subiu', 'operações não subiram'))
+      + (f.pendentes ? ' · ' + esc(plural(f.pendentes, 'outra espera', 'outras esperam')) : '') + '</div>'
+      + '<div style="font-size:12px;font-weight:600;margin-top:2px">' + esc(f.ultimoErro || 'O painel recusou.')
+      + ' — nada foi apagado: dá para tentar de novo, exportar ou desistir.</div></div>'
+      + '<span style="display:flex;gap:8px;flex-wrap:wrap">' + botaoFaixa('fila:tentar', 'Tentar agora', '#b42318')
+      + botaoFaixa('fila:ver', 'Ver a fila', '#b42318') + botaoFaixa('fila:exportar', 'Exportar pendentes', '#b42318') + '</span>')
+  }
+  return faixa('#8a6508', '#fff9e8', '#eed571',
+    '<div style="flex:1;min-width:220px"><div style="font-size:13px;font-weight:800">'
+    + esc(plural(f.pendentes, 'operação feita sem internet esperando para subir', 'operações feitas sem internet esperando para subir'))
+    + (f.total > 0 ? ' · R$ ' + esc(fmtBRL(f.total)) + ' em vendas' : '') + '</div>'
+    + '<div style="font-size:12px;font-weight:600;margin-top:2px">Já contam aqui embaixo, marcadas como não sincronizadas. Sobem sozinhas quando a conexão voltar.</div></div>'
+    + '<span style="display:flex;gap:8px;flex-wrap:wrap">' + botaoFaixa('fila:tentar', 'Tentar agora', '#8a6508') + botaoFaixa('fila:ver', 'Ver a fila', '#8a6508') + '</span>')
+}
+function faixaProvisorio(fp) {
+  if (!fp) return ''
+  const c = fp.contados || {}
+  return faixa('#8a6508', '#fff9e8', '#eed571',
+    '<div style="flex:1;min-width:220px"><div style="font-size:13px;font-weight:800">FECHAMENTO PROVISÓRIO — feito sem internet'
+    + (fp.em ? ' às ' + esc(fmtHora(fp.em)) : '') + ', sujeito a conferência quando a conexão voltar.</div>'
+    + '<div style="font-size:12px;font-weight:600;margin-top:2px">Contado: dinheiro R$ ' + esc(fmtBRL(c.dinheiro)) + ' · Pix R$ ' + esc(fmtBRL(c.pix))
+    + ' · cartão R$ ' + esc(fmtBRL(c.cartao)) + '. O servidor vai comparar com o que ele tem; se algo ficou de fora, a conferência abre aqui.</div></div>')
+}
+function faixaConferencia(cf) {
+  if (!cf) return ''
+  const n = (cf.naoVistas || []).length
+  return faixa('#b42318', '#fdeaea', '#f3c0bb',
+    '<div style="flex:1;min-width:220px"><div style="font-size:13px;font-weight:800">Fechamento aguardando conferência — '
+    + esc(plural(n, 'movimentação que o app não viu', 'movimentações que o app não viu')) + '</div>'
+    + '<div style="font-size:12px;font-weight:600;margin-top:2px">O turno não está fechado de vez: confira o que entrou enquanto o app estava sem internet e confirme.</div></div>'
+    + '<span style="display:flex;gap:8px">' + botaoFaixa('caixa:conferencia:abrir', 'Abrir a conferência', '#b42318') + '</span>')
+}
+
 function htmlDoCaixa(dados, estado) {
   estado = estado || {}
   if (!dados) {
@@ -371,9 +420,12 @@ function htmlDoCaixa(dados, estado) {
     ? '<span class="echip">atualizado ' + esc(idadeDoDado(estado.ts, Date.now())) + '</span>'
     : '<span class="echip offline">sem internet · dado de ' + esc(idadeDoDado(estado.ts, Date.now())) + '</span>'
 
+  const faixasDaFila = faixaConferencia(dados.conferencia) + faixaProvisorio(dados.fechamentoProvisorio) + faixaFila(dados.fila)
+
   if (!dados.aberto) {
     return '<div>' + barraAbas
       + '<div style="display:flex;justify-content:flex-end;margin-bottom:14px">' + selo + '</div>'
+      + faixasDaFila
       + '<div class="ecard"><div class="evazio"><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:6px">Caixa fechado</div>'
       + 'Nenhum caixa aberto agora. Abra o caixa para fechar contas de mesa e confirmar recebimentos de entrega.'
       + '<div style="margin-top:16px"><button type="button" data-acao="caixa:abrir" style="height:38px;padding:0 20px;'
@@ -414,8 +466,10 @@ function htmlDoCaixa(dados, estado) {
     + 'background:#fff;color:#111;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">+ Suprimento</button>'
     + '<button type="button" data-acao="caixa:sangria" style="height:34px;padding:0 14px;border:1px solid #f3c0bb;border-radius:10px;'
     + 'background:#fff;color:#b42318;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">− Sangria</button>'
-    + '<button type="button" data-acao="caixa:fechar" style="height:34px;padding:0 14px;border:none;border-radius:10px;'
-    + 'background:#111;color:#fff;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">Fechar caixa</button>'
+    // Fechado provisoriamente ou aguardando conferência: não há o que fechar de novo.
+    + ((dados.fechamentoProvisorio || dados.conferencia) ? ''
+      : '<button type="button" data-acao="caixa:fechar" style="height:34px;padding:0 14px;border:none;border-radius:10px;'
+        + 'background:#111;color:#fff;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer">Fechar caixa</button>')
     + '</span></div>'
 
   const r = dados.resumo || {}
@@ -455,7 +509,7 @@ function htmlDoCaixa(dados, estado) {
   else if (subaba === 'nf') corpo = subabaNf(dados)
   else corpo = movimentacoesHtml(dados, selo)
 
-  return '<div>' + barraAbas + faixa + kpis + resumoLinha + alertaRua + barra(subabas, subaba, 'data-subaba') + corpo + '</div>'
+  return '<div>' + barraAbas + faixasDaFila + faixa + kpis + resumoLinha + alertaRua + barra(subabas, subaba, 'data-subaba') + corpo + '</div>'
 }
 
 /** A lista de movimentações do turno (a aba que já existia). */
@@ -468,7 +522,8 @@ function movimentacoesHtml(dados, selo) {
       + '<div style="padding:7px 10px;font-size:13px;font-weight:600;color:' + cor + ';border-right:1px solid #ececec">' + esc(rotuloTipo(m.tipo)) + '</div>'
       + '<div style="padding:7px 10px;font-size:13px;color:#4b5563;border-right:1px solid #ececec">' + esc(rotuloForma(m.forma)) + '</div>'
       + '<div style="padding:7px 10px;font-size:13px;color:#4b5563;border-right:1px solid #ececec;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-      + esc(m.descricao || '') + (m.estornada ? ' <span style="font-size:11px;font-weight:700;color:#b42318">estornada</span>' : '') + '</div>'
+      + esc(m.descricao || '') + (m.estornada ? ' <span style="font-size:11px;font-weight:700;color:#b42318">estornada</span>' : '')
+      + (m.naoSincronizada ? ' <span style="font-size:10.5px;font-weight:800;color:#8a6508;background:#fff9e8;border-radius:6px;padding:1px 6px">não sincronizada</span>' : '') + '</div>'
       + '<div style="padding:7px 10px;font-size:13px;font-weight:700;color:' + cor + ';text-align:right;' + risco + '">R$ ' + fmtBRL(m.valor) + '</div>'
       + '</div>'
   }).join('')

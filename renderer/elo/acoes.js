@@ -135,6 +135,13 @@ const DESTINOS = {
 
   // ── KDS: acesso pela TV (abre a ficha, não escreve nada) ──
   'kds:tv': { app: 'ficha-tv' },
+
+  // ── Fila offline (F3.3) e conferência do fechamento (F3.4): o app FAZ (shell.js) ──
+  'fila:ver': { app: 'fila-ver' },
+  'fila:tentar': { app: 'fila-tentar' },
+  'fila:exportar': { app: 'fila-exportar' },
+  'fila:remover': { app: 'fila-remover' },
+  'caixa:conferencia': { app: 'conferencia' },
 }
 
 /** A chave da ação: 'despachar:1042' → 'despachar'; 'kds:iniciar:c1' → 'kds:iniciar'. */

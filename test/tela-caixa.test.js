@@ -64,3 +64,43 @@ test('rótulos em português, não o nome da coluna', () => {
 test('hora local em HH:MM', () => {
   assert.match(fmtHora('2026-09-07T11:30:00Z'), /^\d{2}:\d{2}$/)
 })
+
+// ── F3.3/F3.4: a fila e o fechamento provisório na tela do Caixa ───────────
+test('com vendas na fila, o Caixa diz quantas esperam e quanto é — sem esconder', () => {
+  const h = htmlDoCaixa({ ...dados, fila: { pendentes: 2, comErro: 0, total: 50, ultimoErro: null } }, { online: false, ts: Date.now() })
+  assert.ok(/2 operações feitas sem internet/.test(h), 'quantas')
+  assert.ok(/50,00/.test(h), 'quanto')
+  assert.ok(h.includes('data-acao="fila:ver"'))
+})
+
+test('venda que não subiu: a tela diz o erro do painel e oferece tentar de novo e exportar', () => {
+  const h = htmlDoCaixa({ ...dados, fila: { pendentes: 0, comErro: 1, total: 0, ultimoErro: 'Caixa fechado' } }, { online: true, ts: Date.now() })
+  assert.ok(/1 operação não subiu/.test(h))
+  assert.ok(h.includes('Caixa fechado'))
+  assert.ok(h.includes('data-acao="fila:tentar"') && h.includes('data-acao="fila:exportar"'))
+})
+
+test('a movimentação da fila aparece marcada como não sincronizada', () => {
+  const d = { ...dados, movimentacoes: [{ id: 'fila-1', tipo: 'venda', forma: 'dinheiro', valor: 30, descricao: 'Venda L-1 — Ana · não sincronizada', criadoEm: '2026-09-07T11:00:00Z', estornada: false, naoSincronizada: true }].concat(dados.movimentacoes) }
+  const h = htmlDoCaixa(d, { online: false, ts: Date.now(), subaba: 'movimentacoes' })
+  assert.ok(/não sincronizada/.test(h))
+})
+
+test('fechamento provisório: a faixa diz que foi sem internet e sujeito a conferência — e não há mais "Fechar caixa"', () => {
+  const h = htmlDoCaixa({ ...dados, fechamentoProvisorio: { em: '2026-09-07T22:41:00Z', contados: { dinheiro: 200, pix: 0, cartao: 0 } } }, { online: false, ts: Date.now() })
+  assert.ok(/FECHAMENTO PROVISÓRIO/.test(h))
+  assert.ok(/sem internet/.test(h) && /sujeito a conferência/.test(h))
+  assert.ok(!h.includes('data-acao="caixa:fechar"'), 'já foi fechado (provisoriamente)')
+  assert.ok(/200,00/.test(h), 'o que foi contado fica à vista')
+})
+
+test('aguardando conferência: a faixa diz o que o app não viu e abre a conferência — mesmo com o caixa já sem "aberto"', () => {
+  const conf = { caixaId: 'cx1', naoVistas: [{ id: 'x', tipo: 'venda', forma: 'pix', valor: 55, descricao: 'Pedido #12' }], esperado: { dinheiro: 255, pix: 0, cartao: 0 }, contados: { dinheiro: 200, pix: 0, cartao: 0 } }
+  const h = htmlDoCaixa({ ...dados, conferencia: conf }, { online: true, ts: Date.now() })
+  assert.ok(/aguardando conferência/i.test(h))
+  assert.ok(/1 movimentação que o app não viu/.test(h))
+  assert.ok(h.includes('data-acao="caixa:conferencia:abrir"'))
+  assert.ok(!h.includes('data-acao="caixa:fechar"'))
+  const semAberto = htmlDoCaixa({ aberto: null, resumo: {}, esperadoDinheiro: 0, movimentacoes: [], conferencia: conf }, { online: true, ts: Date.now() })
+  assert.ok(h.includes('data-acao="caixa:conferencia:abrir"') && semAberto.includes('data-acao="caixa:conferencia:abrir"'))
+})

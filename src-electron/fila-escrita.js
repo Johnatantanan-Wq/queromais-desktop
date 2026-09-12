@@ -133,6 +133,16 @@ function criarFila({ store, chave, prefixo, agora, gerarId }) {
       total: Math.round(total * 100) / 100,
       ultimoErro: e.length ? e[e.length - 1].erro : null,
       conferencia: !!disco.conferencia,
+      // A lista resumida, para a ficha da fila: o lojista vê o que espera e o que travou.
+      itens: disco.itens.map((i) => {
+        const r = i.resumo || {}
+        const c = i.corpo || {}
+        const cliente = i.tipo === 'venda' ? (r.cliente || 'Consumidor')
+          : i.tipo === 'movimentacao' ? (c.motivo || (c.tipo === 'suprimento' ? 'Suprimento' : 'Sangria'))
+          : 'Fechamento do caixa'
+        const valor = i.tipo === 'venda' ? (Number(r.total) || 0) : i.tipo === 'movimentacao' ? (Number(c.valor) || 0) : (Number(c.dinheiro_contado) || 0)
+        return { id: i.id, tipo: i.tipo, provisorio: i.provisorio, cliente, valor, erro: i.erro, criadoEm: i.criadoEm }
+      }),
       fechamentoProvisorio: fp ? {
         em: fp.corpo.fechado_no_app_em || fp.criadoEm,
         contados: { dinheiro: fp.corpo.dinheiro_contado, pix: fp.corpo.pix_contado, cartao: fp.corpo.cartao_contado },

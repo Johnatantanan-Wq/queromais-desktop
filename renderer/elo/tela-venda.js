@@ -49,9 +49,14 @@ function totais(venda, taxasBairro) {
   return { produtos, entrega, total, troco }
 }
 
+// Sem internet só dinheiro fecha (spec F3): o app não gera QR de Pix, e a decisão é do
+// dono. A frase diz o que fazer, não só que não dá.
+const SEM_INTERNET = 'Sem internet só dá para fechar em dinheiro — Pix e cartão precisam de conexão.'
+
 /** O que ainda falta para poder fechar — a mensagem é a mesma que o painel dá. */
-function oQueFalta(venda, taxasBairro) {
+function oQueFalta(venda, taxasBairro, semInternet) {
   if (!(venda.itens || []).length) return 'Adicione ao menos um item ao pedido.'
+  if (semInternet && (venda.forma || 'dinheiro') !== 'dinheiro') return SEM_INTERNET
   if (venda.tipo === 'entrega') {
     if (!venda.nome.trim()) return 'Entrega precisa do nome do cliente.'
     if (!venda.bairro) return 'Escolha o bairro da entrega.'
@@ -75,12 +80,21 @@ function entrada(attr, valor, placeholder) {
     + ' autocomplete="off" style="width:100%;height:38px;border:1px solid #e5e7eb;border-radius:10px;'
     + 'padding:0 12px;font-family:inherit;font-size:13.5px;color:#111;background:#fff">'
 }
-function escolha(attr, opcoes, atual) {
-  return '<div style="display:flex;gap:8px;flex-wrap:wrap">' + opcoes.map((o) =>
-    '<button type="button" ' + attr + '="' + esc(o.chave) + '" style="flex:1;min-width:96px;height:38px;'
+/** `desligadas` = { chave: motivo }: a opção aparece esmaecida, com o motivo no título. */
+function escolha(attr, opcoes, atual, desligadas) {
+  const off = desligadas || {}
+  return '<div style="display:flex;gap:8px;flex-wrap:wrap">' + opcoes.map((o) => {
+    const motivo = off[o.chave]
+    if (motivo) {
+      return '<button type="button" ' + attr + '="' + esc(o.chave) + '" disabled title="' + esc(motivo) + '"'
+        + ' style="flex:1;min-width:96px;height:38px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:800;'
+        + 'border:1px dashed #e5e7eb;background:#f7f8fa;color:#b3b8c2;cursor:not-allowed">' + esc(o.rotulo) + '</button>'
+    }
+    return '<button type="button" ' + attr + '="' + esc(o.chave) + '" style="flex:1;min-width:96px;height:38px;'
     + 'border-radius:10px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (o.chave === atual
       ? 'border:none;background:var(--acento);color:#fff'
-      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(o.rotulo) + '</button>').join('') + '</div>'
+      : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(o.rotulo) + '</button>'
+  }).join('') + '</div>'
 }
 function botao(acao, rotulo, primaria, largo) {
   return '<button type="button" data-acao="' + esc(acao) + '" style="height:40px;padding:0 18px;border-radius:10px;'
@@ -272,9 +286,10 @@ function etapaProdutos(venda, dados) {
 }
 
 // ── etapa 3: pagamento ──────────────────────────────────────────────────────
-function etapaPagamento(venda, dados) {
+function etapaPagamento(venda, dados, estado) {
+  const semInternet = !!(estado && estado.semInternet)
   const t = totais(venda, dados.taxasBairro)
-  const falta = oQueFalta(venda, dados.taxasBairro)
+  const falta = oQueFalta(venda, dados.taxasBairro, semInternet)
 
   const linha = (rotulo, valor, forte, cor) => '<div style="display:flex;justify-content:space-between;gap:12px;'
     + 'padding:7px 0;font-size:' + (forte ? 16 : 13) + 'px;font-weight:' + (forte ? 800 : 600) + ';color:'
@@ -286,7 +301,13 @@ function etapaPagamento(venda, dados) {
     + linha('Total', brl(t.total), true, 'var(--acento-texto)')
     + (t.troco > 0 ? linha('Troco a separar', brl(t.troco), false, '#8a6508') : '')
 
-  const pagamento = escolha('data-venda-forma', FORMAS, venda.forma)
+  const motivo = 'precisa de internet'
+  const desligadas = semInternet ? { pix: motivo, credito: motivo, debito: motivo } : {}
+  const pagamento = escolha('data-venda-forma', FORMAS, venda.forma, desligadas)
+    + (semInternet
+      ? '<div style="font-size:12px;font-weight:700;color:#8a6508;background:#fff9e8;border-radius:9px;padding:9px 12px;margin-top:12px">'
+        + '⚠ ' + esc(SEM_INTERNET) + '</div>'
+      : '')
     + (venda.forma === 'dinheiro'
       ? '<div style="height:14px"></div>'
         + campo('Troco para quanto?', entrada('data-venda-campo="trocoPara"',
@@ -319,20 +340,38 @@ function etapaPagamento(venda, dados) {
 // ── recibo: o que aparece depois de fechar ──────────────────────────────────
 function recibo(venda, dados) {
   const t = totais(venda, dados.taxasBairro)
+  // A venda feita sem internet tem número PROVISÓRIO (L-3): aparece como é, sem zero à
+  // esquerda, e o recibo diz que ela sobe sozinha. Quando sobe, mostra o oficial.
+  const provisorio = !!venda.provisorio
+  const subiu = provisorio && venda.numeroOficial
+  const numeroTxt = provisorio ? String(venda.numero) : '#' + String(venda.numero).padStart(4, '0')
+  const situacao = subiu
+    ? '<div style="font-size:12.5px;font-weight:700;color:var(--acento-texto);background:var(--acento-suave);border-radius:9px;'
+      + 'padding:9px 12px;margin-top:14px">A venda subiu para o painel: ' + esc(String(venda.numero)) + ' virou o pedido #'
+      + esc(String(venda.numeroOficial)) + '.</div>'
+    : provisorio
+      ? '<div style="font-size:12.5px;font-weight:700;color:#8a6508;background:#fff9e8;border-radius:9px;padding:9px 12px;margin-top:14px">'
+        + 'Feita sem internet — provisória. Sobe sozinha quando a conexão voltar e ganha o número do painel.</div>'
+      : ''
+  const rodape = subiu
+    ? 'A venda entrou na Gestão de pedido, no Caixa e no Extrato com o número do painel.'
+    : provisorio
+      ? 'Enquanto não sobe, ela já conta no Caixa e no quadro de pedidos, marcada como não sincronizada.'
+      : 'A venda entrou na Gestão de pedido, no Caixa e no Extrato.'
   return '<div class="ecard" style="padding:40px 24px;text-align:center;animation:eloFadeUp .4s ease both">'
-    + '<div style="font-size:34px;line-height:1;margin-bottom:12px">✅</div>'
-    + '<div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-.02em">Venda #'
-    + esc(String(venda.numero).padStart(4, '0')) + ' registrada</div>'
+    + '<div style="font-size:34px;line-height:1;margin-bottom:12px">' + (provisorio && !subiu ? '⏳' : '✅') + '</div>'
+    + '<div style="font-size:20px;font-weight:800;color:#111;letter-spacing:-.02em">Venda '
+    + esc(numeroTxt) + ' registrada</div>'
     + '<div style="font-size:13px;color:#9ca3af;font-weight:600;margin-top:6px">'
     + esc(venda.nome || 'Consumidor') + ' · ' + esc(brl(t.total)) + ' · '
     + esc((FORMAS.find((f) => f.chave === venda.forma) || {}).rotulo || '') + '</div>'
     + (t.troco > 0 ? '<div style="font-size:13px;font-weight:800;color:#8a6508;margin-top:8px">Troco: '
       + esc(brl(t.troco)) + '</div>' : '')
+    + situacao
     + '<div style="display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap">'
     + botao('venda:imprimir:' + venda.numero, '🖨 Imprimir comanda', false)
     + botao('venda:nova', '+ Nova venda', true) + '</div>'
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;margin-top:18px">'
-    + 'A venda entrou na Gestão de pedido, no Caixa e no Extrato.</div></div>'
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;margin-top:18px">' + esc(rodape) + '</div></div>'
 }
 
 function htmlVenda(dados, estado) {
@@ -352,7 +391,7 @@ function htmlVenda(dados, estado) {
     + trilhaEtapas(venda.etapa) + '</div>'
 
   const corpo = venda.etapa === 'produtos' ? etapaProdutos(venda, dados)
-    : venda.etapa === 'pagamento' ? etapaPagamento(venda, dados)
+    : venda.etapa === 'pagamento' ? etapaPagamento(venda, dados, estado)
       : etapaCliente(venda, dados)
 
   // A barra de baixo é o que faz o PDV andar sem tirar a mão do balcão.
@@ -375,4 +414,4 @@ function htmlVenda(dados, estado) {
 
 module.exports = {
   clientesQueBatem, MIN_DIGITOS_BUSCA, MIN_LETRAS_BUSCA,
-  tecladoDeTela, TECLAS_NUMERICAS, TECLAS_LETRAS, htmlVenda, vendaVazia, totais, oQueFalta, TIPOS, FORMAS, ETAPAS }
+  tecladoDeTela, TECLAS_NUMERICAS, TECLAS_LETRAS, htmlVenda, vendaVazia, totais, oQueFalta, TIPOS, FORMAS, ETAPAS, SEM_INTERNET }

@@ -55,3 +55,29 @@ test('ficha de item que não existe não quebra', () => {
   assert.ok(/não encontrad/i.test(F.fichaPedido(null)))
   assert.ok(/não encontrad/i.test(F.fichaCliente(null)))
 })
+
+// ── F3.4: conferência do fechamento e a fila ───────────────────────────────
+test('a ficha de conferência lista o que o app não viu, o esperado novo, e deixa confirmar ou deixar para depois', () => {
+  const h = F.fichaConferencia({
+    caixaId: 'cx1', em: '2026-09-12T01:30:00Z',
+    naoVistas: [{ id: 'x', tipo: 'venda', forma: 'pix', valor: 55, descricao: 'Pedido #12', criado_em: '2026-09-12T01:10:00Z' }],
+    esperado: { dinheiro: 255, pix: 0, cartao: 0 }, contados: { dinheiro: 200, pix: 0, cartao: 0 },
+  })
+  assert.ok(h.includes('Pedido #12') && h.includes('55,00'))
+  assert.ok(h.includes('255,00'), 'o esperado depois do que o app não viu')
+  assert.ok(/data-campo="dinheiro" value="200"/.test(h), 'o contado vem preenchido para conferir')
+  assert.ok(h.includes('data-acao="caixa:conferencia:confirmar"') && h.includes('data-acao="caixa:conferencia:depois"'))
+  assert.ok(/não viu/.test(h))
+})
+
+test('a ficha da fila mostra cada operação, o erro de quem não subiu, e as saídas: tentar, exportar, desistir', () => {
+  const h = F.fichaFila({ pendentes: 1, comErro: 1, total: 30, ultimoErro: 'Caixa fechado', itens: [
+    { id: 'a', tipo: 'venda', provisorio: 'L-1', cliente: 'Ana', valor: 30, erro: null, criadoEm: '2026-09-12T01:00:00Z' },
+    { id: 'b', tipo: 'movimentacao', provisorio: null, cliente: 'Sangria', valor: 10, erro: 'Caixa fechado', criadoEm: '2026-09-12T01:05:00Z' },
+  ] })
+  assert.ok(h.includes('L-1') && h.includes('Ana') && h.includes('30,00'))
+  assert.ok(h.includes('Caixa fechado'))
+  assert.ok(h.includes('data-acao="fila:remover:b"'), 'desistir só do que deu erro')
+  assert.ok(!h.includes('data-acao="fila:remover:a"'), 'o que ainda vai subir não se apaga')
+  assert.ok(h.includes('data-acao="fila:tentar"') && h.includes('data-acao="fila:exportar"'))
+})

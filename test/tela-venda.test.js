@@ -196,3 +196,39 @@ test('a lista de sugestoes nunca passa de cinco — e o resto rola', () => {
   const muitos = Array.from({ length: 9 }, (_, i) => ({ nome: 'Cliente ' + i, telefone: '(75) 98811-000' + i }))
   assert.strictEqual(V.clientesQueBatem(muitos, '98811000', '').length, 5)
 })
+
+// ── F3.3: a venda sem internet ─────────────────────────────────────────────
+test('sem internet, Pix e cartão ficam esmaecidos com o motivo — dinheiro segue', () => {
+  const h = V.htmlVenda(cardapio, { venda: comItens({ etapa: 'pagamento' }), semInternet: true })
+  for (const f of ['pix', 'credito', 'debito']) {
+    const bt = h.match(new RegExp('<button[^>]*data-venda-forma="' + f + '"[^>]*>'))
+    assert.ok(bt, 'botão de ' + f)
+    assert.ok(/disabled/.test(bt[0]), f + ' desabilitado')
+    assert.ok(/internet/.test(bt[0]), f + ' diz o motivo')
+  }
+  const dinheiro = h.match(/<button[^>]*data-venda-forma="dinheiro"[^>]*>/)[0]
+  assert.ok(!/disabled/.test(dinheiro))
+  assert.ok(/Sem internet/.test(h), 'a tela diz que só dinheiro fecha')
+  const online = V.htmlVenda(cardapio, { venda: comItens({ etapa: 'pagamento' }), semInternet: false })
+  assert.ok(!/data-venda-forma="pix"[^>]*disabled/.test(online))
+})
+
+test('o recibo da venda feita sem internet diz que é provisória e que sobe depois', () => {
+  const h = V.htmlVenda(cardapio, { venda: comItens({ numero: 'L-3', provisorio: true }) })
+  assert.ok(/Venda L-3/.test(h), 'o número provisório aparece como é')
+  assert.ok(!/0L-3/.test(h), 'não pode preencher com zero à esquerda')
+  assert.ok(/sem internet/i.test(h) && /sobe/.test(h))
+  assert.ok(h.includes('data-acao="venda:imprimir:L-3"'))
+  assert.ok(!/entrou na Gestão de pedido, no Caixa e no Extrato/.test(h), 'não promete o que ainda não subiu')
+})
+
+test('quando a venda sobe, o recibo mostra o número oficial no lugar do provisório', () => {
+  const h = V.htmlVenda(cardapio, { venda: comItens({ numero: 'L-3', provisorio: true, numeroOficial: 1051 }) })
+  assert.ok(/L-3/.test(h) && /#1051/.test(h))
+  assert.ok(/subiu/.test(h))
+})
+
+test('o recibo da venda normal continua com o número do painel', () => {
+  const h = V.htmlVenda(cardapio, { venda: comItens({ numero: 1044 }) })
+  assert.ok(/Venda #1044/.test(h))
+})
