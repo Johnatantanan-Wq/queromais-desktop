@@ -875,6 +875,16 @@ function fichaComanda(cfg) {
     + rodapeFicha('config:cancelar', 'config:comanda:confirmar', 'Salvar comanda')
 }
 
+
+/** Pergunta antes de uma ação que não volta (excluir): o botão que confirma leva a ação dada. */
+function fichaConfirmar(texto, acaoSim, rotuloSim) {
+  return '<div style="font-size:13.5px;color:#111;font-weight:600;line-height:1.55;margin-bottom:18px">' + esc(texto) + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+    + botaoFicha('config:cancelar', 'Cancelar', false)
+    + '<button type="button" data-acao="' + esc(acaoSim) + '" style="height:40px;padding:0 18px;border-radius:10px;font-family:inherit;'
+    + 'font-size:13px;font-weight:800;cursor:pointer;border:none;background:#b42318;color:#fff">' + esc(rotuloSim || 'Confirmar') + '</button></div>'
+}
+
 module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila,
-  fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda,
+  fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda, fichaConfirmar,
   campo, campoSelecao, campoMarcar, campoArea, colunas, tituloSecao, avisoFicha, botaoFicha, brl }

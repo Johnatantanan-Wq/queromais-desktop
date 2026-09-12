@@ -198,3 +198,9 @@ test('ficha da comanda: modelo, fonte, o que mostrar e os textos — e sem a con
   const sem = F.fichaComanda(null)
   assert.ok(/internet/.test(sem) && !sem.includes('config:comanda:confirmar'))
 })
+
+test('fichaConfirmar: a pergunta, o botão que confirma com a ação dada e o que cancela', () => {
+  const h = F.fichaConfirmar('Excluir a conta "BB"? O histórico fica.', 'config:conta:excluir-sim:b1', 'Excluir')
+  assert.ok(h.includes('Excluir a conta'))
+  assert.ok(h.includes('data-acao="config:conta:excluir-sim:b1"') && h.includes('data-acao="config:cancelar"'))
+})

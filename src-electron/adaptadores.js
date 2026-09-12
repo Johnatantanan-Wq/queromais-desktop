@@ -809,10 +809,13 @@ function modalidades(l) {
   return m.join(' · ')
 }
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const SIGLA_DIA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']
 function horariosDaLoja(horarios) {
   if (!horarios || typeof horarios !== 'object') return []
   return DIAS_SEMANA.map((nome, i) => {
-    const h = horarios[i] || horarios[String(i)] || horarios[nome.toLowerCase()]
+    // O painel grava por SIGLA (dom, seg…, o formato do PATCH /api/admin/horarios);
+    // índice e nome inteiro ficam por compatibilidade.
+    const h = horarios[SIGLA_DIA[i]] || horarios[i] || horarios[String(i)] || horarios[nome.toLowerCase()]
     if (!h) return null
     const faixa = h.abre && h.fecha ? h.abre + ' às ' + h.fecha : 'fechado'
     return { rotulo: nome, valor: faixa }

@@ -1451,6 +1451,136 @@ if (typeof document !== 'undefined') {
           Ficha.fichaMovimentacao(tipo, CaixaAcoes.MOTIVOS_SANGRIA))
         return
       }
+      // ── CONFIGURAÇÕES pelo app: cada assunto abre a sua ficha, preenchida com o bruto ──
+      if (acao.indexOf('config:') === 0) {
+        const b = brutoCfg()
+        if (acao === 'config:cancelar') { fecharFicha(); return }
+        if (!b) { avisar('Sem os dados de configuração ainda — recarregue a tela.', 'aviso'); return }
+        const sem = (o, nome) => { if (!o) avisar('Não achei ' + nome + ' na tela — recarregue.', 'erro'); return !o }
+        // abrir as fichas
+        if (acao === 'config:editar:config') { abrirPopup('Dados da loja', Ficha.fichaLoja(b.loja), 760); return }
+        if (acao === 'config:editar:horarios') { abrirPopup('Horários', Ficha.fichaHorarios(b.horarios, b.timezone, b.loja && b.loja.modoHorario), 560); return }
+        if (acao === 'config:editar:rotas') { abrirPopup('Bairros e taxas de entrega', Ficha.fichaBairros(b.bairros), 640); return }
+        if (acao === 'config:forma-nova') { abrirPopup('Nova forma de pagamento', Ficha.fichaForma(null, b.contasFinanceiras), 720); return }
+        if (acao === 'config:conta-nova') { abrirPopup('Nova conta', Ficha.fichaContaFinanceira(null), 480); return }
+        if (acao === 'config:mesas-criar') {
+          const maior = (b.mesas || []).reduce((m, x) => Math.max(m, Number(x.numero) || 0), 0)
+          abrirPopup('Criar mesas', Ficha.fichaMesasCriar(maior + 1), 480); return
+        }
+        if (acao === 'config:colaborador-novo') { abrirPopup('Novo colaborador', Ficha.fichaColaboradorNovo(), 520); return }
+        if (acao === 'config:comanda') { abrirPopup('Comanda impressa', Ficha.fichaComanda(b.comanda), 760); return }
+        // confirmar (mandar)
+        if (acao === 'config:loja:confirmar') {
+          mandarConfig(btAcao, 'config-loja', {
+            nome: campoDaFicha('nome'), telefone: campoDaFicha('telefone'), mapsUrl: campoDaFicha('mapsUrl'),
+            rua: campoDaFicha('rua'), numero: campoDaFicha('numero'), complemento: campoDaFicha('complemento'),
+            bairro: campoDaFicha('bairro'), cidade: campoDaFicha('cidade'), uf: campoDaFicha('uf'), cep: campoDaFicha('cep'),
+            modalidades: ['entrega', 'retirada', 'consumo_local'].filter((m) => marcadoNaFicha('mod:' + m)),
+            balcao: campoDaFicha('balcao'), delivery: campoDaFicha('delivery'), local: campoDaFicha('local'),
+            pixChave: campoDaFicha('pixChave'), numeracaoDiaria: campoDaFicha('numeracaoDiaria') === 'true',
+            modoHorario: campoDaFicha('modoHorario'),
+          })
+          return
+        }
+        if (acao === 'config:horarios:confirmar') {
+          const dias = {}
+          for (const k of ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']) dias[k] = { abre: campoDaFicha('abre:' + k), fecha: campoDaFicha('fecha:' + k) }
+          const modo = campoDaFicha('modoHorario')
+          const modoAtual = (b.loja && b.loja.modoHorario) || 'manual'
+          btAcao.disabled = true
+          // O modo (manual/automático) mora na LOJA, não nos horários: vai por fora.
+          ipcRenderer.invoke('config-horarios', { dias, timezone: campoDaFicha('timezone') }).then((r) => {
+            if (!(r && r.ok)) { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu para salvar.', 'erro'); return null }
+            if (modo && modo !== modoAtual) return ipcRenderer.invoke('config-loja', { modoHorario: modo }).then(() => r)
+            return r
+          }).then((r) => {
+            if (!r) return
+            fecharFicha(); avisar(r.resumo || 'Horários salvos.', 'ok'); carregarTelaNativa(ROTA)
+          }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada foi gravado.', 'erro') })
+          return
+        }
+        if (acao === 'config:bairros:confirmar') {
+          const nomes = camposDaFicha('bairro-nome:'), taxas = camposDaFicha('bairro-taxa:'), ativos = camposDaFicha('bairro-ativo:')
+          const bairros = Object.keys(nomes).map((i) => ({ nome: nomes[i], taxa: taxas[i], ativo: ativos[i] !== false }))
+          mandarConfig(btAcao, 'config-bairros', { bairros, entregaGratisAcima: campoDaFicha('entregaGratisAcima') })
+          return
+        }
+        if (acao === 'config:forma-nova:confirmar') { mandarConfig(btAcao, 'config-forma-nova', { metodo: campoDaFicha('metodo'), ...camposDaForma(false) }); return }
+        if (acao.indexOf('config:forma:confirmar:') === 0) {
+          const forma = (b.formas || []).find((f) => f.id === acao.slice('config:forma:confirmar:'.length))
+          if (sem(forma, 'essa forma')) return
+          mandarConfig(btAcao, 'config-forma-editar', { forma, ...camposDaForma(true) }); return
+        }
+        if (acao.indexOf('config:forma:') === 0) {
+          const forma = (b.formas || []).find((f) => f.id === acao.slice('config:forma:'.length))
+          if (sem(forma, 'essa forma')) return
+          abrirPopup('Forma de pagamento', Ficha.fichaForma(forma, b.contasFinanceiras), 720); return
+        }
+        if (acao.indexOf('config:conta:confirmar:') === 0) {
+          const id = acao.slice('config:conta:confirmar:'.length)
+          const conta = id === 'nova' ? null : (b.contasFinanceiras || []).find((c) => c.id === id)
+          if (id !== 'nova' && sem(conta, 'essa conta')) return
+          mandarConfig(btAcao, 'config-conta-financeira', { conta, nome: campoDaFicha('nome'), tipo: campoDaFicha('tipo'),
+            ...(conta ? { ativo: marcadoNaFicha('ativo') } : {}), diaFechamento: campoDaFicha('diaFechamento'), diaVencimento: campoDaFicha('diaVencimento') })
+          return
+        }
+        if (acao.indexOf('config:conta:excluir-sim:') === 0) {
+          const conta = (b.contasFinanceiras || []).find((c) => c.id === acao.slice('config:conta:excluir-sim:'.length))
+          if (sem(conta, 'essa conta')) return
+          mandarConfig(btAcao, 'config-conta-financeira-excluir', { conta }); return
+        }
+        if (acao.indexOf('config:conta:excluir:') === 0) {
+          const conta = (b.contasFinanceiras || []).find((c) => c.id === acao.slice('config:conta:excluir:'.length))
+          if (sem(conta, 'essa conta')) return
+          abrirPopup('Excluir conta', Ficha.fichaConfirmar('Excluir a conta "' + conta.nome + '"? As formas de pagamento que caíam nela ficam sem conta de destino. Os lançamentos já feitos não mudam.', 'config:conta:excluir-sim:' + conta.id, 'Excluir'), 460)
+          return
+        }
+        if (acao.indexOf('config:conta:') === 0) {
+          const conta = (b.contasFinanceiras || []).find((c) => c.id === acao.slice('config:conta:'.length))
+          if (sem(conta, 'essa conta')) return
+          abrirPopup('Conta', Ficha.fichaContaFinanceira(conta), 480); return
+        }
+        if (acao === 'config:mesas-criar:confirmar') {
+          mandarConfig(btAcao, 'config-mesas-criar', { tipo: campoDaFicha('tipo'), quantidade: campoDaFicha('quantidade'), numeroInicio: campoDaFicha('numeroInicio'), capacidade: campoDaFicha('capacidade') })
+          return
+        }
+        if (acao.indexOf('config:mesa:confirmar:') === 0) {
+          const mesa = (b.mesas || []).find((m) => m.id === acao.slice('config:mesa:confirmar:'.length))
+          if (sem(mesa, 'essa mesa')) return
+          mandarConfig(btAcao, 'config-mesa-editar', { mesa, numero: campoDaFicha('numero'), capacidade: campoDaFicha('capacidade'), reservada: marcadoNaFicha('reservada') }); return
+        }
+        if (acao.indexOf('config:mesa:excluir-sim:') === 0) {
+          const mesa = (b.mesas || []).find((m) => m.id === acao.slice('config:mesa:excluir-sim:'.length))
+          if (sem(mesa, 'essa mesa')) return
+          mandarConfig(btAcao, 'config-mesa-excluir', { mesa }); return
+        }
+        if (acao.indexOf('config:mesa:excluir:') === 0) {
+          const mesa = (b.mesas || []).find((m) => m.id === acao.slice('config:mesa:excluir:'.length))
+          if (sem(mesa, 'essa mesa')) return
+          abrirPopup('Excluir mesa', Ficha.fichaConfirmar('Excluir a mesa ' + mesa.numero + '? Se houver conta aberta nela, o painel recusa.', 'config:mesa:excluir-sim:' + mesa.id, 'Excluir'), 440)
+          return
+        }
+        if (acao.indexOf('config:mesa:') === 0) {
+          const mesa = (b.mesas || []).find((m) => m.id === acao.slice('config:mesa:'.length))
+          if (sem(mesa, 'essa mesa')) return
+          abrirPopup('Mesa ' + mesa.numero, Ficha.fichaMesa(mesa), 440); return
+        }
+        if (acao === 'config:colaborador:confirmar') {
+          mandarConfig(btAcao, 'config-colaborador-novo', { nome: campoDaFicha('nome'), cpf: campoDaFicha('cpf'), senha: campoDaFicha('senha'), funcao: campoDaFicha('funcao'), podeUnirMesas: marcadoNaFicha('podeUnirMesas') })
+          return
+        }
+        if (acao === 'config:comanda:confirmar') {
+          const campos = {}
+          for (const k of ['modelo', 'fonte_familia', 'fonte_peso', 'extra_qr_tipo', 'fonte_escala', 'espacamento_linhas', 'extra_copias',
+            'texto_rodape', 'mensagem_final', 'extra_titulo', 'extra_mensagem', 'extra_qr_url', 'extra_cupom']) campos[k] = campoDaFicha(k)
+          for (const k of ['mostrar_logo', 'mostrar_nome_loja', 'mostrar_telefone_loja', 'mostrar_endereco_loja', 'mostrar_nome_cliente',
+            'mostrar_telefone_cliente', 'mostrar_endereco_cliente', 'mostrar_pagamento', 'mostrar_observacoes', 'mostrar_itens',
+            'mostrar_subtotal', 'mostrar_taxa', 'mostrar_desconto', 'mostrar_cupom', 'adicional_destaque', 'promo_cardapio_proprio',
+            'extra_ativa', 'extra_imprimir_auto']) campos[k] = marcadoNaFicha(k)
+          mandarConfig(btAcao, 'config-comanda', { atual: b.comanda, campos })
+          return
+        }
+      }
       if (acao === 'caixa:fechar') {
         abrirPopup('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA), 560)
         return
@@ -2185,6 +2315,52 @@ if (typeof document !== 'undefined') {
   const campoDaFicha = (nome) => {
     const el = document.querySelector('#eloFicha [data-campo="' + nome + '"]')
     return el ? el.value : ''
+  }
+  /** Caixa de marcar da ficha: ligado ou não (o valor não diz). */
+  const marcadoNaFicha = (nome) => {
+    const el = document.querySelector('#eloFicha [data-campo="' + nome + '"]')
+    return !!(el && el.checked)
+  }
+  /** Campos em lista ('bairro-nome:0', 'bairro-nome:1'…) → { '0': valor, '1': valor }. */
+  const camposDaFicha = (prefixo) => {
+    const r = {}
+    document.querySelectorAll('#eloFicha [data-campo^="' + prefixo + '"]').forEach((el) => {
+      r[el.getAttribute('data-campo').slice(prefixo.length)] = el.type === 'checkbox' ? el.checked : el.value
+    })
+    return r
+  }
+
+  // ── Configurações pelo app: manda a ficha ao canal e devolve o resultado ──
+  function mandarConfig(bt, canal, args) {
+    bt.disabled = true
+    ipcRenderer.invoke(canal, args).then((r) => {
+      if (r && r.ok) {
+        fecharFicha()
+        avisar(r.resumo || 'Salvo.', 'ok')
+        carregarTelaNativa(ROTA)
+      } else {
+        bt.disabled = false
+        avisar((r && r.erro) || 'Não deu para salvar.', 'erro')
+      }
+    }).catch(() => {
+      bt.disabled = false
+      avisar('Não deu para falar com o painel. Nada foi gravado.', 'erro')
+    })
+  }
+  const brutoCfg = () => (DADOS_TELA && DADOS_TELA.bruto) || null
+  /** Os campos da ficha da forma de pagamento, no formato que config-acoes lê. */
+  function camposDaForma(editando) {
+    const tipos = camposDaFicha('tipo:')
+    return {
+      tipos: Object.keys(tipos).filter((k) => tipos[k]),
+      ...(editando ? { habilitado: marcadoNaFicha('habilitado') } : {}),
+      taxaExtra: campoDaFicha('taxaExtra'), taxaExtraTipo: campoDaFicha('taxaExtraTipo'),
+      observacao: campoDaFicha('observacao'), bandeiras: campoDaFicha('bandeiras'),
+      recebimentoImediato: marcadoNaFicha('recebimentoImediato'), geraReceber: marcadoNaFicha('geraReceber'),
+      parcelas: campoDaFicha('parcelas'), diasRecebimento: campoDaFicha('diasRecebimento'), tipoVencimento: campoDaFicha('tipoVencimento'),
+      contaFinanceiraId: campoDaFicha('contaFinanceiraId'),
+      taxaOperadoraPct: campoDaFicha('taxaOperadoraPct'), taxaOperadoraFixa: campoDaFicha('taxaOperadoraFixa'),
+    }
   }
 
   /** Manda a ação do caixa e devolve o resultado para a tela — nunca finge sucesso. */

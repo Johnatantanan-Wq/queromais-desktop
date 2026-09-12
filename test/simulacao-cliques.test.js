@@ -27,6 +27,8 @@ let cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
 let comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
 let contasDoTeste = require('../src-electron/contas-local').criarRegistro()
 let estoqueDoTeste = require('../src-electron/estoque-local').criarRegistro()
+// Configurações em demonstração: as fichas salvam no registro local e a tela reflete.
+let configDoTeste = require('../src-electron/config-local').criarRegistro()
 
 // ── ponte falsa: os mesmos canais que o main registra no modo demonstração ──
 // `modoDemo` desliga para simular o app CONECTADO (sem --demo), que é como o lojista abre.
@@ -147,7 +149,13 @@ function responder(canal, args) {
   if (canal === 'push-carregar') return ok(demo.apoioFinal().push)
   if (canal === 'insights-carregar') return ok(demo.apoioFinal().insights)
   if (canal === 'relatorios-carregar') return ok(demo.apoioFinal().relatorios)
-  if (canal === 'configuracoes-carregar') return ok(demo.apoioFinal().configuracoes)
+  if (canal === 'configuracoes-carregar') return ok(configDoTeste.aplicar(demo.apoioFinal().configuracoes))
+  if (canal.indexOf('config-') === 0) {
+    const d = require('../src-electron/config-envio').CANAIS[canal](args || {})
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    configDoTeste.aplicarDecisao(canal, d, args || {})
+    return { ok: true, resumo: d.resumo, demo: true }
+  }
   if (canal === 'financeiro-abas-carregar') return ok(contasDoTeste.aplicar(demo.telasComAbas().financeiro))
   if (canal === 'conta-baixar') {
     const d = require('../src-electron/contas-acoes').baixa(args.conta, args)
@@ -322,6 +330,7 @@ beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.cria
   whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
   filaDoTeste = new Map()
   filaDoMain = null; respostaVenda = null; respostaFechar = null; caixaExtras = {}
+  configDoTeste = require('../src-electron/config-local').criarRegistro()
   despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
   cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
   comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
@@ -1768,4 +1777,149 @@ test('a faixa da fila abre a ficha da fila; tentar agora e exportar falam com o 
     await esperar(60)
     assert.ok(chamadas.some((x) => x.canal === 'fila-remover' && x.args === 'b'))
   } finally { modoDemo = true }
+})
+
+// ── CONFIGURAÇÕES pelo app: as fichas abrem preenchidas, salvam e a tela reflete ──
+const campoFicha = (nome) => doc.querySelector('#eloFicha [data-campo="' + nome + '"]')
+function digitarNaFicha(nome, valor) { const el = campoFicha(nome); assert.ok(el, 'campo ' + nome); el.value = valor }
+function marcarNaFicha(nome, marcado) { const el = campoFicha(nome); assert.ok(el, 'campo ' + nome); el.checked = marcado }
+async function irParaConfig(aba, sub) {
+  await irPara('/admin/configuracoes')
+  if (aba) { clicar($('[data-aba-cfg="' + aba + '"]')); await esperar(40) }
+  if (sub) { clicar($('[data-sub-cfg="' + sub + '"]')); await esperar(40) }
+}
+
+test('Configurações › Geral: a ficha da loja abre preenchida, salva o que mudou e a tela mostra o novo nome', async () => {
+  await abrirApp()
+  await irParaConfig()
+  clicar($('[data-acao="config:editar:config"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('nome').value, 'Pizzaria Demonstração', 'veio preenchida')
+  digitarNaFicha('nome', 'Pizzaria Nova')
+  digitarNaFicha('delivery', '50')
+  clicar($('[data-acao="config:loja:confirmar"]'))
+  await esperar(100)
+  const c = chamadas.find((x) => x.canal === 'config-loja')
+  assert.ok(c, 'mandou salvar')
+  assert.strictEqual(c.args.nome, 'Pizzaria Nova')
+  assert.strictEqual(c.args.delivery, '50')
+  assert.deepStrictEqual(c.args.modalidades, ['entrega', 'retirada', 'consumo_local'])
+  assert.ok(/Dados da loja salvos/.test(aviso().textContent))
+  assert.ok(!doc.getElementById('eloFicha'), 'a ficha fechou')
+  assert.ok(conteudo().includes('Pizzaria Nova') && conteudo().includes('50'), 'a tela de leitura reflete')
+})
+
+test('Configurações › Formas de pagamento: desligar o Pix pela ficha aparece na lista', async () => {
+  await abrirApp()
+  await irParaConfig('pagamento')
+  clicar($('[data-acao="config:forma:f-pix"]'))
+  await esperar(40)
+  assert.ok(campoFicha('habilitado').checked, 'veio ligada')
+  marcarNaFicha('habilitado', false)
+  clicar($('[data-acao="config:forma:confirmar:f-pix"]'))
+  await esperar(100)
+  const c = chamadas.find((x) => x.canal === 'config-forma-editar')
+  assert.strictEqual(c.args.forma.id, 'f-pix')
+  assert.strictEqual(c.args.habilitado, false)
+  assert.ok(/Pix desligada/.test(aviso().textContent))
+  const linhaPix = conteudo().split('data-acao="config:forma:f-pix"')[0].slice(-400)
+  assert.ok(/desligada/.test(linhaPix), 'a linha do Pix diz desligada')
+})
+
+test('Configurações › Mesas: criar duas em lote soma na lista', async () => {
+  await abrirApp()
+  await irParaConfig('mesas')
+  clicar($('[data-acao="config:mesas-criar"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('numeroInicio').value, '11', 'sugere o próximo número')
+  digitarNaFicha('quantidade', '2')
+  clicar($('[data-acao="config:mesas-criar:confirmar"]'))
+  await esperar(100)
+  assert.ok(/2 mesas criadas \(11 a 12\)/.test(aviso().textContent), aviso().textContent)
+  assert.ok(/12 mesas cadastradas/.test(conteudo()))
+  assert.ok($('[data-acao="config:mesa:m7"]'), 'cada mesa tem Editar')
+})
+
+test('Configurações › Usuário: cadastrar colaborador novo entra na equipe', async () => {
+  await abrirApp()
+  await irParaConfig('geral', 'usuario')
+  clicar($('[data-acao="config:colaborador-novo"]'))
+  await esperar(40)
+  digitarNaFicha('nome', 'Thaís Santana'); digitarNaFicha('cpf', '529.982.247-25'); digitarNaFicha('senha', '123456')
+  campoFicha('funcao').value = 'caixa_operador'
+  clicar($('[data-acao="config:colaborador:confirmar"]'))
+  await esperar(100)
+  assert.ok(/cadastrado/.test(aviso().textContent), aviso().textContent)
+  assert.ok(conteudo().includes('Thaís Santana') && /Caixa — operador/.test(conteudo()))
+})
+
+test('Configurações › Rotas: acrescentar um bairro pela ficha aparece com a taxa', async () => {
+  await abrirApp()
+  await irParaConfig('geral', 'rotas')
+  clicar($('[data-acao="config:editar:rotas"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('bairro-nome:1').value, 'Centro')
+  digitarNaFicha('bairro-nome:4', 'Bairro Novo'); digitarNaFicha('bairro-taxa:4', '4')
+  clicar($('[data-acao="config:bairros:confirmar"]'))
+  await esperar(100)
+  const c = chamadas.find((x) => x.canal === 'config-bairros')
+  assert.ok(c.args.bairros.some((b) => b.nome === 'Bairro Novo' && b.taxa === '4'))
+  assert.ok(/5 bairros salvos/.test(aviso().textContent), aviso().textContent)
+  assert.ok(conteudo().includes('Bairro Novo') && /4,00/.test(conteudo()))
+})
+
+test('Configurações › Horários: fechar o domingo — e trocar o modo manda também para a loja', async () => {
+  await abrirApp()
+  await irParaConfig('geral', 'horarios')
+  clicar($('[data-acao="config:editar:horarios"]'))
+  await esperar(40)
+  digitarNaFicha('abre:dom', ''); digitarNaFicha('fecha:dom', '')
+  campoFicha('modoHorario').value = 'automatico'
+  clicar($('[data-acao="config:horarios:confirmar"]'))
+  await esperar(120)
+  const h = chamadas.find((x) => x.canal === 'config-horarios')
+  assert.deepStrictEqual(h.args.dias.dom, { abre: '', fecha: '' })
+  assert.strictEqual(h.args.dias.seg.abre, '10:00')
+  const l = chamadas.find((x) => x.canal === 'config-loja')
+  assert.ok(l && l.args.modoHorario === 'automatico', 'o modo vai para a loja, que é quem o guarda')
+  assert.ok(/Horários salvos/.test(aviso().textContent))
+  assert.ok(/Domingo[^<]*<\/div>[^<]*<span[^>]*>fechado/.test(conteudo()) || /fechado/.test(conteudo()))
+})
+
+test('Configurações › Contas: criar, e excluir só depois de confirmar', async () => {
+  await abrirApp()
+  await irParaConfig('pagamento')
+  clicar($('[data-acao="config:conta-nova"]'))
+  await esperar(40)
+  digitarNaFicha('nome', 'Inter PJ')
+  clicar($('[data-acao="config:conta:confirmar:nova"]'))
+  await esperar(100)
+  assert.ok(/Inter PJ/.test(conteudo()))
+  clicar($('[data-acao="config:conta:b2"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('nome').value, 'Nubank PJ')
+  clicar($('[data-acao="config:conta:excluir:b2"]'))
+  await esperar(40)
+  assert.ok(!chamadas.some((x) => x.canal === 'config-conta-financeira-excluir'), 'ainda não excluiu: pediu confirmação')
+  clicar($('[data-acao="config:conta:excluir-sim:b2"]'))
+  await esperar(100)
+  assert.ok(chamadas.some((x) => x.canal === 'config-conta-financeira-excluir'))
+  assert.ok(!/Nubank PJ/.test(conteudo()), 'sumiu da lista')
+})
+
+test('Configurações › Impressora: a comanda impressa salva o modelo e o que mostrar', async () => {
+  await abrirApp()
+  await irParaConfig('impressora')
+  clicar($('[data-acao="config:comanda"]'))
+  await esperar(40)
+  campoFicha('modelo').value = 'compacto'
+  marcarNaFicha('mostrar_logo', false)
+  clicar($('[data-acao="config:comanda:confirmar"]'))
+  await esperar(100)
+  const c = chamadas.find((x) => x.canal === 'config-comanda')
+  assert.strictEqual(c.args.campos.modelo, 'compacto')
+  assert.strictEqual(c.args.campos.mostrar_logo, false)
+  assert.strictEqual(c.args.atual.modelo, 'atual', 'leva a configuração atual inteira')
+  assert.ok(/Comanda salva/.test(aviso().textContent))
+  assert.ok(/Modelo compacto/.test(conteudo()))
 })

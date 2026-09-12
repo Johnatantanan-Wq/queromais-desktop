@@ -109,7 +109,9 @@ const DESTINOS = {
   'conta:receber-repasse': { rota: '/admin/financeiro', o: 'confirmar o repasse' },
 
   // ── Configurações ──
-  'config:editar': { rota: '/admin/configuracoes', o: 'editar as configurações' },
+  // Configurações: as fichas são do app (shell.js → config-*). Só o que não tem ficha
+  // (fiscal, integrações, backup) continua sendo do painel — e a tela diz isso.
+  'config': { app: 'configuracoes' },
 
   // Entrar de novo: leva à tela de login do painel. A senha é digitada pelo lojista,
   // no painel — o app nunca guarda nem pede senha.
