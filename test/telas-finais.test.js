@@ -106,7 +106,8 @@ test('Configurações: duas fileiras de abas, como no painel', () => {
   assert.ok(h.includes('data-aba-cfg="fiscal"') && h.includes('data-aba-cfg="whatsapp"'))
   assert.ok(h.includes('data-sub-cfg="horarios"'), 'a segunda fileira só existe dentro de Geral')
   assert.ok(h.includes('Pizzaria Demonstração') && h.includes('Valença'))
-  assert.ok(/pelo painel/i.test(h), 'precisa dizer que editar é no painel')
+  // Sem o bruto (dado antigo) não há como editar: nenhum botão, e nada de prometer.
+  assert.ok(!/data-acao="config:editar/.test(h), 'sem bruto, sem botão de editar')
 })
 
 test('Configurações: campo em branco diz "Não informado", não fica vazio', () => {
@@ -135,4 +136,57 @@ test('as três telas avisam quando não há dado', () => {
 test('escapa o que vem de dado', () => {
   const h = F.htmlConfiguracoes({ abas: { config: [{ titulo: '<b>x', campos: [{ rotulo: 'a', valor: '<script>' }] }] } }, {})
   assert.ok(h.includes('&lt;script&gt;'))
+})
+
+// ── Configurações EDITÁVEIS: cada aba abre a ficha certa, e as listas têm botão por item ──
+const configDemo = require('../src-electron/demo-dados').apoioFinal().configuracoes
+
+test('Configurações: cada assunto tem o SEU botão de editar — não o genérico que abria o painel', () => {
+  const geral = F.htmlConfiguracoes(configDemo, { abaCfg: 'geral', subCfg: 'config' })
+  assert.ok(geral.includes('data-acao="config:editar:config"'))
+  assert.ok(!geral.includes('data-acao="config:editar"'), 'o botão genérico sumiu')
+  assert.ok(!/ainda é pelo painel/.test(geral), 'o rodapé "pelo painel" saiu de onde já dá para editar')
+  assert.ok(F.htmlConfiguracoes(configDemo, { abaCfg: 'geral', subCfg: 'horarios' }).includes('data-acao="config:editar:horarios"'))
+  assert.ok(F.htmlConfiguracoes(configDemo, { abaCfg: 'geral', subCfg: 'rotas' }).includes('data-acao="config:editar:rotas"'))
+})
+
+test('Configurações › Formas de pagamento: uma linha por forma com Editar, nova forma, e as contas com Editar e nova', () => {
+  const h = F.htmlConfiguracoes(configDemo, { abaCfg: 'pagamento' })
+  assert.ok(h.includes('data-acao="config:forma:f-pix"') && h.includes('data-acao="config:forma:f-credito"'))
+  assert.ok(h.includes('data-acao="config:forma-nova"'))
+  assert.ok(/Cartão de crédito/.test(h) && /desligada|ligada/.test(h))
+  assert.ok(h.includes('data-acao="config:conta:b1"') && h.includes('data-acao="config:conta-nova"'))
+  assert.ok(/Banco do Brasil/.test(h))
+})
+
+test('Configurações › Mesas: cada mesa com Editar e o botão de criar em lote', () => {
+  const h = F.htmlConfiguracoes(configDemo, { abaCfg: 'mesas' })
+  assert.ok(h.includes('data-acao="config:mesa:m7"') && h.includes('data-acao="config:mesas-criar"'))
+  assert.ok(/6 lugares/.test(h), 'a mesa 7 tem 6 lugares')
+  assert.ok(/10 mesas/i.test(h))
+})
+
+test('Configurações › Usuário: cadastrar colaborador novo é pelo app', () => {
+  const h = F.htmlConfiguracoes(configDemo, { abaCfg: 'geral', subCfg: 'usuario' })
+  assert.ok(h.includes('data-acao="config:colaborador-novo"'))
+  assert.ok(!/cadastrar usuário novo.*continuam no painel/.test(h))
+})
+
+test('Configurações › Impressora: a comanda impressa tem a sua ficha', () => {
+  const h = F.htmlConfiguracoes(configDemo, { abaCfg: 'impressora' })
+  assert.ok(h.includes('data-acao="config:comanda"'))
+  assert.ok(/Comanda impressa/.test(h))
+})
+
+test('Configurações: o que continua pelo painel (fiscal, integrações, backup) diz isso e não tem botão de editar', () => {
+  for (const aba of ['fiscal', 'integracoes', 'backup']) {
+    const h = F.htmlConfiguracoes(configDemo, { abaCfg: aba })
+    assert.ok(/pelo painel/.test(h), aba + ' avisa')
+    assert.ok(!/data-acao="config:editar/.test(h), aba + ' sem editar')
+  }
+})
+
+test('Configurações: dado antigo sem bruto não quebra — só perde os botões por item', () => {
+  const h = F.htmlConfiguracoes({ abas: configDemo.abas }, { abaCfg: 'pagamento' })
+  assert.ok(h.length > 100 && !h.includes('config:forma:'))
 })

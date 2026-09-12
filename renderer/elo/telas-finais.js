@@ -378,7 +378,61 @@ function equipeDaLoja(lista) {
     + bloco('Com acesso', ativos, false)
     + bloco('Desativados', fora, true)
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:4px">'
-    + 'cadastrar usuário novo e mexer nos acessos por módulo continuam no painel</div>'
+    + 'mexer nos acessos por módulo continua no painel</div>'
+}
+
+// O que cada seção deixa editar AQUI (a ficha certa) e o que continua pelo painel.
+const EDITAVEIS = { config: 'config:editar:config', horarios: 'config:editar:horarios', rotas: 'config:editar:rotas' }
+const PELO_PAINEL = ['fiscal', 'integracoes', 'backup', 'plano', 'gestor', 'cardapio']
+const NOME_METODO = { dinheiro: 'Dinheiro', pix: 'Pix', credito: 'Cartão de crédito', debito: 'Cartão de débito',
+  cartao: 'Cartão', cartao_entrega: 'Cartão na entrega', vale: 'Vale-refeição' }
+const NOME_TIPO_FORMA = { delivery: 'Delivery', retirada: 'Retirada', balcao: 'Balcão', consumo_local: 'Consumo local' }
+const NOME_TIPO_CONTA = { banco: 'Banco', carteira: 'Carteira / caixa', gateway: 'Gateway / repasse', cartao_credito: 'Cartão de crédito' }
+
+function botaoCfg(acao, rotulo, primaria) {
+  return '<button type="button" data-acao="' + esc(acao) + '" style="height:' + (primaria ? 34 : 30) + 'px;padding:0 ' + (primaria ? 14 : 12) + 'px;border-radius:' + (primaria ? 10 : 9) + 'px;'
+    + 'font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;' + (primaria
+      ? 'border:none;background:var(--acento);color:#fff' : 'border:1px solid #e5e7eb;background:#fff;color:#111') + '">' + esc(rotulo) + '</button>'
+}
+function cabecalhoCfg(titulo, botao) {
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 14px">'
+    + '<div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em">' + esc(titulo) + '</div>' + (botao || '') + '</div>'
+}
+function linhaCfg(titulo, sub, botao, apagado) {
+  return '<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #eef0f3' + (apagado ? ';opacity:.6' : '') + '">'
+    + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:800;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(titulo) + '</div>'
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">' + esc(sub) + '</div></div>' + botao + '</div>'
+}
+function cartaoCfg(titulo, botao, linhas) {
+  return '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px;animation:eloFadeUp .5s ease both">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid #eef0f3">'
+    + '<div style="font-size:14px;font-weight:800;color:#111">' + esc(titulo) + '</div>' + (botao || '') + '</div>'
+    + (linhas || '<div class="evazio">Nada cadastrado ainda.</div>') + '</div>'
+}
+
+/** Formas de pagamento e contas: uma linha por item, com Editar — como o gerenciador do painel. */
+function listaPagamento(bruto) {
+  const formas = (bruto.formas || []).map((f) => {
+    const partes = [f.habilitado === false ? 'desligada' : 'ligada']
+    const onde = (f.tipos || []).map((t) => NOME_TIPO_FORMA[t] || t)
+    if (onde.length) partes.push(onde.join(' · '))
+    if (f.dias_recebimento != null && f.dias_recebimento > 0) partes.push('recebe em ' + f.dias_recebimento + (f.tipo_vencimento === 'dias_corridos' ? ' dias' : ' dias úteis'))
+    if (Number(f.taxa_operadora_pct)) partes.push('operadora ' + String(f.taxa_operadora_pct).replace('.', ',') + '%')
+    return linhaCfg(NOME_METODO[f.metodo] || f.metodo, partes.join(' · '), botaoCfg('config:forma:' + f.id, 'Editar'), f.habilitado === false)
+  }).join('')
+  const contas = (bruto.contasFinanceiras || []).map((c) =>
+    linhaCfg(c.nome, (NOME_TIPO_CONTA[c.tipo] || c.tipo) + (c.tipo === 'cartao_credito' && c.diaFechamento ? ' · fecha dia ' + c.diaFechamento + ', vence dia ' + c.diaVencimento : '') + (c.ativo === false ? ' · desativada' : ''),
+      botaoCfg('config:conta:' + c.id, 'Editar'), c.ativo === false)).join('')
+  return cartaoCfg('Formas de pagamento (' + (bruto.formas || []).length + ')', botaoCfg('config:forma-nova', '+ Nova forma', true), formas)
+    + cartaoCfg('Contas de destino (' + (bruto.contasFinanceiras || []).length + ')', botaoCfg('config:conta-nova', '+ Nova conta', true), contas)
+}
+
+/** Mesas: o resumo de leitura e a lista com Editar, mais o criar em lote. */
+function listaMesas(bruto, secoes) {
+  const mesas = bruto.mesas || []
+  const linhas = mesas.map((m) => linhaCfg((m.tipo === 'comanda' ? 'Comanda ' : 'Mesa ') + m.numero,
+    m.capacidade + (m.capacidade === 1 ? ' lugar' : ' lugares') + (m.reservada ? ' · reservada' : ''), botaoCfg('config:mesa:' + m.id, 'Editar'))).join('')
+  return cartaoCfg((mesas.length === 1 ? '1 mesa cadastrada' : mesas.length + ' mesas cadastradas'), botaoCfg('config:mesas-criar', '+ Criar mesas', true), linhas)
 }
 
 function htmlConfiguracoes(dados, estado) {
@@ -386,6 +440,7 @@ function htmlConfiguracoes(dados, estado) {
   if (!dados) return semDados('de configuração')
   const aba = ABAS_CFG.some((a) => a.chave === estado.abaCfg) ? estado.abaCfg : 'geral'
   const sub = SUB_CFG_GERAL.some((x) => x.chave === estado.subCfg) ? estado.subCfg : 'config'
+  const bruto = dados.bruto || null
 
   // `ativa` deixou de existir: a aba escolhida tem UM visual só, no CSS. Duas
   // marcações diferentes na mesma tela (uma cheia, outra suave) faziam a sub-aba
@@ -406,27 +461,40 @@ function htmlConfiguracoes(dados, estado) {
   }
 
   // A sub-aba Usuário (dentro de Geral) deixou de ser ficha de leitura: é a EQUIPE,
-  // com editar, desativar e reativar.
-  if (aba === 'geral' && sub === 'usuario') return cabecalho + equipeDaLoja(dados.abas && dados.abas.usuario)
+  // com editar, desativar, reativar — e cadastrar colaborador novo.
+  if (aba === 'geral' && sub === 'usuario') {
+    return cabecalho + equipeDaLoja(dados.abas && dados.abas.usuario)
+      + '<div style="display:flex;justify-content:flex-end;margin-top:8px">' + botaoCfg('config:colaborador-novo', '+ Novo colaborador', true) + '</div>'
+  }
 
-  const secoes = ((dados.abas || {})[aba === 'geral' ? sub : aba]) || []
-  const titulo = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
-    + 'flex-wrap:wrap;margin:6px 0 14px">'
-    + '<div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em">'
-    + esc(aba === 'geral' ? (SUB_CFG_GERAL.find((x) => x.chave === sub) || {}).rotulo
-      : (ABAS_CFG.find((x) => x.chave === aba) || {}).rotulo) + '</div>'
-    + '<button type="button" data-acao="config:editar" style="height:34px;padding:0 14px;border-radius:10px;'
-    + 'border:none;background:var(--acento);color:#fff;font-family:inherit;font-size:12.5px;font-weight:800;'
-    + 'cursor:pointer">✎ Editar</button></div>'
+  const chave = aba === 'geral' ? sub : aba
+  const secoes = ((dados.abas || {})[chave]) || []
+  const rotulo = aba === 'geral' ? (SUB_CFG_GERAL.find((x) => x.chave === sub) || {}).rotulo : (ABAS_CFG.find((x) => x.chave === aba) || {}).rotulo
 
+  // Formas de pagamento e Mesas são LISTAS com botão por item, como no painel.
+  if (aba === 'pagamento' && bruto) return cabecalho + cabecalhoCfg(rotulo) + listaPagamento(bruto)
+  if (aba === 'mesas' && bruto) {
+    const resumo = secoes.length
+      ? '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px">' + secoes.map((s2) => grupoCfg(s2.titulo, s2.campos, s2.colunas)).join('') + '</div>' : ''
+    return cabecalho + cabecalhoCfg(rotulo) + resumo + listaMesas(bruto, secoes)
+  }
+
+  const botaoEditar = EDITAVEIS[chave] && bruto ? botaoCfg(EDITAVEIS[chave], '✎ Editar', true) : ''
   const corpo = secoes.length
     ? '<div class="ecard" style="padding:0;overflow:hidden;animation:eloFadeUp .5s ease both">'
       + secoes.map((s2) => grupoCfg(s2.titulo, s2.campos, s2.colunas)).join('') + '</div>'
     : '<div class="ecard"><div class="evazio">Esta seção ainda não veio para o app — abra pelo painel.</div></div>'
+  // Impressora: a impressora é da máquina (tela de Impressão); a COMANDA impressa
+  // (modelo, fonte, o que mostrar) é configuração da loja, e tem a sua ficha.
+  const comanda = aba === 'impressora' && bruto
+    ? cartaoCfg('Comanda impressa', botaoCfg('config:comanda', '✎ Editar comanda', true),
+      linhaCfg('Modelo ' + ((bruto.comanda && bruto.comanda.modelo) || '—'),
+        bruto.comanda ? 'fonte ' + (bruto.comanda.fonte_familia || '') + ' · ' + (bruto.comanda.fonte_escala || 100) + '%' : 'sem a configuração — abra com internet', ''))
+    : ''
+  const rodape = PELO_PAINEL.indexOf(chave) >= 0
+    ? '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">alterar esta seção ainda é pelo painel</div>' : ''
 
-  return cabecalho + titulo + corpo
-    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
-    + 'alterar qualquer configuração ainda é pelo painel</div>'
+  return cabecalho + cabecalhoCfg(rotulo, botaoEditar) + corpo + (comanda ? '<div style="height:14px"></div>' + comanda : '') + rodape
 }
 
 module.exports = { htmlInsights, htmlRelatorios, htmlConfiguracoes, equipeDaLoja, PERIODOS_REL, ABAS_REL, ABAS_CFG, SUB_CFG_GERAL }
