@@ -512,6 +512,9 @@ async function createWindow() {
     // tela, sem nenhuma pista de que faltava ENTRAR. Foi o que aconteceu ao abrir o
     // app conectado em 11/09: nada funcionava e a tela não dizia por quê.
     let _semSessao = false
+    // A fila de escrita (F3.3) sobe quando a rede VOLTA — ligada mais abaixo, no app
+    // conectado; em demonstração não existe.
+    let aoVoltarRede = null
     const monitorRede = criarMonitor({
       pingar: async () => {
         const wc = global.cardapioView?.webContents
@@ -531,6 +534,7 @@ async function createWindow() {
       aoMudar: (online) => {
         try { global.mainWindow?.webContents.send('rede-mudou', online) } catch (e) {}
         log.info('[REDE] ' + (online ? 'conectado' : 'sem internet'))
+        if (online && aoVoltarRede) { try { aoVoltarRede() } catch (e) {} }
       },
     })
     if (!DEMO) monitorRede.iniciar()
@@ -585,6 +589,19 @@ async function createWindow() {
         + ").then(r=>r.json().catch(()=>null)).catch(()=>null)", true)
     }
 
+    // Como o de cima, mas devolvendo o STATUS junto: a fila (F3.3) precisa distinguir
+    // rede caída (0), sessão expirada (401), painel recusando (4xx) e servidor fora
+    // (5xx) — cada um leva a uma decisão diferente. View morta = rede caída.
+    const enviarComStatus = async (caminho, corpo, metodo) => {
+      const wc = global.cardapioView?.webContents
+      if (!wc || wc.isDestroyed()) return { status: 0, body: null }
+      const m = metodo || 'POST'
+      return wc.executeJavaScript(
+        "fetch(" + JSON.stringify(caminho) + ",{method:" + JSON.stringify(m) + ",credentials:'include',"
+        + "headers:{'content-type':'application/json'},body:" + JSON.stringify(JSON.stringify(corpo)) + "})"
+        + ".then(r=>r.json().catch(()=>null).then(b=>({status:r.status,body:b}))).catch(()=>({status:0,body:null}))", true)
+    }
+
     // qualquer rota de leitura do painel, pela view logada
     const pedirTela = async (caminho) => {
       const wc = global.cardapioView?.webContents
@@ -594,6 +611,18 @@ async function createWindow() {
     }
 
     ipcMain.handle('app-info', () => ({ demo: DEMO, versao: app.getVersion(), marca: brand.nome_app }))
+
+    // FILA DE ESCRITA (F3.3/F3.4): só no app conectado. Em demonstração fica null, e os
+    // canais de venda/caixa seguem o caminho de sempre.
+    let fila = null
+    let subirFila = async () => {}
+    // O retrato do fechamento: os ids das movimentações que o app tinha do caixa (o
+    // cache guarda o dado CRU do servidor, sem a fila por cima).
+    const movimentacoesVistas = () => {
+      const g = cacheDisco.get('caixa|' + ponte.lojaDaVez(cacheDisco, getConfig().lojaId))
+      const movs = (g && g.body && g.body.movimentacoes) || []
+      return movs.map((m) => m && m.id).filter((id) => id && String(id).indexOf('fila-') !== 0)
+    }
 
     if (DEMO) {
       // Demonstração: nada de rede. Os mesmos canais, com dados fictícios.
@@ -951,8 +980,59 @@ async function createWindow() {
     // gastaria as buscas à toa.
     global.cardapioView.webContents.on('did-finish-load', () => { setTimeout(() => preCarga.rodar(), 4000) })
 
+    // A FILA: o que foi feito sem internet, em disco (cifrado), por loja. Sobe quando a
+    // rede volta, no boot (o app pode ter fechado com fila pendente) e de minuto em
+    // minuto enquanto houver algo. Quem manda é a view logada — a mesma da venda.
+    const filaDisco = makeStore(path.join(app.getPath('userData'), 'fila'), {
+      available: () => safeStorage.isEncryptionAvailable(),
+      encrypt: (texto) => safeStorage.encryptString(texto),
+      decrypt: (buf) => safeStorage.decryptString(Buffer.from(buf)),
+    })
+    const chaveFila = 'fila|' + ponte.lojaDaVez(cacheDisco, getConfig().lojaId)
+    fila = require('./fila-escrita').criarFila({ store: filaDisco, chave: chaveFila, gerarId: () => require('crypto').randomUUID() })
+    if (fila.tamanho()) log.info('[FILA] ' + fila.pendentes().length + ' operação(ões) esperando para subir (' + chaveFila + ')')
+    const aoSubirCaixa = require('./caixa-envio').aoSubirDoCaixa(fila)
+    subirFila = async (opcoes) => {
+      if (!fila.tamanho()) return
+      // "Tentar agora" pelo botão: confere a rede na hora, sem esperar o próximo ping.
+      if (opcoes && opcoes.checar) { try { await monitorRede.checarAgora() } catch (e) {} }
+      const r = await fila.processar({
+        enviar: enviarComStatus,
+        online: () => monitorRede.online() && !_semSessao,
+        aoSubir: (item, body) => {
+          aoSubirCaixa(item, body)
+          log.info('[FILA] ' + item.tipo + ' ' + (item.provisorio || item.id) + ' subiu' + (body && body.numero ? ' → #' + body.numero : ''))
+          if (item.tipo === 'venda') {
+            try { global.mainWindow?.webContents.send('venda-subiu', { provisorio: item.provisorio, numero: body && body.numero, id: body && body.id }) } catch (e) {}
+          }
+        },
+      })
+      if (r && (r.subiram || r.parou)) {
+        log.info('[FILA] subiram ' + r.subiram + (r.parou ? ' · parou: ' + r.parou : '') + ' · restam ' + fila.pendentes().length + (fila.comErro().length ? ' · com erro: ' + fila.comErro().length : ''))
+      }
+      try { global.mainWindow?.webContents.send('fila-mudou', fila.estado()) } catch (e) {}
+    }
+    aoVoltarRede = () => subirFila()
+    global.cardapioView.webContents.on('did-finish-load', () => { setTimeout(() => subirFila(), 6000) })
+    setInterval(() => { if (fila.tamanho()) subirFila() }, 60 * 1000)
+    // Exportar o que não subiu: a última saída quando a fila nunca sobe.
+    ipcMain.handle('fila-exportar', async () => {
+      const { dialog } = require('electron')
+      const nome = 'vendas-pendentes-' + new Date().toISOString().slice(0, 10) + '.json'
+      const escolha = await dialog.showSaveDialog({ defaultPath: path.join(app.getPath('downloads'), nome), filters: [{ name: 'JSON', extensions: ['json'] }] })
+      if (!escolha || escolha.canceled || !escolha.filePath) return { ok: false, cancelado: true }
+      try {
+        require('fs').writeFileSync(escolha.filePath, fila.exportar(), 'utf8')
+        log.info('[FILA] exportada para ' + escolha.filePath)
+        return { ok: true, caminho: escolha.filePath }
+      } catch (e) { return { ok: false, erro: String(e && e.message ? e.message : e) } }
+    })
+    // Desistir de um item com erro (a venda foi lançada de outro jeito, por exemplo).
+    ipcMain.handle('fila-remover', (e, id) => { fila.remover(id); return fila.estado() })
+
     ponte.registrar({
       ipcMain, cache: cacheDisco, monitorRede, preCarga,
+      fila, subirFila: () => subirFila({ checar: true }),
       pedirAoPainel: pedirMenuAoPainel,
       pedirTela,
       lojaIdAtual: () => getConfig().lojaId,
@@ -970,11 +1050,14 @@ async function createWindow() {
     // Venda manual no app conectado: o PDV monta e o painel lança o pedido. No modo
     // demonstração a venda é gravada localmente (vendas-locais.js), então este canal
     // só existe fora dele.
-    if (!DEMO) require('./venda-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    // Com a fila (F3.3): sem internet a venda em dinheiro entra na fila com número
+    // provisório; sangria/suprimento também; o fechamento nasce provisório (F3.4).
+    const online = () => monitorRede.online() && !_semSessao
+    if (!DEMO) require('./venda-envio').registrar({ ipcMain, enviar: enviarAoPainel, enviarComStatus, fila, online, log })
     // Mexer no pedido (aceitar → produzir → pronto → entregar) passa pela mesma view
     // logada. Em demonstração o quadro anda sozinho, sem rede — ver mais acima.
     if (!DEMO) require('./pedido-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
-    if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./caixa-envio').registrar({ ipcMain, enviar: enviarAoPainel, enviarComStatus, fila, online, movimentacoesVistas, log })
     if (!DEMO) require('./whatsapp-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./kds-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./despacho-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })

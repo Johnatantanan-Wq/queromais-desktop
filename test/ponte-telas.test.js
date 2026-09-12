@@ -30,14 +30,15 @@ const respostas = {
   '/api/admin/desktop/pedidos': { itens: [], kpis: {}, contadores: {} },
   '/api/admin/desktop/visao-geral?periodo=mes': { kpis: { faturamento: { valor: 1 } } },
   '/api/admin/desktop/visao-geral?periodo=dia': { kpis: { faturamento: { valor: 2 } } },
+  '/api/admin/caixa/resumo': { aberto: { fundoInicial: 50 }, esperadoDinheiro: 100, resumo: { vendaDinheiro: 50 }, movimentacoes: [{ id: 'srv-1', tipo: 'venda', forma: 'dinheiro', valor: 50 }] },
 }
 
-function pontePronta({ falha = [], loja = 'loja-1' } = {}) {
+function pontePronta({ falha = [], loja = 'loja-1', fila = null, subirFila = null, cache = null } = {}) {
   const r = registrador()
-  const cache = cacheDeTeste()
+  cache = cache || cacheDeTeste()
   const pedidas = []
   ponte.registrar({
-    ipcMain: r.ipcMain, cache,
+    ipcMain: r.ipcMain, cache, fila, subirFila,
     monitorRede: { online: () => true },
     pedirAoPainel: async () => ({ secoes: [] }),
     pedirTela: async (rota) => {
@@ -247,4 +248,52 @@ test('aquecer pelo canal deixa o dado onde a tela vai procurar', async () => {
   // E a tela, chamando o canal dela, encontra o que a pré-carga deixou — sem ir à rede.
   const r = await canais['venda-cardapio'](null, undefined)
   assert.ok(r && r.dados, 'a tela não achou o dado aquecido')
+})
+
+// ── F3.3: a fila somada nas telas, pela ponte ─────────────────────────────
+const { criarFila } = require('../src-electron/fila-escrita')
+function filaComVenda() {
+  const fila = criarFila({ store: cacheDeTeste(), chave: 'fila|loja-1', gerarId: () => 'g' })
+  fila.enfileirar({ tipo: 'venda', caminho: '/api/admin/venda', corpo: { id_cliente_app: 'v1' },
+    resumo: { cliente: 'Ana', total: 30, forma: 'dinheiro', tipo: 'retirada', itens: ['1× Pizza'] } })
+  return fila
+}
+
+test('com a fila, o Caixa e o quadro chegam à tela SOMADOS com o que espera para subir', async () => {
+  const p = pontePronta({ fila: filaComVenda() })
+  const caixa = await p.chamar('caixa-carregar')
+  assert.strictEqual(caixa.dados.fila.pendentes, 1)
+  assert.strictEqual(caixa.dados.esperadoDinheiro, 130)
+  assert.strictEqual(caixa.dados.movimentacoes[0].naoSincronizada, true)
+  assert.strictEqual(caixa.dados.movimentacoes[1].id, 'srv-1')
+  const quadro = await p.chamar('pedidos-carregar')
+  assert.strictEqual(quadro.dados.itens[0].numero, 'L-1')
+  assert.strictEqual(quadro.dados.itens[0].naoSincronizada, true)
+})
+
+test('sem internet, o Caixa do CACHE também vem somado — é exatamente a hora em que isso importa', async () => {
+  const cache = cacheDeTeste()
+  const fila = filaComVenda()
+  await pontePronta({ fila, cache }).chamar('caixa-carregar')          // aquece
+  const semRede = pontePronta({ fila, cache, falha: ['*'] })
+  const r = await semRede.chamar('caixa-carregar')
+  assert.strictEqual(r.offline, true)
+  assert.strictEqual(r.dados.esperadoDinheiro, 130)
+  assert.strictEqual(r.dados.fila.pendentes, 1)
+})
+
+test('sem fila (marca sem shell elo) nada muda no Caixa', async () => {
+  const r = await pontePronta().chamar('caixa-carregar')
+  assert.strictEqual(r.dados.esperadoDinheiro, 100)
+  assert.strictEqual(r.dados.fila, undefined)
+})
+
+test('a tela pergunta o estado da fila e pede para tentar agora — quem sobe é o main', async () => {
+  let subiu = 0
+  const p = pontePronta({ fila: filaComVenda(), subirFila: async () => { subiu++ } })
+  assert.strictEqual((await p.chamar('fila-estado')).pendentes, 1)
+  const depois = await p.chamar('fila-processar')
+  assert.strictEqual(subiu, 1)
+  assert.strictEqual(depois.pendentes, 1, 'devolve o estado de depois da tentativa')
+  assert.ok(!pontePronta().canais.has('fila-estado'), 'sem fila, o canal nem existe')
 })

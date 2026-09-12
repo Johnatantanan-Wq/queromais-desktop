@@ -128,7 +128,21 @@ function iniciarPreCarga({ cache, lojaIdAtual, log, podeRodar, intervaloMs = 10 
 }
 
 /** Registra os canais. Chamado uma vez, no boot do main. */
-function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual, semApi, preCarga }) {
+function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abrirRota, lojaIdAtual, semApi, preCarga, fila, subirFila }) {
+  // FILA (F3.3): o que foi feito sem internet é SOMADO por cima do dado — do servidor
+  // ou do cache — nas telas do Caixa e do quadro, marcado como não sincronizado. Vale
+  // também (e principalmente) quando a tela vem do cache: é a hora da queda.
+  const comFila = (canal, carregar) => {
+    if (!fila) return carregar
+    return async (evento, args) => {
+      const r = await carregar(evento, args)
+      if (!r || !r.dados) return r
+      const FT = require('./fila-telas')
+      if (canal === 'caixa-carregar') return { ...r, dados: FT.aplicarNoCaixa(r.dados, fila) }
+      if (canal === 'pedidos-carregar') return { ...r, dados: FT.aplicarNoQuadro(r.dados, fila) }
+      return r
+    }
+  }
   ipcMain.handle('menu-carregar', () => buscarMenu({ cache, pedirAoPainel, lojaId: lojaIdAtual() }))
   ipcMain.handle('rede-status', () => ({ online: monitorRede.online() }))
   ipcMain.handle('cache-get', (e, chave) => cache.get(chave))
@@ -165,7 +179,7 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
     })),
     valida: (d) => d != null && Object.prototype.hasOwnProperty.call(d, 'aberto'),
   })
-  ipcMain.handle('caixa-carregar', carregarCaixa)
+  ipcMain.handle('caixa-carregar', comFila('caixa-carregar', carregarCaixa))
 
   // As demais telas vêm do catálogo (telas-ponte.js): uma linha por tela, com as
   // rotas do painel, o adaptador e o que conta como resposta boa.
@@ -194,9 +208,19 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
         valida: (d) => d != null,
       })
     }
+    // A pré-carga aquece pelo carregador CRU: ela só precisa encher o cache.
     carregadores[tela.canal] = carregar
     chaves[tela.canal] = () => tela.cache + '|' + lojaDaVez(cache, lojaIdAtual())
-    ipcMain.handle(tela.canal, carregar)
+    ipcMain.handle(tela.canal, comFila(tela.canal, carregar))
+  }
+  // A tela pergunta quantas operações esperam e pede para tentar agora; quem sobe
+  // (pela view logada) é o main — a ponte não fala com a rede.
+  if (fila) {
+    ipcMain.handle('fila-estado', () => fila.estado())
+    ipcMain.handle('fila-processar', async () => {
+      try { if (subirFila) await subirFila() } catch (e) {}
+      return fila.estado()
+    })
   }
   // Entregues para quem mais precisa: a pré-carga aquece pelos MESMOS carregadores.
   if (preCarga && preCarga.ligar) preCarga.ligar({
