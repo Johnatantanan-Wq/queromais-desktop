@@ -133,6 +133,9 @@ if (typeof document !== 'undefined') {
   // O que está guardado para vender sem internet (F3.2). Serve para avisar ANTES da
   // queda: descobrir que falta o cardápio no meio do aperto é tarde demais.
   let PRE_CARGA = null
+  // A fila offline (F3.3): o que foi feito sem internet e espera para subir. null =
+  // o main não tem fila (demonstração). Vem do boot e de cada `fila-mudou`.
+  let FILA = null
   let VIEW = 'cardapio'
   let DEMO = false
   let PERIODO = 'semana'        // Visão geral: dia | ontem | semana | mes
@@ -214,8 +217,29 @@ if (typeof document !== 'undefined') {
         $('chipRede').textContent = PRE_CARGA.pronto ? 'sem internet · dá para vender' : 'sem internet · falta dado'
         $('chipRede').title = PRE_CARGA.aviso
       }
+      // A fila manda no chip: o que espera para subir é a informação mais útil que a
+      // topbar tem — e o que não subiu é vermelho, com o erro no título.
+      if (FILA && (FILA.pendentes || FILA.comErro)) {
+        const base = !ONLINE ? 'sem internet' : (semSessao ? 'entrar no painel' : 'conectado')
+        if (FILA.comErro) {
+          $('chipRede').className = 'echip offline'
+          $('chipRede').textContent = base + ' · ' + FILA.comErro + ' não subiu'
+          $('chipRede').title = (FILA.ultimoErro || 'O painel recusou.') + ' — clique para ver a fila.'
+        } else {
+          $('chipRede').textContent = base + ' · ' + FILA.pendentes + ' na fila'
+          $('chipRede').title = FILA.pendentes + ' operação(ões) feita(s) sem internet esperando para subir — clique para ver.'
+            + (PRE_CARGA && PRE_CARGA.aviso ? ' ' + PRE_CARGA.aviso : '')
+        }
+      }
     }
   }
+
+  /** O estado da fila, perguntado no boot e depois de cada ação que mexe nela. */
+  function lerFila() {
+    ipcRenderer.invoke('fila-estado').then((r) => { if (r) { FILA = r; pintar() } }).catch(() => {})
+  }
+  const FICHA_FILA = 'Esperando para subir'
+  function abrirFichaFila() { abrirPopup(FICHA_FILA, Ficha.fichaFila(FILA || {}), 560) }
 
   // Rota nativa: o app desenha em #econtent e ESCONDE a BrowserView (senão ela
   // fica por cima, cobrindo a tela nativa). Rota web: manda a view para a URL.
@@ -346,7 +370,8 @@ if (typeof document !== 'undefined') {
 
   NATIVAS['/admin/venda'] = {
     canal: 'venda-cardapio',
-    desenhar: (d, e) => TelaVenda.htmlVenda(d, { ...e, venda: VENDA }),
+    // `semInternet` é a REDE, não "veio do cache": sem rede, Pix e cartão esmaecem.
+    desenhar: (d, e) => TelaVenda.htmlVenda(d, { ...e, venda: VENDA, semInternet: !DEMO && !ONLINE }),
     erro: 'Não deu para abrir a venda manual agora.',
   }
 
@@ -622,7 +647,7 @@ if (typeof document !== 'undefined') {
   /** Fecha a venda: manda para o main gravar e mostra o recibo com o número. */
   function fecharVenda() {
     const dados = dadosDaVenda()
-    const falta = TelaVenda.oQueFalta(VENDA, dados.taxasBairro)
+    const falta = TelaVenda.oQueFalta(VENDA, dados.taxasBairro, !DEMO && !ONLINE)
     if (falta) { avisar(falta, 'aviso'); return }
     const t = TelaVenda.totais(VENDA, dados.taxasBairro)
     avisar('Fechando a venda…', 'ok')
@@ -632,7 +657,14 @@ if (typeof document !== 'undefined') {
       trocoPara: Number(VENDA.trocoPara) || 0, itens: VENDA.itens,
       produtos: t.produtos, entrega: t.entrega, total: t.total,
     }).then((r) => {
-      if (r && r.ok) {
+      if (r && r.ok && r.provisorio) {
+        // Sem internet (F3.3): número provisório, e a venda espera na fila.
+        VENDA.numero = r.numero
+        VENDA.provisorio = true
+        avisar('Venda ' + r.numero + ' registrada sem internet · ' + fmtBRLSimples(t.total) + ' — sobe sozinha quando a conexão voltar.', 'aviso')
+        lerFila()
+        redesenharTelaAtual()
+      } else if (r && r.ok) {
         VENDA.numero = r.numero
         avisar('Venda #' + String(r.numero).padStart(4, '0') + ' registrada · ' + fmtBRLSimples(t.total), 'ok')
         redesenharTelaAtual()
@@ -1423,6 +1455,55 @@ if (typeof document !== 'undefined') {
         abrirPopup('Fechar caixa', Ficha.fichaFechamento(DADOS_TELA), 560)
         return
       }
+      // ── F3.4: a conferência do fechamento feito sem internet ──
+      if (acao === 'caixa:conferencia:abrir') {
+        abrirPopup('Conferência do fechamento', Ficha.fichaConferencia(DADOS_TELA && DADOS_TELA.conferencia), 620)
+        return
+      }
+      if (acao === 'caixa:conferencia:depois') { fecharFicha(); return }
+      if (acao === 'caixa:conferencia:confirmar') {
+        mandarAoCaixa(btAcao, 'caixa-conferencia-confirmar', {
+          dinheiro: campoDaFicha('dinheiro'), pix: campoDaFicha('pix'), cartao: campoDaFicha('cartao'),
+          observacao: campoDaFicha('observacao'),
+        })
+        return
+      }
+      // ── F3.3: a fila do que foi feito sem internet ──
+      if (acao === 'fila:ver') { abrirFichaFila(); return }
+      if (acao === 'fila:tentar') {
+        btAcao.disabled = true
+        ipcRenderer.invoke('fila-processar').then((r) => {
+          if (r) FILA = r
+          pintar()
+          const f = FILA || {}
+          avisar(!f.pendentes && !f.comErro ? 'Tudo subiu para o painel.'
+            : (f.comErro ? f.comErro + ' não subiu: ' + (f.ultimoErro || 'o painel recusou.') : f.pendentes + ' ainda esperando — a conexão não voltou.'),
+            !f.pendentes && !f.comErro ? 'ok' : 'aviso')
+          if (document.getElementById('eloFicha')) abrirFichaFila()
+          if (ehNativa(ROTA)) carregarTelaNativa(ROTA, true)
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para tentar agora.', 'erro') })
+        return
+      }
+      if (acao === 'fila:exportar') {
+        btAcao.disabled = true
+        ipcRenderer.invoke('fila-exportar').then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) avisar('Pendentes exportados para ' + r.caminho, 'ok')
+          else if (r && r.cancelado) avisar('Exportação cancelada.', 'aviso')
+          else avisar((r && r.erro) || 'Não deu para exportar.', 'erro')
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para exportar.', 'erro') })
+        return
+      }
+      if (acao.indexOf('fila:remover:') === 0) {
+        ipcRenderer.invoke('fila-remover', acao.slice('fila:remover:'.length)).then((r) => {
+          if (r) FILA = r
+          pintar()
+          avisar('Item retirado da fila — nada foi lançado por ele.', 'aviso')
+          if (document.getElementById('eloFicha')) abrirFichaFila()
+          if (ehNativa(ROTA)) carregarTelaNativa(ROTA, true)
+        }).catch(() => avisar('Não deu para retirar da fila.', 'erro'))
+        return
+      }
       // WhatsApp: dois caminhos, e o botão de cada cartão diz o que falta nele.
       // O pedido abre AQUI, num popup sobre a conversa: quem está falando com o
       // cliente não pode perder a conversa de vista para conferir o pedido.
@@ -1616,7 +1697,7 @@ if (typeof document !== 'undefined') {
       const destino = Acoes.destinoDe(acao)
       if (destino && destino.app === 'comanda') {
         const pedido = acao.indexOf('venda:imprimir:') === 0
-          ? { numero: VENDA.numero, cliente: VENDA.nome || 'Consumidor',
+          ? { numero: VENDA.numero, provisorio: !!VENDA.provisorio, cliente: VENDA.nome || 'Consumidor',
             valor: TelaVenda.totais(VENDA, dadosDaVenda().taxasBairro).total,
             itens: VENDA.itens.map((i) => i.qtd + '× ' + i.nome) }
           : acharNoDado(acao.split(':').pop())
@@ -1962,7 +2043,7 @@ if (typeof document !== 'undefined') {
   function abrirVendaPopup() {
     const desenhar = () => {
       abrirPopup('Venda manual', TelaVenda.htmlVenda(VENDA_POPUP, {
-        online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
+        online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA, semInternet: !DEMO && !ONLINE,
       }), 980, true)
     }
     if (VENDA_POPUP) { desenhar(); return }
@@ -1980,7 +2061,7 @@ if (typeof document !== 'undefined') {
     const corpo = ficha.querySelector('[data-corpo-popup]')
     if (!corpo) return false
     corpo.innerHTML = TelaVenda.htmlVenda(VENDA_POPUP, {
-      online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA,
+      online: ONLINE, ts: Date.now(), demo: DEMO, venda: VENDA, semInternet: !DEMO && !ONLINE,
     })
     return true
   }
@@ -2113,7 +2194,16 @@ if (typeof document !== 'undefined') {
       if (r && r.ok) {
         fecharFicha()
         MOTIVO_CAIXA = null
-        avisar(r.resumo || 'Pronto.', 'ok')
+        // F3.4: o servidor achou movimentação que o app não viu — a conferência abre
+        // na hora, e a tela atrás passa a dizer "aguardando conferência".
+        if (r.conferencia) {
+          avisar(r.resumo || 'Confira o fechamento.', 'aviso')
+          abrirPopup('Conferência do fechamento', Ficha.fichaConferencia(r.conferencia), 620)
+        } else {
+          // Provisório (sem internet) é aviso âmbar, não o verde de "lançado".
+          avisar(r.resumo || 'Pronto.', r.provisorio ? 'aviso' : 'ok')
+        }
+        if (!DEMO) lerFila()
         carregarTelaNativa(ROTA)
       } else {
         bt.disabled = false
@@ -2150,6 +2240,22 @@ if (typeof document !== 'undefined') {
     lerPreCarga()
     pintar()
     if (online) { carregarMenu(); if (ehNativa(ROTA)) carregarTelaNativa(ROTA) }
+  })
+  // A fila mudou (subiu algo, travou algo): o chip e a tela do Caixa/quadro acompanham.
+  ipcRenderer.on('fila-mudou', (e, estado) => {
+    FILA = estado || null
+    pintar()
+    if (ROTA === '/admin/caixa' || ROTA === '/admin/pedidos') carregarTelaNativa(ROTA, true)
+  })
+  // A venda feita sem internet subiu: o número provisório vira o oficial — no recibo,
+  // se ele ainda está aberto, e no aviso.
+  ipcRenderer.on('venda-subiu', (e, a) => {
+    if (!a) return
+    if (VENDA && VENDA.provisorio && String(VENDA.numero) === String(a.provisorio)) {
+      VENDA.numeroOficial = a.numero
+      redesenharTelaAtual()
+    }
+    avisar('A venda ' + a.provisorio + ' subiu para o painel: agora é o pedido #' + a.numero + '.', 'ok')
   })
   // A sessão caiu ou voltou. Quando volta, recarrega tudo: o lojista acabou de entrar
   // e não deve precisar clicar em nada para os números aparecerem.
@@ -2208,4 +2314,19 @@ if (typeof document !== 'undefined') {
   carregarMenu()
   setInterval(carregarMenu, 30000)
   if (!DEMO) { lerPreCarga(); setInterval(lerPreCarga, 5 * 60 * 1000) }
+  // A fila: o app pode ter fechado com venda esperando — no boot, diz quantas.
+  if (!DEMO) {
+    ipcRenderer.invoke('fila-estado').then((r) => {
+      if (!r) return
+      FILA = r
+      pintar()
+      if (r.pendentes || r.comErro) {
+        avisar((r.pendentes ? r.pendentes + ' operação(ões) feita(s) sem internet esperando para subir' : '')
+          + (r.pendentes && r.comErro ? ' · ' : '') + (r.comErro ? r.comErro + ' não subiu: ' + (r.ultimoErro || 'o painel recusou') : '')
+          + '. Clique no chip de rede para ver.', 'aviso')
+      }
+    }).catch(() => {})
+  }
+  // O chip de rede abre a fila quando há algo nela.
+  $('chipRede').addEventListener('click', () => { if (FILA && (FILA.pendentes || FILA.comErro)) abrirFichaFila() })
 }

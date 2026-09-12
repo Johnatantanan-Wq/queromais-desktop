@@ -38,6 +38,12 @@ let painelResponde = true
 let sessaoDoPainel = true
 // O retrato da pré-carga que o main devolveria. null = ainda não perguntou.
 let preCargaDoTeste = null
+// A fila offline (F3.3): null = o main não tem fila (demonstração). Fora dela o shell
+// pergunta o estado no boot e ouve `fila-mudou` / `venda-subiu`.
+let filaDoMain = null
+let respostaVenda = null      // força a resposta de 'venda-registrar' (o main decidindo pela fila)
+let respostaFechar = null     // idem para 'caixa-fechar'
+let caixaExtras = {}          // o que a ponte soma no caixa (fila, fechamentoProvisorio, conferencia)
 let ouvintes = {}
 const chamadas = []
 function responder(canal, args) {
@@ -53,7 +59,12 @@ function responder(canal, args) {
   if (canal === 'app-info') return { demo: modoDemo, versao: 'teste' }
   if (canal === 'rede-status') return { online: true, demo: true }
   if (canal === 'visao-geral-carregar') return ok(demo.visaoGeral((args && args.periodo) || 'semana'))
-  if (canal === 'caixa-carregar') return ok(caixaLocal.aplicar(demo.caixa()))
+  if (canal === 'caixa-carregar') return ok({ ...caixaLocal.aplicar(demo.caixa()), ...caixaExtras })
+  if (canal === 'fila-estado') return filaDoMain
+  if (canal === 'fila-processar') return filaDoMain
+  if (canal === 'fila-exportar') return { ok: true, caminho: '/Users/x/Downloads/vendas-pendentes-2026-09-12.json' }
+  if (canal === 'fila-remover') { if (filaDoMain) filaDoMain = { ...filaDoMain, comErro: 0, itens: filaDoMain.itens.filter((i) => i.id !== args) }; return filaDoMain }
+  if (canal === 'caixa-conferencia-confirmar') return { ok: true, resumo: 'Conferência confirmada — caixa fechado de vez.' }
   if (canal === 'whatsapp-carregar') return ok(whatsDoTeste)
   if (canal === 'conversas-carregar') {
     // Mesmo cruzamento do app: telefone da conversa contra cadastro e pedidos.
@@ -84,7 +95,8 @@ function responder(canal, args) {
   }
   if (canal === 'caixa-fechar') {
     const d = require('../src-electron/caixa-acoes').fechamento({ ...args, caixaAberto: true })
-    return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    return respostaFechar ? respostaFechar(args) : { ok: true, resumo: d.resumo }
   }
   if (canal === 'entrega-concluir' || canal === 'entrega-confirmar') {
     const A = require('../src-electron/caixa-acoes')
@@ -225,7 +237,7 @@ function responder(canal, args) {
       taxasBairro: { Centro: 7.00, 'Praia de Guaibim': 5.00 },
     })
   }
-  if (canal === 'venda-registrar') return registroDeTeste.registrar(args)
+  if (canal === 'venda-registrar') return respostaVenda ? respostaVenda(args) : registroDeTeste.registrar(args)
   if (canal === 'abrir-rota') return { ok: false, demo: true }
   if (canal === 'impressao-comanda' || canal === 'impressao-teste') return { ok: true }
   if (canal === 'relatorio-pdf') return { ok: true, caminho: '/tmp/x.pdf' }
@@ -309,6 +321,7 @@ const vendaNaTela = () => {
 beforeEach(async () => { chamadas.length = 0; etapasDeTeste = pedidosLocais.criarRegistro(); caixaLocal = require('../src-electron/caixa-local').criarRegistro()
   whatsDoTeste = { estado: 'sem_config', provedor: 'desativado', ativo: false, evolution_gerenciada: true }
   filaDoTeste = new Map()
+  filaDoMain = null; respostaVenda = null; respostaFechar = null; caixaExtras = {}
   despachoDoTeste = require('../src-electron/despacho-local').criarRegistro()
   cardapioDoTeste = require('../src-electron/cardapio-local').criarRegistro()
   comprasDoTeste = require('../src-electron/compras-local').criarRegistro()
@@ -1620,4 +1633,139 @@ test('com internet, a pré-carga não polui a topbar', async () => {
     assert.strictEqual(doc.getElementById('chipRede').textContent, 'conectado',
       'o aviso de pré-carga é para a QUEDA, não para o dia a dia')
   } finally { modoDemo = true; preCargaDoTeste = null }
+})
+
+// ── F3.3/F3.4: sem internet — vender, ver a fila, fechar o caixa provisório, conferir ──
+
+/** Monta uma venda em dinheiro até o botão de fechar (o mesmo caminho do lojista). */
+async function montarVendaEmDinheiro() {
+  await irParaVenda()
+  clicar($('[data-venda-tipo="retirada"]'))   // retirada não exige nome nem bairro
+  await esperar(40)
+  clicar($('[data-acao="venda:etapa:produtos"]'))
+  await esperar(40)
+  clicar(doc.querySelector('[data-venda-add]'))
+  await esperar(40)
+  clicar($('[data-acao="venda:etapa:pagamento"]'))
+  await esperar(40)
+}
+
+test('⛔ sem internet: a venda em dinheiro fecha com número provisório, a topbar mostra a fila, e o recibo troca pelo oficial quando sobe', async () => {
+  modoDemo = false
+  try {
+    await abrirApp()
+    avisarDoMain('rede-mudou', false)
+    await esperar(60)
+    respostaVenda = () => ({ ok: true, provisorio: true, numero: 'L-1', id_cliente_app: 'u1' })
+    filaDoMain = { pendentes: 1, comErro: 0, total: 59.9, ultimoErro: null, conferencia: false, fechamentoProvisorio: null,
+      itens: [{ id: 'u1', tipo: 'venda', provisorio: 'L-1', cliente: 'Consumidor', valor: 59.9, erro: null, criadoEm: new Date().toISOString() }] }
+    await montarVendaEmDinheiro()
+    const pix = doc.querySelector('[data-venda-forma="pix"]')
+    assert.ok(pix && pix.disabled, 'sem internet o Pix está esmaecido')
+    clicar($('[data-venda-forma="dinheiro"]'))
+    await esperar(40)
+    clicar($('[data-acao="venda:fechar"]'))
+    await esperar(100)
+    assert.ok(/Venda L-1 registrada/.test(vendaNaTela()), 'recibo provisório: ' + vendaNaTela().slice(0, 300))
+    assert.ok(/sem internet/i.test(vendaNaTela()))
+    assert.ok(/sem internet/i.test(aviso().textContent))
+    assert.ok(/1 na fila/.test(doc.getElementById('chipRede').textContent), 'topbar: ' + doc.getElementById('chipRede').textContent)
+
+    // A rede volta e a venda sobe: o main avisa, o recibo mostra o número do painel.
+    filaDoMain = { ...filaDoMain, pendentes: 0, itens: [] }
+    avisarDoMain('rede-mudou', true)
+    avisarDoMain('venda-subiu', { provisorio: 'L-1', numero: 1051, id: 'p1' })
+    avisarDoMain('fila-mudou', filaDoMain)
+    await esperar(80)
+    assert.ok(/#1051/.test(vendaNaTela()), 'o oficial entrou no recibo: ' + vendaNaTela().slice(0, 300))
+    assert.ok(/1051/.test(aviso().textContent))
+    assert.strictEqual(doc.getElementById('chipRede').textContent, 'conectado')
+  } finally { modoDemo = true }
+})
+
+test('⛔ sem internet: fechar o caixa nasce PROVISÓRIO — a faixa diz, e não há mais botão de fechar', async () => {
+  modoDemo = false
+  try {
+    await abrirApp()
+    avisarDoMain('rede-mudou', false)
+    await esperar(60)
+    await irPara('/admin/caixa')
+    await esperar(60)
+    clicar($('[data-acao="caixa:fechar"]'))
+    await esperar(40)
+    for (const c of ['dinheiro', 'pix', 'cartao']) { const el = doc.querySelector('#eloFicha [data-campo="' + c + '"]'); el.value = c === 'dinheiro' ? '200' : '0' }
+    respostaFechar = () => {
+      caixaExtras = { fechamentoProvisorio: { em: new Date().toISOString(), contados: { dinheiro: 200, pix: 0, cartao: 0 } } }
+      return { ok: true, provisorio: true, resumo: require('../src-electron/caixa-envio').RESUMO_PROVISORIO }
+    }
+    clicar($('[data-acao="caixa:fechar:confirmar"]'))
+    await esperar(120)
+    assert.ok(/PROVISORIAMENTE/.test(aviso().textContent), 'aviso: ' + aviso().textContent)
+    assert.ok(/FECHAMENTO PROVISÓRIO/.test(conteudo()), 'a faixa está na tela')
+    assert.ok(!$('#econtent [data-acao="caixa:fechar"]'), 'não há o que fechar de novo')
+  } finally { modoDemo = true }
+})
+
+test('⛔ o servidor achou o que o app não viu: a conferência abre na hora, e confirmar fecha de vez', async () => {
+  modoDemo = false
+  try {
+    await abrirApp()
+    avisarDoMain('rede-mudou', true)
+    await esperar(60)
+    await irPara('/admin/caixa')
+    await esperar(60)
+    clicar($('[data-acao="caixa:fechar"]'))
+    await esperar(40)
+    for (const c of ['dinheiro', 'pix', 'cartao']) { const el = doc.querySelector('#eloFicha [data-campo="' + c + '"]'); el.value = c === 'dinheiro' ? '200' : '0' }
+    const conf = { caixaId: 'cx1', idClienteApp: 'fx1', naoVistas: [{ id: 'site', tipo: 'venda', forma: 'pix', valor: 55, descricao: 'Pedido #12', criado_em: new Date().toISOString() }],
+      esperado: { dinheiro: 255, pix: 0, cartao: 0 }, contados: { dinheiro: 200, pix: 0, cartao: 0 } }
+    respostaFechar = () => { caixaExtras = { conferencia: conf }; return { ok: true, conferencia: conf, resumo: require('../src-electron/caixa-envio').RESUMO_CONFERENCIA } }
+    clicar($('[data-acao="caixa:fechar:confirmar"]'))
+    await esperar(120)
+    const ficha = doc.getElementById('eloFicha')
+    assert.ok(ficha && /não viu/.test(ficha.innerHTML), 'a ficha de conferência abriu: ' + (ficha ? ficha.innerHTML.slice(0, 200) : 'sem ficha'))
+    assert.ok(ficha.innerHTML.includes('Pedido #12') && ficha.innerHTML.includes('255,00'))
+    assert.ok(/aguardando conferência/i.test(conteudo()), 'e a tela atrás também diz')
+    clicar($('[data-acao="caixa:conferencia:confirmar"]'))
+    await esperar(100)
+    const c = chamadas.find((x) => x.canal === 'caixa-conferencia-confirmar')
+    assert.ok(c, 'o app mandou confirmar')
+    assert.strictEqual(c.args.dinheiro, '200')
+    assert.ok(/Conferência confirmada/.test(aviso().textContent))
+    assert.ok(!doc.getElementById('eloFicha'), 'a ficha fechou')
+  } finally { modoDemo = true }
+})
+
+test('a faixa da fila abre a ficha da fila; tentar agora e exportar falam com o main', async () => {
+  modoDemo = false
+  try {
+    await abrirApp()
+    filaDoMain = { pendentes: 1, comErro: 1, total: 30, ultimoErro: 'Caixa fechado', conferencia: false, fechamentoProvisorio: null,
+      itens: [
+        { id: 'a', tipo: 'venda', provisorio: 'L-1', cliente: 'Ana', valor: 30, erro: null, criadoEm: new Date().toISOString() },
+        { id: 'b', tipo: 'movimentacao', provisorio: null, cliente: 'Depósito', valor: 10, erro: 'Caixa fechado', criadoEm: new Date().toISOString() },
+      ] }
+    caixaExtras = { fila: filaDoMain }
+    avisarDoMain('rede-mudou', true)
+    avisarDoMain('fila-mudou', filaDoMain)
+    await esperar(60)
+    assert.ok(/1 não subiu/.test(doc.getElementById('chipRede').textContent), 'topbar: ' + doc.getElementById('chipRede').textContent)
+    await irPara('/admin/caixa')
+    await esperar(60)
+    assert.ok(/não subiu/.test(conteudo()) && conteudo().includes('Caixa fechado'))
+    clicar($('#econtent [data-acao="fila:ver"]'))
+    await esperar(40)
+    const ficha = doc.getElementById('eloFicha')
+    assert.ok(ficha && ficha.innerHTML.includes('L-1') && ficha.innerHTML.includes('Ana'), 'a ficha da fila abriu')
+    clicar($('#eloFicha [data-acao="fila:tentar"]'))
+    await esperar(60)
+    assert.ok(chamadas.some((x) => x.canal === 'fila-processar'), 'tentar agora pede ao main para subir')
+    clicar($('#eloFicha [data-acao="fila:exportar"]'))
+    await esperar(60)
+    assert.ok(chamadas.some((x) => x.canal === 'fila-exportar'))
+    assert.ok(/vendas-pendentes/.test(aviso().textContent), 'a tela diz onde ficou: ' + aviso().textContent)
+    clicar($('#eloFicha [data-acao="fila:remover:b"]'))
+    await esperar(60)
+    assert.ok(chamadas.some((x) => x.canal === 'fila-remover' && x.args === 'b'))
+  } finally { modoDemo = true }
 })
