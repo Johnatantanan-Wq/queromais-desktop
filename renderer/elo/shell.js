@@ -1219,6 +1219,42 @@ if (typeof document !== 'undefined') {
         abrirPopup((conta.direcao === 'receber' ? 'Receber' : 'Pagar') + ' conta', Ficha.fichaBaixa(conta, hojeBR()), 480)
         return
       }
+      // ── Financeiro pelo app: lançamento avulso, editar e cancelar conta ──
+      if (acao === 'novo-lancamento') { abrirPopup('Novo lançamento', Ficha.fichaLancamento((DADOS_TELA && DADOS_TELA.bancos) || [], hojeBR()), 620); return }
+      if (acao === 'lancamento:confirmar') {
+        mandarConfig(btAcao, 'lancamento-novo', {
+          tipo: campoDaFicha('tipo'), categoria: campoDaFicha('categoria'), descricao: campoDaFicha('descricao'),
+          valor: campoDaFicha('valor'), data: campoDaFicha('data'), centroCusto: campoDaFicha('centroCusto'),
+          forma: campoDaFicha('forma'), contaFinanceiraId: campoDaFicha('contaFinanceiraId'),
+        })
+        return
+      }
+      if (acao.indexOf('conta:editar:confirmar:') === 0) {
+        const conta = contaDaTela(acao.slice('conta:editar:confirmar:'.length))
+        if (!conta) { avisar('Não achei essa conta — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'conta-editar', { conta, descricao: campoDaFicha('descricao'), valor: campoDaFicha('valor'), vencimento: campoDaFicha('vencimento'),
+          contraparte: campoDaFicha('contraparte'), categoria: campoDaFicha('categoria'), observacao: campoDaFicha('observacao') })
+        return
+      }
+      if (acao.indexOf('conta:editar:') === 0) {
+        const conta = contaDaTela(acao.slice('conta:editar:'.length))
+        if (!conta) { avisar('Não achei essa conta na tela — recarregue.', 'erro'); return }
+        abrirPopup('Editar conta', Ficha.fichaContaEditar(conta), 560)
+        return
+      }
+      if (acao.indexOf('conta:cancelar:sim:') === 0 || acao.indexOf('conta:cancelar:serie:') === 0) {
+        const serie = acao.indexOf('conta:cancelar:serie:') === 0
+        const conta = contaDaTela(acao.slice((serie ? 'conta:cancelar:serie:' : 'conta:cancelar:sim:').length))
+        if (!conta) { avisar('Não achei essa conta — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'conta-cancelar', { conta, escopo: serie ? 'serie' : undefined })
+        return
+      }
+      if (acao.indexOf('conta:cancelar:') === 0) {
+        const conta = contaDaTela(acao.slice('conta:cancelar:'.length))
+        if (!conta) { avisar('Não achei essa conta na tela — recarregue.', 'erro'); return }
+        abrirPopup('Cancelar conta', Ficha.fichaContaCancelar(conta), 480)
+        return
+      }
       if (acao === 'conta:baixa:cancelar' || acao === 'conta:nova:cancelar') { fecharFicha(); return }
       if (acao.indexOf('conta:baixa:confirmar:') === 0) {
         const conta = contaDaTela(acao.slice('conta:baixa:confirmar:'.length))
@@ -2347,7 +2383,15 @@ if (typeof document !== 'undefined') {
       avisar('Não deu para falar com o painel. Nada foi gravado.', 'erro')
     })
   }
-  const brutoCfg = () => (DADOS_TELA && DADOS_TELA.bruto) || null
+  // Em Configurações o bruto vem do adaptador; na aba Contas bancárias do Financeiro
+  // as mesmas contas vêm em `bancos` — a ficha é uma só.
+  const brutoCfg = () => {
+    if (DADOS_TELA && DADOS_TELA.bruto) return DADOS_TELA.bruto
+    if (DADOS_TELA && Array.isArray(DADOS_TELA.bancos)) {
+      return { contasFinanceiras: DADOS_TELA.bancos.map((b) => ({ id: b.id, nome: b.nome, tipo: b.tipo, ativo: b.ativo !== false, diaFechamento: b.diaFechamento, diaVencimento: b.diaVencimento })) }
+    }
+    return null
+  }
   /** Os campos da ficha da forma de pagamento, no formato que config-acoes lê. */
   function camposDaForma(editando) {
     const tipos = camposDaFicha('tipo:')

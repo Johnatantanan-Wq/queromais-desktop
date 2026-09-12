@@ -120,7 +120,21 @@ function criarRegistro() {
     return { ...dados, bruto: b, abas }
   }
 
-  return { aplicarDecisao, aplicar }
+  /** A aba Contas bancárias do Financeiro lista as mesmas contas: reflete o que foi salvo aqui. */
+  function aplicarBancos(dados) {
+    if (!dados || (!st.contasNovas.length && !Object.keys(st.contasEditadas).length && !st.contasExcluidas.size)) return dados
+    const bancos = (dados.bancos || []).filter((c) => !st.contasExcluidas.has(c.id))
+      .map((c) => {
+        const e = st.contasEditadas[c.id]
+        return e ? { ...c, nome: e.nome || c.nome, tipo: e.tipo || c.tipo,
+          diaFechamento: e.dia_fechamento != null ? e.dia_fechamento : c.diaFechamento,
+          diaVencimento: e.dia_vencimento != null ? e.dia_vencimento : c.diaVencimento } : c
+      })
+      .concat(st.contasNovas.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo, diaFechamento: c.dia_fechamento || null, diaVencimento: c.dia_vencimento || null })))
+    return { ...dados, bancos }
+  }
+
+  return { aplicarDecisao, aplicar, aplicarBancos }
 }
 
 const ROTULO_PAPEL = { garcom: 'Garçom', atendente: 'Atendente', cozinheiro: 'Cozinheiro', motoboy: 'Entregador',

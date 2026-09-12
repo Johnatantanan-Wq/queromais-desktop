@@ -102,7 +102,9 @@ const DESTINOS = {
   'parceiro:novo': { rota: '/admin/vendedores', o: 'cadastrar parceiro' },
 
   // ── Financeiro ──
-  'novo-lancamento': { rota: '/admin/financeiro', o: 'lançar entrada ou saída' },
+  // Lançamento avulso, editar e cancelar conta: o app FAZ (shell.js → contas-*).
+  'novo-lancamento': { app: 'lancamento' },
+  'lancamento:confirmar': { app: 'lancamento' },
   'exportar': { app: 'pdf' },
   'portal-contabil': { rota: '/admin/contabil', o: 'abrir o Portal do Contador' },
   'fin:limpar-filtros': { app: 'limpar-filtros-fin' },

@@ -65,3 +65,16 @@ test('sem nada aplicado, os dados voltam iguais', () => {
   const b = base()
   assert.deepStrictEqual(r.aplicar(b), b)
 })
+
+test('as contas financeiras salvas também aparecem na aba Contas bancárias do Financeiro', () => {
+  const r = criarRegistro()
+  r.aplicarDecisao('config-conta-financeira', decidir(C.contaFinanceira, null, { nome: 'Inter PJ', tipo: 'banco' }))
+  r.aplicarDecisao('config-conta-financeira', decidir(C.contaFinanceira, { id: 'b1' }, { nome: 'BB corrente', tipo: 'banco' }))
+  r.aplicarDecisao('config-conta-financeira-excluir', decidir(C.contaFinanceiraExcluir, { id: 'b2' }))
+  const d = r.aplicarBancos({ bancos: [{ id: 'b1', nome: 'BB', tipo: 'banco' }, { id: 'b2', nome: 'Nubank', tipo: 'banco' }], movimentoPorConta: [] })
+  assert.deepStrictEqual(d.bancos.map((b) => b.nome), ['BB corrente', 'Inter PJ'])
+  assert.strictEqual(d.bancos[1].tipo, 'banco')
+  const nada = criarRegistro()
+  const b = { bancos: [{ id: 'b1', nome: 'BB', tipo: 'banco' }] }
+  assert.deepStrictEqual(nada.aplicarBancos(b), b)
+})

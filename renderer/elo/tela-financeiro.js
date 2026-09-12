@@ -555,9 +555,12 @@ function abaContas(d, estado, direcao) {
     const pagamento = ['paga', 'recebida'].indexOf(s) >= 0
       ? (FORMA[c.forma] || c.forma || '—') + ' em ' + dataBr(c.liquidadoEm)
       : (c.forma ? (FORMA[c.forma] || c.forma) + ' (previsto)' : '—')
+    // Em aberto: baixa, editar e cancelar são do app (Financeiro pelo app). Quitada: nada.
     const acoes = ['pendente', 'vencida', 'parcial'].indexOf(s) >= 0
-      ? botao((direcao === 'pagar' ? 'conta:liquidar:' : 'conta:receber:') + c.id,
-        direcao === 'pagar' ? 'Liquidar' : 'Receber', true, true)
+      ? '<span style="display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">'
+        + botao((direcao === 'pagar' ? 'conta:liquidar:' : 'conta:receber:') + c.id, direcao === 'pagar' ? 'Liquidar' : 'Receber', true, true)
+        + botao('conta:editar:' + c.id, 'Editar', false, true)
+        + botao('conta:cancelar:' + c.id, 'Cancelar', false, true) + '</span>'
       : '<span style="font-size:11.5px;color:#9ca3af;font-weight:700">—</span>'
     const celulas = [
       { texto: dataBr(c.vencimento) + (c.serie ? ' ↻' : ''), forte: s === 'vencida', cor: s === 'vencida' ? '#b42318' : '#4b5563' },
@@ -581,8 +584,8 @@ function abaContas(d, estado, direcao) {
     ? ['Vencimento', 'Parcela', 'Descrição', 'Cliente / origem', 'Categoria', 'Valor', 'Valor líquido', 'Saldo', 'Situação', 'Recebimento', '']
     : ['Vencimento', 'Sequência', 'Descrição', 'Fornecedor', 'Categoria', 'Valor', 'Saldo', 'Situação', 'Pagamento', '']
   const gradeCss = direcao === 'receber'
-    ? '120px 90px 1fr 160px 130px 120px 120px 120px 110px 150px 120px'
-    : '120px 100px 1fr 170px 140px 120px 120px 110px 160px 120px'
+    ? '120px 90px 1fr 160px 130px 120px 120px 120px 110px 150px 250px'
+    : '120px 100px 1fr 170px 140px 120px 120px 110px 160px 250px'
   const direita = direcao === 'receber' ? [5, 6, 7] : [5, 6]
 
   const corpo = lista.length
@@ -741,8 +744,8 @@ function abaBancos(d, estado) {
 
   const cadastro = contas.length
     ? L.apenasGrade(
-      { colunas: ['Conta', 'Tipo', 'Movimentos', 'Entrou', 'Saiu', 'Saldo'],
-        grade: '1fr 240px 130px 140px 140px 140px', direita: [2, 3, 4, 5] },
+      { colunas: ['Conta', 'Tipo', 'Movimentos', 'Entrou', 'Saiu', 'Saldo', ''],
+        grade: '1fr 240px 130px 140px 140px 140px 100px', direita: [2, 3, 4, 5] },
       contas.map((c) => {
         const m = linhas.find((l) => l.id === c.id) || {}
         const ciclo = c.diaFechamento && c.diaVencimento
@@ -755,13 +758,15 @@ function abaBancos(d, estado) {
           { texto: brl(m.entradas || 0), cor: 'var(--acento-texto)' },
           { texto: brl(m.saidas || 0), cor: '#b42318' },
           { texto: brl(saldo), forte: true, cor: saldo >= 0 ? '#111' : '#b42318' },
+          // Editar é a mesma ficha de Configurações › Formas de pagamento › Contas.
+          { html: botao('config:conta:' + c.id, 'Editar', false, true) },
         ] }
       }),
     )
     : '<div class="evazio">Nenhuma conta cadastrada. É ela que preenche o campo "saiu de qual conta" na baixa — '
       + 'pagamento em dinheiro não pede conta, sai da gaveta do caixa.</div>'
 
-  return kpis + cartao('Movimento por conta' + (d.rotuloPeriodo ? ' · ' + d.rotuloPeriodo : ''), '',
+  return kpis + cartao('Movimento por conta' + (d.rotuloPeriodo ? ' · ' + d.rotuloPeriodo : ''), botao('config:conta-nova', '+ Nova conta', true),
     '<div style="padding:18px">' + cadastro + '</div>', 0.05)
 }
 

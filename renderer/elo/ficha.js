@@ -885,6 +885,54 @@ function fichaConfirmar(texto, acaoSim, rotuloSim) {
     + 'font-size:13px;font-weight:800;cursor:pointer;border:none;background:#b42318;color:#fff">' + esc(rotuloSim || 'Confirmar') + '</button></div>'
 }
 
+
+// ── FINANCEIRO: lançamento avulso, editar conta, cancelar conta ──────────────
+const CA = require('../../src-electron/contas-acoes')
+const dataBRde = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test('' + iso) ? ('' + iso).split('-').reverse().join('/') : ('' + (iso || '')))
+
+/** Uma receita ou despesa que já aconteceu — entra direto no extrato (NovoLancamento do painel). */
+function fichaLancamento(contas, hojeBR) {
+  const opcoesConta = [{ v: '', r: '— sem conta (gaveta / não informar) —' }].concat((contas || []).filter((c) => c.ativo !== false).map((c) => ({ v: c.id, r: c.nome })))
+  const categorias = CA.CATEGORIAS_DESPESA.map((c) => ({ v: c, r: c }))
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Um gasto ou uma entrada avulsa, já paga ou já recebida. '
+    + 'Conta com vencimento (a pagar / a receber) é outra ficha.</div>'
+    + colunas([campoSelecao('Tipo', 'tipo', [{ v: 'despesa', r: 'Despesa (saiu)' }, { v: 'receita', r: 'Receita (entrou)' }], 'despesa', 'trocar o tipo troca as categorias'),
+      campoSelecao('Categoria', 'categoria', categorias, 'Insumos')])
+    + campo('Descrição', 'descricao', '', 'ex.: Conta de luz de setembro')
+    + colunas([campo('Valor', 'valor', ''), campo('Data', 'data', hojeBR || '', 'dd/mm/aaaa')])
+    + colunas([campoSelecao('Centro de custo', 'centroCusto', [{ v: '', r: '— não informar —' }].concat(CA.CENTROS_CUSTO), ''),
+      campoSelecao('Forma', 'forma', [{ v: '', r: '— não informar —' }].concat(CA.FORMAS.map((f) => ({ v: f, r: CA.NOME_FORMA[f] || f }))), '')])
+    + campoSelecao('Conta de destino / origem', 'contaFinanceiraId', opcoesConta, '')
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-bottom:10px">Receita: Vendas · Taxa de serviço · Taxa de entrega · Outras receitas. O select acima troca sozinho ao escolher "Receita".</div>'
+    + rodapeFicha('config:cancelar', 'lancamento:confirmar', 'Lançar')
+}
+
+/** Editar uma conta em aberto. A baixa (pagar/receber) é a ficha de Liquidar. */
+function fichaContaEditar(conta) {
+  const c = conta || {}
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Corrige o que foi lançado. Para pagar ou receber, use a baixa (Liquidar / Receber). '
+    + 'Estornar uma baixa e anexar nota continuam pelo painel.</div>'
+    + campo('Descrição', 'descricao', c.descricao)
+    + colunas([campo('Valor', 'valor', c.valor != null ? numBR(c.valor) : ''), campo('Vencimento', 'vencimento', dataBRde(c.vencimento), 'dd/mm/aaaa')])
+    + colunas([campo(c.direcao === 'receber' ? 'Quem paga' : 'Fornecedor', 'contraparte', c.contraparte || ''), campo('Categoria', 'categoria', c.categoria || '')])
+    + campoArea('Observação', 'observacao', c.observacao || '')
+    + rodapeFicha('config:cancelar', 'conta:editar:confirmar:' + c.id, 'Salvar conta')
+}
+
+/** Cancelar: some da régua, não é apagada. Parcelada oferece a série inteira. */
+function fichaContaCancelar(conta) {
+  const c = conta || {}
+  return '<div style="font-size:13.5px;color:#111;font-weight:600;line-height:1.55;margin-bottom:8px">Cancelar a conta <b>' + esc(c.descricao || '') + '</b>'
+    + (c.valor != null ? ' (' + brl(c.valor) + ')' : '') + '?</div>'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:500;line-height:1.5;margin-bottom:18px">Ela sai da régua de contas e deixa de prometer dinheiro. Não é apagada: fica no histórico como cancelada.'
+    + (c.serie ? ' Esta conta faz parte de uma série parcelada — dá para cancelar só esta ou a série inteira.' : '') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
+    + botaoFicha('config:cancelar', 'Voltar', false)
+    + (c.serie ? '<button type="button" data-acao="conta:cancelar:serie:' + esc(c.id) + '" style="height:40px;padding:0 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;border:1px solid #f3c0bb;background:#fff;color:#b42318">Cancelar a série inteira</button>' : '')
+    + '<button type="button" data-acao="conta:cancelar:sim:' + esc(c.id) + '" style="height:40px;padding:0 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;border:none;background:#b42318;color:#fff">Cancelar esta conta</button>'
+    + '</div>'
+}
+
 module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila,
-  fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda, fichaConfirmar,
+  fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda, fichaConfirmar, fichaLancamento, fichaContaEditar, fichaContaCancelar,
   campo, campoSelecao, campoMarcar, campoArea, colunas, tituloSecao, avisoFicha, botaoFicha, brl }

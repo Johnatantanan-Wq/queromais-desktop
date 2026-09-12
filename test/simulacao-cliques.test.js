@@ -156,7 +156,22 @@ function responder(canal, args) {
     configDoTeste.aplicarDecisao(canal, d, args || {})
     return { ok: true, resumo: d.resumo, demo: true }
   }
-  if (canal === 'financeiro-abas-carregar') return ok(contasDoTeste.aplicar(demo.telasComAbas().financeiro))
+  if (canal === 'financeiro-abas-carregar') return ok(configDoTeste.aplicarBancos(contasDoTeste.aplicar(demo.telasComAbas().financeiro)))
+  if (canal === 'lancamento-novo') {
+    const d = require('../src-electron/contas-acoes').lancamento(args || {})
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    contasDoTeste.lancar(d.corpo); return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'conta-editar') {
+    const d = require('../src-electron/contas-acoes').editar(args.conta, args)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    contasDoTeste.editar(args.conta.id, d.corpo); return { ok: true, resumo: d.resumo }
+  }
+  if (canal === 'conta-cancelar') {
+    const d = require('../src-electron/contas-acoes').cancelar(args.conta, args.escopo)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    contasDoTeste.cancelar(args.conta.id); return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'conta-baixar') {
     const d = require('../src-electron/contas-acoes').baixa(args.conta, args)
     if (!d.ok) return { ok: false, erro: d.motivo }
@@ -1922,4 +1937,70 @@ test('Configurações › Impressora: a comanda impressa salva o modelo e o que 
   assert.strictEqual(c.args.atual.modelo, 'atual', 'leva a configuração atual inteira')
   assert.ok(/Comanda salva/.test(aviso().textContent))
   assert.ok(/Modelo compacto/.test(conteudo()))
+})
+
+// ── FINANCEIRO pelo app: lançamento, editar e cancelar conta, conta bancária ──
+async function irParaFinanceiro(aba) {
+  await irPara('/admin/financeiro')
+  if (aba) { clicar($('[data-aba="' + aba + '"]')); await esperar(60) }
+}
+
+test('Financeiro › Novo lançamento: uma despesa em dinheiro entra no extrato e no livro caixa', async () => {
+  await abrirApp()
+  await irParaFinanceiro()
+  clicar($('[data-acao="novo-lancamento"]'))
+  await esperar(40)
+  assert.ok(campoFicha('descricao'), 'a ficha de lançamento abriu (não o painel)')
+  campoFicha('categoria').value = 'Energia'
+  digitarNaFicha('descricao', 'Conta de luz'); digitarNaFicha('valor', '412,30'); digitarNaFicha('data', '10/09/2026')
+  campoFicha('forma').value = 'dinheiro'
+  clicar($('[data-acao="lancamento:confirmar"]'))
+  await esperar(120)
+  const c = chamadas.find((x) => x.canal === 'lancamento-novo')
+  assert.strictEqual(c.args.categoria, 'Energia')
+  assert.strictEqual(c.args.forma, 'dinheiro')
+  assert.ok(/Despesa lançada/.test(aviso().textContent), aviso().textContent)
+  clicar($('[data-aba="extrato"]')); await esperar(60)
+  clicar($('[data-modo-extrato="detalhado"]') || $('[data-aba="extrato"]')); await esperar(60)
+  assert.ok(conteudo().includes('Conta de luz'), 'está no extrato')
+  clicar($('[data-aba="livro"]')); await esperar(60)
+  assert.ok(conteudo().includes('Conta de luz'), 'foi em dinheiro: está no livro caixa')
+})
+
+test('Financeiro › Contas a pagar: editar o valor e cancelar uma conta, com confirmação', async () => {
+  await abrirApp()
+  await irParaFinanceiro('pagar')
+  clicar($('[data-acao="conta:editar:c1"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('descricao').value.length > 0, true, 'veio preenchida')
+  digitarNaFicha('valor', '1.999,00')
+  clicar($('[data-acao="conta:editar:confirmar:c1"]'))
+  await esperar(120)
+  const e = chamadas.find((x) => x.canal === 'conta-editar')
+  assert.strictEqual(e.args.conta.id, 'c1')
+  assert.strictEqual(e.args.valor, '1.999,00')
+  assert.ok(/1.999,00/.test(conteudo()), 'a linha mostra o valor novo')
+  // c5 vence em setembro (o mês da tela); c2 é de outubro e nem aparece aqui.
+  clicar($('[data-acao="conta:cancelar:c5"]'))
+  await esperar(40)
+  assert.ok(!chamadas.some((x) => x.canal === 'conta-cancelar'), 'pediu confirmação antes')
+  clicar($('[data-acao="conta:cancelar:sim:c5"]'))
+  await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'conta-cancelar' && x.args.conta.id === 'c5'))
+  assert.ok(!$('[data-acao="conta:liquidar:c5"]'), 'a conta cancelada saiu da régua')
+})
+
+test('Financeiro › Contas bancárias: criar uma conta pela mesma ficha de Configurações', async () => {
+  await abrirApp()
+  await irParaFinanceiro('bancos')
+  clicar($('[data-acao="config:conta-nova"]'))
+  await esperar(40)
+  digitarNaFicha('nome', 'Inter PJ')
+  clicar($('[data-acao="config:conta:confirmar:nova"]'))
+  await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'config-conta-financeira' && x.args.nome === 'Inter PJ'))
+  assert.ok(conteudo().includes('Inter PJ'), 'a lista de contas reflete')
+  clicar($('[data-acao="config:conta:b1"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('nome').value, 'Banco do Brasil — corrente', 'editar abre com a conta certa, mesmo fora de Configurações')
 })

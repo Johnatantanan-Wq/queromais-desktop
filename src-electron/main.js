@@ -767,6 +767,19 @@ async function createWindow() {
         registroContas.baixar(a.conta.id, d.corpo.valor, d.corpo.forma_pagamento, d.corpo.data)
         return { ok: true, resumo: d.resumo, quita: d.quita, demo: true }
       })
+      // Financeiro pelo app, em demonstração: lançamento, editar e cancelar ficam na sessão.
+      ipcMain.handle('lancamento-novo', (e, a) => {
+        const d = acoesContas.lancamento(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroContas.lancar(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('conta-editar', (e, a) => {
+        const d = acoesContas.editar(a && a.conta, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroContas.editar(a.conta.id, d.corpo); return { ok: true, resumo: d.resumo, demo: true }
+      })
+      ipcMain.handle('conta-cancelar', (e, a) => {
+        const d = acoesContas.cancelar(a && a.conta, a && a.escopo); if (!d.ok) return { ok: false, erro: d.motivo }
+        registroContas.cancelar(a.conta.id); return { ok: true, resumo: d.resumo, demo: true }
+      })
       ipcMain.handle('conta-nova', (e, a) => {
         const d = acoesContas.nova(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
         registroContas.criar(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
@@ -930,7 +943,8 @@ async function createWindow() {
         const chave = CANAIS_ABAS[canal]
         ipcMain.handle(canal, () => {
           const dadosBrutos = dadosDemo.telasComAbas()[chave]
-          const dados = chave === 'financeiro' ? registroContas.aplicar(dadosBrutos)
+          // As contas bancárias do Financeiro são as mesmas de Configurações: refletem o que foi salvo lá.
+          const dados = chave === 'financeiro' ? registroConfig.aplicarBancos(registroContas.aplicar(dadosBrutos))
             : chave === 'estoque' ? registroEstoque.aplicar(dadosBrutos) : dadosBrutos
           // Financeiro: a venda do app aparece no extrato e no livro caixa, como no painel.
           if (chave === 'financeiro' && registroVendas.listar().length) {

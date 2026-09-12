@@ -134,3 +134,22 @@ test('o mês anda para frente e para trás sem quebrar o ano', () => {
 test('sem dado, o Financeiro avisa em vez de desenhar tabela vazia', () => {
   assert.ok(/sem dados/i.test(F.htmlFinanceiro(null, { aba: 'extrato' })))
 })
+
+// ── Financeiro pelo app: editar/cancelar conta na linha, contas bancárias com Nova/Editar ──
+test('Contas a pagar: a conta em aberto tem Editar e Cancelar além de Liquidar; a quitada não', () => {
+  const h = F.htmlFinanceiro(d, { aba: 'pagar', mesConta: '2026-09' })
+  assert.ok(h.includes('data-acao="conta:liquidar:c1"'))
+  assert.ok(h.includes('data-acao="conta:editar:c1"') && h.includes('data-acao="conta:cancelar:c1"'))
+  assert.ok(!h.includes('data-acao="conta:editar:c3"'), 'c3 está paga: sem editar')
+})
+
+test('Contas bancárias: "+ Nova conta" e Editar por conta — as mesmas fichas de Configurações', () => {
+  const h = F.htmlFinanceiro(d, { aba: 'bancos' })
+  assert.ok(h.includes('data-acao="config:conta-nova"'))
+  assert.ok(h.includes('data-acao="config:conta:b1"') && h.includes('data-acao="config:conta:b3"'))
+})
+
+test('Visão geral: "Novo lançamento" continua lá — e agora é do app', () => {
+  const h = require('../renderer/elo/telas-abas').htmlComAbas('/admin/financeiro', d, { aba: 'visao' })
+  assert.ok(h.includes('data-acao="novo-lancamento"'))
+})

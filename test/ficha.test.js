@@ -204,3 +204,33 @@ test('fichaConfirmar: a pergunta, o botão que confirma com a ação dada e o qu
   assert.ok(h.includes('Excluir a conta'))
   assert.ok(h.includes('data-acao="config:conta:excluir-sim:b1"') && h.includes('data-acao="config:cancelar"'))
 })
+
+// ── Fichas do FINANCEIRO: lançamento avulso, editar conta, cancelar conta ──
+test('ficha de lançamento: receita/despesa, categoria do plano, data de hoje sugerida e a conta de destino', () => {
+  const h = F.fichaLancamento([{ id: 'b1', nome: 'Banco do Brasil — corrente', tipo: 'banco', ativo: true }], '12/09/2026')
+  assert.ok(/data-campo="tipo"/.test(h) && /value="despesa" selected/.test(h))
+  assert.ok(/data-campo="categoria"/.test(h) && /Energia/.test(h) && /Insumos/.test(h))
+  assert.ok(temCampo(h, 'descricao') && temCampo(h, 'valor') && temCampo(h, 'centroCusto') && temCampo(h, 'forma') && temCampo(h, 'contaFinanceiraId'))
+  assert.strictEqual(valorDe(h, 'data'), '12/09/2026')
+  assert.ok(/Banco do Brasil/.test(h))
+  assert.ok(h.includes('data-acao="lancamento:confirmar"') && h.includes('data-acao="config:cancelar"'))
+})
+
+test('ficha de editar conta: vem preenchida e diz o que não se mexe aqui', () => {
+  const h = F.fichaContaEditar({ id: 'c1', direcao: 'pagar', descricao: 'Aluguel', valor: 1400, vencimento: '2026-09-10', categoria: 'Aluguel', contraparte: 'Imobiliária', observacao: '' })
+  assert.strictEqual(valorDe(h, 'descricao'), 'Aluguel')
+  assert.strictEqual(valorDe(h, 'valor'), '1400')
+  assert.strictEqual(valorDe(h, 'vencimento'), '10/09/2026')
+  assert.strictEqual(valorDe(h, 'contraparte'), 'Imobiliária')
+  assert.ok(temCampo(h, 'categoria') && temCampo(h, 'observacao'))
+  assert.ok(h.includes('data-acao="conta:editar:confirmar:c1"'))
+  assert.ok(/baixa/i.test(h), 'lembra que a baixa é outra ficha')
+})
+
+test('ficha de cancelar conta: pergunta, e a parcelada oferece cancelar a série', () => {
+  const uma = F.fichaContaCancelar({ id: 'c1', descricao: 'Aluguel', valor: 1400 })
+  assert.ok(/Aluguel/.test(uma) && uma.includes('data-acao="conta:cancelar:sim:c1"') && !uma.includes('serie'))
+  const serie = F.fichaContaCancelar({ id: 'c4', descricao: 'NF 8821 — parcela 1/3', valor: 1400, serie: 's1' })
+  assert.ok(serie.includes('data-acao="conta:cancelar:sim:c4"') && serie.includes('data-acao="conta:cancelar:serie:c4"'))
+  assert.ok(/série/.test(serie))
+})
