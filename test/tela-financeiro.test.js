@@ -61,7 +61,9 @@ test('Livro Caixa é só a GAVETA: cartão e Pix ficam de fora', () => {
 test('Contas a pagar: os quatro números do MÊS', () => {
   const h = F.htmlFinanceiro(d, { ...base, aba: 'pagar' })
   assert.ok(h.includes('Vencidas') && /A vencer em setembro de 2026/.test(h))
-  assert.ok(/Pagas em setembro de 2026/.test(h) && /Total previsto setembro de 2026/.test(h))
+  // "Total previsto" virou "Total do mês" (painel, 09/09/2026): mostrava previsão num
+  // mês em que tudo já tinha sido pago. É o que saiu mais o que falta sair.
+  assert.ok(/Pagas em setembro de 2026/.test(h) && /Total do mês setembro de 2026/.test(h))
 })
 
 test('Conta vencida NUNCA some do mês, mesmo filtrando outro mês', () => {

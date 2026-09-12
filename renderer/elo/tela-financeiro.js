@@ -1,4 +1,4 @@
-// renderer/elo/tela-financeiro.js — as sete abas do Financeiro.
+// renderer/elo/tela-financeiro.js — as nove abas do Financeiro.
 //
 // Desenhadas olhando as telas reais (app/admin/financeiro/abas/*.tsx). O que estava
 // aqui antes eram cinco tabelas parecidas entre si; no painel cada aba responde uma
@@ -8,8 +8,10 @@
 //   Vendas       → venda a venda, com o que a loja recebeu e o que ainda não entrou
 //   Extrato      → TUDO que entrou e saiu, com saldo corrido e origem rastreável
 //   Livro caixa  → só a GAVETA (dinheiro), que é o que se confere no fim do dia
+//   Despesas     → o GASTO com prestador: o que saiu, para quem, e se a nota chegou
 //   Contas a pagar / a receber → por MÊS PRÓPRIO (vencida nunca some do mês dela)
 //   DRE          → resultado, linha a linha, com o que dá para abrir
+//   Contas bancárias → de onde sai cada pagamento, e o que passou por cada conta
 //
 // Tudo é leitura: liquidar, receber e lançar continuam no painel.
 
@@ -101,9 +103,15 @@ const TOM_CATEGORIA = {
   venda: 'verde', taxa_servico: 'azul', taxa_entrega: 'azul', recebimento: 'verde',
   pagamento: 'vermelho', sangria: 'amarelo', suprimento: 'verde', estorno: 'vermelho', transferencia: 'cinza',
 }
+// Espelha o painel (lib/financeiro/indicadores.ts FORMA_LABEL, 09/09/2026): 'pix' é o
+// que uma PESSOA lançou na porta/balcão — o único que precisa bater no fechamento — e
+// 'pix_online' é o do site/app, já confirmado pelo gateway. `a_receber` como FORMA da
+// venda é CRÉDITO FUNC desde 11/09; onde "A receber" é o balde do que ainda não entrou
+// (repasse, cartão a prazo) o nome antigo continua, porque lá significa outra coisa.
 const FORMA = {
-  dinheiro: 'Dinheiro', pix: 'PIX', cartao: 'Cartão', credito: 'Crédito', debito: 'Débito',
-  cartao_entrega: 'Cartão na entrega', a_receber: 'A receber', boleto: 'Boleto', transferencia: 'Transferência',
+  dinheiro: 'Dinheiro', pix: 'PIX manual', pix_online: 'PIX online (site)',
+  cartao: 'Cartão', credito: 'Crédito', debito: 'Débito',
+  cartao_entrega: 'Cartão na entrega', a_receber: 'CRÉDITO FUNC', boleto: 'Boleto', transferencia: 'Transferência',
 }
 const ORIGEM = { pedido: 'Pedido', conta: 'Conta', caixa: 'Caixa', manual: 'Lançamento manual', repasse: 'Repasse' }
 const SITUACAO_CONTA = {
@@ -153,6 +161,15 @@ function situacaoConta(c, hoje) {
   return (c.vencimento || '') < (hoje || '') ? 'vencida' : 'pendente'
 }
 const saldoDaConta = (c) => Math.max(0, (Number(c.valor) || 0) - (Number(c.valorPago) || 0))
+
+/** ⛔ Conta ESTORNADA ou CANCELADA sai da régua (painel, 09/09/2026): a venda por trás
+ *  deixou de existir. Ficava na lista com "(previsto)" ao lado, prometendo dinheiro que
+ *  ninguém vai depositar. Ela continua no banco — é lá que o histórico do estorno
+ *  explica a diferença. */
+function contaNaRegua(c) {
+  const s = c && (c.situacao || (c.cancelada ? 'cancelada' : ''))
+  return s !== 'estornada' && s !== 'estornado' && s !== 'cancelada' && s !== 'cancelado'
+}
 
 // ── Vendas ──────────────────────────────────────────────────────────────────
 function abaVendas(d, estado) {
@@ -491,7 +508,7 @@ function filtrarContas(contas, mes, estado, hoje) {
 function abaContas(d, estado, direcao) {
   const hoje = d.hoje || new Date().toISOString().slice(0, 10)
   const mes = estado.mesConta || hoje.slice(0, 7)
-  const todas = (d.contas || []).filter((c) => c.direcao === direcao)
+  const todas = (d.contas || []).filter((c) => c.direcao === direcao && contaNaRegua(c))
   const resumo = resumoContas(todas, mes, hoje)
   const lista = filtrarContas(todas, mes, estado, hoje)
   const emAbertoNaLista = lista.filter((c) => ['pendente', 'vencida', 'parcial'].indexOf(situacaoConta(c, hoje)) >= 0)
@@ -502,13 +519,17 @@ function abaContas(d, estado, direcao) {
       { r: 'Vencidas', v: brl(resumo.vencidas.valor), s: resumo.vencidas.qtd + ' conta(s)', c: resumo.vencidas.qtd ? '#b42318' : 'var(--acento-texto)' },
       { r: 'A vencer em ' + mesLabel(mes), v: brl(resumo.aVencer.valor), s: resumo.aVencer.qtd + ' conta(s)', c: '#8a6508' },
       { r: 'Pagas em ' + mesLabel(mes), v: brl(resumo.quitadas.valor), s: resumo.quitadas.qtd + ' conta(s)', c: 'var(--acento-texto)' },
-      { r: 'Total previsto ' + mesLabel(mes), v: brl(resumo.totalMes.valor), s: resumo.totalMes.qtd + ' conta(s)', c: '#1d4ed8' },
+      { r: 'Total do mês ' + mesLabel(mes), v: brl(resumo.totalMes.valor),
+        s: resumo.totalMes.qtd + ' conta(s) · pago + a pagar', c: '#1d4ed8' },
     ]
     : [
       { r: 'Atrasadas', v: brl(resumo.vencidas.valor), s: resumo.vencidas.qtd + ' conta(s)', c: resumo.vencidas.qtd ? '#b42318' : 'var(--acento-texto)' },
       { r: 'A receber em ' + mesLabel(mes), v: brl(resumo.aVencer.valor), s: resumo.aVencer.qtd + ' conta(s)', c: '#8a6508' },
       { r: 'Recebidas em ' + mesLabel(mes), v: brl(resumo.quitadas.valor), s: resumo.quitadas.qtd + ' conta(s)', c: 'var(--acento-texto)' },
-      { r: 'Total previsto ' + mesLabel(mes), v: brl(resumo.totalMes.valor), s: resumo.totalMes.qtd + ' conta(s)', c: '#1d4ed8' },
+      // Era "Total previsto": mostrava previsão num mês em que tudo já tinha sido
+      // recebido. É o total do MÊS — o que entrou mais o que falta entrar.
+      { r: 'Total do mês ' + mesLabel(mes), v: brl(resumo.totalMes.valor),
+        s: resumo.totalMes.qtd + ' conta(s) · recebido + a receber', c: '#1d4ed8' },
       { r: 'Em aberto (todos os meses)', v: brl(resumo.emAberto.valor), s: resumo.emAberto.qtd + ' conta(s) · igual à Visão geral', c: resumo.emAberto.qtd ? '#8a6508' : 'var(--acento-texto)' },
     ])
 
@@ -648,6 +669,102 @@ function abaDre(d, estado) {
     + (centros ? '<div style="height:18px"></div>' + centros : '')
 }
 
+// ── Despesas ────────────────────────────────────────────────────────────────
+//
+// ⛔ DESPESA NÃO É CONTA A PAGAR (regra do dono no painel, 09/09/2026): conta a pagar é
+// a OBRIGAÇÃO — quanto devo, para quando, se já paguei. Despesa é o GASTO — o que saiu,
+// para quem, e se o documento fiscal chegou. Por isso aqui NÃO existe coluna de
+// pagamento, botão de pagar, nem a palavra "vencimento": isso é a aba vizinha, que lê a
+// mesma tabela pelo outro ângulo. A rota só entrega gasto de SERVIÇO, então uma linha
+// nunca aparece nas duas.
+const FISCAL_DESPESA = {
+  documentada: { rotulo: 'NF registrada', etiqueta: 'verde' },
+  pendente: { rotulo: 'Pendente de NFS-e', etiqueta: 'amarelo' },
+  nao_se_aplica: { rotulo: '—', etiqueta: 'cinza' },
+}
+
+function abaDespesas(d, estado) {
+  const linhas = d.despesas || []
+  const r = d.resumoDespesas || {}
+  const total = r.total != null ? r.total : linhas.reduce((s, x) => s + (Number(x.valor) || 0), 0)
+  const documentado = r.documentado != null ? r.documentado
+    : linhas.filter((x) => x.fiscal === 'documentada').reduce((s, x) => s + (Number(x.valor) || 0), 0)
+  const pendente = r.pendente != null ? r.pendente
+    : linhas.filter((x) => x.fiscal === 'pendente').reduce((s, x) => s + (Number(x.valor) || 0), 0)
+  const qtdPendente = r.qtdPendente != null ? r.qtdPendente : linhas.filter((x) => x.fiscal === 'pendente').length
+
+  const kpis = faixaKpis([
+    { r: 'Total', v: brl(total), s: linhas.length + ' despesa(s)' },
+    { r: 'Com nota fiscal', v: brl(documentado), s: 'documento chegou', c: 'var(--acento-texto)' },
+    { r: 'Pendente de NFS-e' + (qtdPendente ? ' · ' + qtdPendente : ''), v: brl(pendente), s: 'falta o documento', c: '#8a6508' },
+  ])
+
+  const corpo = linhas.length
+    ? '<div style="padding:18px">' + L.apenasGrade(
+      { colunas: ['Data', 'Descrição', 'Prestador', 'Valor', 'Nota fiscal'],
+        grade: '120px 1fr 220px 140px 180px', direita: [3] },
+      linhas.map((x) => {
+        const f = FISCAL_DESPESA[x.fiscal] || FISCAL_DESPESA.nao_se_aplica
+        return { chave: x.id, celulas: [
+          dataBr(x.data), { texto: x.descricao || '—', cor: '#111' }, x.prestador || '—',
+          { texto: brl(x.valor), forte: true, cor: '#111' },
+          x.fiscal === 'nao_se_aplica' ? '—' : { texto: f.rotulo, etiqueta: f.etiqueta },
+        ] }
+      }),
+    ) + '</div>'
+    : '<div class="evazio">Nenhuma despesa de serviço lançada. Gasto com prestador — entregador, contador, manutenção — aparece aqui.</div>'
+
+  return kpis + cartao('Despesas', '', corpo, 0.05)
+}
+
+// ── Contas bancárias ────────────────────────────────────────────────────────
+//
+// De onde sai cada pagamento. O quadro do período sai do MESMO extrato da aba Extrato
+// (regime de caixa): não é saldo de banco, é o que passou por aqui no período escolhido.
+// Cartão de crédito tem ciclo — é ele que junta as compras numa fatura só.
+const TIPO_CONTA = { banco: 'Banco', caixa: 'Caixa/carteira', cartao_credito: 'Cartão de crédito',
+  poupanca: 'Poupança', outro: 'Outra' }
+
+function abaBancos(d, estado) {
+  const contas = d.bancos || []
+  const linhas = d.movimentoPorConta || []
+  const soma = (campo) => linhas.reduce((s, l) => s + (Number(l[campo]) || 0), 0)
+  const entradas = soma('entradas'), saidas = soma('saidas')
+
+  const kpis = faixaKpis([
+    { r: 'Contas cadastradas', v: String(contas.length), s: 'onde o dinheiro passa' },
+    { r: 'Entrou no período', v: brl(entradas), s: d.rotuloPeriodo || '', c: 'var(--acento-texto)' },
+    { r: 'Saiu no período', v: brl(saidas), s: d.rotuloPeriodo || '', c: '#b42318' },
+    { r: 'Saldo do período', v: brl(entradas - saidas), s: 'entrou menos saiu',
+      c: entradas - saidas >= 0 ? 'var(--acento-texto)' : '#b42318' },
+  ])
+
+  const cadastro = contas.length
+    ? L.apenasGrade(
+      { colunas: ['Conta', 'Tipo', 'Movimentos', 'Entrou', 'Saiu', 'Saldo'],
+        grade: '1fr 240px 130px 140px 140px 140px', direita: [2, 3, 4, 5] },
+      contas.map((c) => {
+        const m = linhas.find((l) => l.id === c.id) || {}
+        const ciclo = c.diaFechamento && c.diaVencimento
+          ? ' · fecha dia ' + c.diaFechamento + ', vence dia ' + c.diaVencimento : ''
+        const saldo = (Number(m.entradas) || 0) - (Number(m.saidas) || 0)
+        return { chave: c.id, celulas: [
+          { texto: c.nome, forte: true, cor: '#111' },
+          (TIPO_CONTA[c.tipo] || c.tipo || '—') + ciclo,
+          String(m.movimentos || 0),
+          { texto: brl(m.entradas || 0), cor: 'var(--acento-texto)' },
+          { texto: brl(m.saidas || 0), cor: '#b42318' },
+          { texto: brl(saldo), forte: true, cor: saldo >= 0 ? '#111' : '#b42318' },
+        ] }
+      }),
+    )
+    : '<div class="evazio">Nenhuma conta cadastrada. É ela que preenche o campo "saiu de qual conta" na baixa — '
+      + 'pagamento em dinheiro não pede conta, sai da gaveta do caixa.</div>'
+
+  return kpis + cartao('Movimento por conta' + (d.rotuloPeriodo ? ' · ' + d.rotuloPeriodo : ''), '',
+    '<div style="padding:18px">' + cadastro + '</div>', 0.05)
+}
+
 /** Ponto de entrada: a aba escolhida manda. */
 function htmlFinanceiro(dados, estado) {
   estado = estado || {}
@@ -656,14 +773,16 @@ function htmlFinanceiro(dados, estado) {
   if (aba === 'vendas') return abaVendas(dados, estado)
   if (aba === 'extrato') return abaExtrato(dados, estado)
   if (aba === 'livro') return abaLivroCaixa(dados, estado)
+  if (aba === 'despesas') return abaDespesas(dados, estado)
   if (aba === 'pagar') return abaContas(dados, estado, 'pagar')
   if (aba === 'receber') return abaContas(dados, estado, 'receber')
   if (aba === 'dre') return abaDre(dados, estado)
+  if (aba === 'bancos') return abaBancos(dados, estado)
   return null   // 'visao' tem tela própria (telas-principais.js)
 }
 
 module.exports = {
   htmlFinanceiro, mesLabel, somaMes, dataBr, rotuloParcela, situacaoConta, saldoDaConta,
   filtrarMovimentos, totaisMovimento, consolidarPorDia, resumoContas, filtrarContas,
-  CATEGORIA_MOV, FORMA, ORIGEM, SITUACAO_CONTA, POR_PAGINA,
+  CATEGORIA_MOV, FORMA, ORIGEM, SITUACAO_CONTA, POR_PAGINA, FISCAL_DESPESA, TIPO_CONTA, contaNaRegua,
 }

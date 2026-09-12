@@ -135,6 +135,23 @@ function responder(canal, args) {
     contasDoTeste.baixar(args.conta.id, d.corpo.valor, d.corpo.forma_pagamento, d.corpo.data)
     return { ok: true, resumo: d.resumo, quita: d.quita }
   }
+  if (canal === 'usuario-editar') {
+    const d = require('../src-electron/usuarios-acoes').editar(args.usuario, args.campos)
+    return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
+  }
+  if (canal === 'usuario-ativar') {
+    const d = require('../src-electron/usuarios-acoes').ativar(args.usuario, args.ligado)
+    return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
+  }
+  if (canal === 'estoque-reabrir-nota') {
+    const d = require('../src-electron/estoque-acoes').reabrirNota(args.nota)
+    return d.ok ? { ok: true, resumo: d.resumo } : { ok: false, erro: d.motivo }
+  }
+  if (canal === 'conta-parcelas') {
+    const d = require('../src-electron/contas-acoes').nova({ ...args, direcao: 'pagar',
+      descricao: args.descricao || 'x', parcelas: Math.max(2, Math.floor(Number(args.parcelas) || 2)) })
+    return d.ok ? { ok: true, parcelas: d.parcelas || [] } : { ok: false, erro: d.motivo }
+  }
   if (canal === 'conta-nova') {
     const d = require('../src-electron/contas-acoes').nova(args)
     if (!d.ok) return { ok: false, erro: d.motivo }
@@ -1325,4 +1342,190 @@ test('Gestão: fornecedor com CNPJ curto é recusado sem fechar o popup', async 
   await esperar(80)
   assert.ok(/14 dígitos/.test(aviso().textContent), aviso().textContent)
   assert.ok(doc.getElementById('eloFicha'), 'fica aberto para corrigir')
+})
+
+// ── Varredura por ABA ───────────────────────────────────────────────────────
+// A varredura de cima entra em cada item do MENU. Só que as telas mais novas moram
+// dentro de ABAS (Financeiro › Despesas, Gestão › Prestadores, Entregadores ›
+// Fechamentos) e de SUBABAS (Caixa › NF pendentes) — e um clique nelas nunca tinha sido
+// dado por teste nenhum. Uma aba que não desenha, ou um botão mudo lá dentro, passava.
+
+test('toda ABA de toda tela abre e desenha conteúdo', async () => {
+  await abrirApp()
+  const hrefs = [...doc.querySelectorAll('.erailitem')].map((i) => i.getAttribute('data-href'))
+  const vazias = []
+  for (const href of hrefs) {
+    await irPara(href)
+    const abas = [...doc.querySelectorAll('#econtent [data-aba]')].map((b) => b.getAttribute('data-aba'))
+    for (const aba of abas) {
+      const bt = doc.querySelector('#econtent [data-aba="' + aba + '"]')
+      if (!bt) continue
+      clicar(bt)
+      await esperar(60)
+      const html = conteudo()
+      // Aba que não desenha nada, ou que desenha só a própria barra de abas, está vazia.
+      const corpo = html.replace(/<div class="eabas">[\s\S]*?<\/div>\s*/, '')
+      if (corpo.replace(/<[^>]+>/g, '').trim().length < 20) vazias.push(href + ' › ' + aba)
+      if (/undefined|NaN/.test(html)) vazias.push(href + ' › ' + aba + ' (undefined/NaN)')
+    }
+  }
+  assert.deepStrictEqual(vazias, [], 'abas sem conteúdo: ' + vazias.join(', '))
+})
+
+test('toda SUBABA (Caixa) abre e desenha conteúdo', async () => {
+  await abrirApp()
+  await irPara('/admin/caixa')
+  const subabas = [...doc.querySelectorAll('#econtent [data-subaba]')].map((b) => b.getAttribute('data-subaba'))
+  assert.ok(subabas.includes('nf'), 'a aba NF pendentes tem que existir na loja que emite nota: ' + subabas.join(', '))
+  for (const s of subabas) {
+    clicar(doc.querySelector('#econtent [data-subaba="' + s + '"]'))
+    await esperar(60)
+    const html = conteudo()
+    assert.ok(html.replace(/<[^>]+>/g, '').trim().length > 40, 'subaba vazia: ' + s)
+    assert.ok(!/undefined|NaN/.test(html), 'subaba com undefined/NaN: ' + s)
+  }
+})
+
+test('nenhum botão morre calado DENTRO das abas', async () => {
+  await abrirApp()
+  const hrefs = [...doc.querySelectorAll('.erailitem')].map((i) => i.getAttribute('data-href'))
+  const mudos = []
+  for (const href of hrefs) {
+    await irPara(href)
+    const abas = [...doc.querySelectorAll('#econtent [data-aba]')].map((b) => b.getAttribute('data-aba'))
+    for (const aba of abas) {
+      const btAba = doc.querySelector('#econtent [data-aba="' + aba + '"]')
+      if (!btAba) continue
+      clicar(btAba)
+      await esperar(60)
+      const quantos = Math.min(4, doc.querySelectorAll('#econtent [data-acao]').length)
+      for (let i = 0; i < quantos; i++) {
+        const b = doc.querySelectorAll('#econtent [data-acao]')[i]
+        if (!b) break
+        const acao = b.getAttribute('data-acao')
+        aviso().className = ''
+        const antes = conteudo()
+        clicar(b)
+        await esperar(40)
+        const respondeu = aviso().className.includes('on') || conteudo() !== antes
+          || doc.getElementById('eloFicha') || chamadas.some((c) => c.canal === 'abrir-rota')
+        if (!respondeu) mudos.push(href + ' › ' + aba + ' → ' + acao)
+        chamadas.length = 0
+        const f = doc.getElementById('eloFicha')
+        if (f) f.remove()
+        // A ação pode ter trocado de aba: volta para ela antes do próximo botão.
+        const volta = doc.querySelector('#econtent [data-aba="' + aba + '"]')
+        if (volta && !volta.className.includes('is-on')) { clicar(volta); await esperar(50) }
+      }
+    }
+  }
+  assert.deepStrictEqual(mudos, [], 'botões mudos dentro de abas: ' + mudos.join(', '))
+})
+
+test('conta parcelada: a grade aparece antes de lançar, e a soma fecha com o total', async () => {
+  await abrirApp()
+  await irParaContasAPagar()
+  clicar($('[data-acao="conta:nova:pagar"]'))
+  await esperar(60)
+  const preencher = (campo, valor) => { doc.querySelector('#eloFicha [data-campo="' + campo + '"]').value = valor }
+  preencher('descricao', 'NF 8821 Laticínios')
+  preencher('valor', '4.200,00')
+  preencher('vencimento', '10/10/2026')
+  preencher('documento', '8821')
+  preencher('parcelas', '3')
+  clicar(doc.querySelector('#eloFicha [data-acao="conta:nova:parcelar:pagar"]'))
+  await esperar(80)
+  const popup = doc.getElementById('eloFicha').innerHTML
+  assert.match(popup, /As 3 parcelas/, 'a grade não apareceu')
+  assert.match(popup, /R\$ 1\.400,00/)
+  assert.match(popup, /Soma/)
+  // O que já estava digitado não pode sumir quando o popup se redesenha.
+  assert.strictEqual(doc.querySelector('#eloFicha [data-campo="descricao"]').value, 'NF 8821 Laticínios')
+  assert.strictEqual(doc.querySelector('#eloFicha [data-campo="parcelas"]').value, '3')
+
+  clicar(doc.querySelector('#eloFicha [data-acao="conta:nova:confirmar:pagar"]'))
+  await esperar(80)
+  const envio = chamadas.filter((c) => c.canal === 'conta-nova').pop()
+  assert.ok(envio, 'a conta não foi lançada')
+  assert.strictEqual(envio.args.parcelas, '3')
+  assert.strictEqual(envio.args.documento, '8821')
+  assert.match(aviso().textContent, /3x/, 'o aviso tem que dizer que foram 3 parcelas')
+})
+
+// ── Configurações › Equipe, e a NF que reabre ──────────────────────────────
+
+async function irParaEquipe() {
+  await irPara('/admin/configuracoes')
+  clicar(doc.querySelector('#econtent [data-sub-cfg="usuario"]'))
+  await esperar(60)
+}
+
+test('toda SUB-ABA de Configurações abre e desenha', async () => {
+  await abrirApp()
+  await irPara('/admin/configuracoes')
+  const subs = [...doc.querySelectorAll('#econtent [data-sub-cfg]')].map((b) => b.getAttribute('data-sub-cfg'))
+  assert.ok(subs.includes('usuario'), 'a sub-aba Usuário tem que existir: ' + subs.join(', '))
+  for (const s2 of subs) {
+    clicar(doc.querySelector('#econtent [data-sub-cfg="' + s2 + '"]'))
+    await esperar(60)
+    const html = conteudo()
+    assert.ok(html.replace(/<[^>]+>/g, '').trim().length > 60, 'sub-aba vazia: ' + s2)
+    assert.ok(!/undefined|NaN/.test(html), 'sub-aba com undefined/NaN: ' + s2)
+  }
+})
+
+test('Equipe: corrigir o nome de quem entra por CPF funciona ponta a ponta', async () => {
+  await abrirApp()
+  await irParaEquipe()
+  assert.match(conteudo(), /Com acesso/, 'a Equipe não abriu')
+  clicar($('[data-acao="usuario:editar:u-ana"]'))
+  await esperar(60)
+  const campo = doc.querySelector('#eloFicha [data-campo="nome"]')
+  assert.ok(campo, 'a caixa de edição não abriu')
+  assert.strictEqual(campo.value, 'Ana Paula')
+  assert.ok(doc.querySelector('#eloFicha [data-campo-usuario="funcao"]'), 'quem entra por CPF pode trocar de função')
+  campo.value = 'Ana Paula Souza'
+  clicar(doc.querySelector('#eloFicha [data-acao="usuario:salvar"]'))
+  await esperar(80)
+  const envio = chamadas.filter((c) => c.canal === 'usuario-editar').pop()
+  assert.ok(envio, 'não saiu nada para o painel')
+  assert.strictEqual(envio.args.campos.nome, 'Ana Paula Souza')
+  assert.match(aviso().textContent, /Nome corrigido/)
+})
+
+test('⛔ Equipe: quem entra por e-mail não ganha seletor de função', async () => {
+  await abrirApp()
+  await irParaEquipe()
+  clicar($('[data-acao="usuario:editar:u-dono"]'))
+  await esperar(60)
+  assert.ok(doc.querySelector('#eloFicha [data-campo="nome"]'), 'o nome continua editável')
+  assert.ok(!doc.querySelector('#eloFicha [data-campo-usuario="funcao"]'),
+    'trocar a função aqui mudaria a forma de entrar no sistema')
+  assert.match(doc.getElementById('eloFicha').innerHTML, /forma de entrar/)
+})
+
+test('Equipe: desativar avisa que ele sai do sistema', async () => {
+  await abrirApp()
+  await irParaEquipe()
+  clicar($('[data-acao="usuario:desativar:u-bruno"]'))
+  await esperar(80)
+  const envio = chamadas.filter((c) => c.canal === 'usuario-ativar').pop()
+  assert.ok(envio && envio.args.ligado === false)
+  assert.match(aviso().textContent, /Desativados/)
+})
+
+test('NF entrada: "Ajustar" abre a nota e o Reabrir estorna', async () => {
+  await abrirApp()
+  await irPara('/admin/estoque')
+  clicar(doc.querySelector('#econtent [data-aba="entrada"]'))
+  await esperar(60)
+  assert.match(conteudo(), /A lançar/, 'os grupos não apareceram')
+  clicar($('[data-acao="entrada:ajustar-nota:8821"]'))
+  await esperar(60)
+  assert.match(conteudo(), /Reabrir para ajuste/, 'a nota lançada não abriu com o Reabrir')
+  clicar($('[data-acao="entrada:reabrir:8821"]'))
+  await esperar(80)
+  const envio = chamadas.filter((c) => c.canal === 'estoque-reabrir-nota').pop()
+  assert.ok(envio, 'o reabrir não saiu')
+  assert.match(aviso().textContent, /estornado/)
 })

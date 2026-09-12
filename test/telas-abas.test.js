@@ -72,12 +72,18 @@ test('Gestão › Produtos: bloco fechado esconde a tabela, e a busca filtra den
   assert.ok(busca.includes('data-linha="Pizza Calabresa G"'), 'e não mexe na Produção Própria')
 })
 
-test('Gestão › Nota Fiscal (Entrada): a nota entra "A conferir" e o estoque não muda', () => {
+test('Gestão › Nota Fiscal (Entrada): a nota entra em "A lançar" e o estoque não muda', () => {
   const h = T.htmlComAbas('/admin/estoque', dados.estoque, { aba: 'entrada' })
   assert.ok(h.includes('data-subgestao="entrada:notas"') && h.includes('data-subgestao="entrada:pendencias"'))
-  assert.ok(/A nota entra como/.test(h), 'o aviso explica por que o estoque ainda não mudou')
-  assert.ok(h.includes('Notas de compra (4)') && h.includes('A conferir') && h.includes('Processada'))
-  assert.ok(h.includes('Conferir') && h.includes('Ver'), 'pendente convida a conferir; processada, a ver')
+  // Vocabulário único (painel, 08/09/2026): "conferir" saiu da tela, "lançar" ficou.
+  assert.ok(/A nota entra em “A lançar”/.test(h), 'o aviso explica por que o estoque ainda não mudou')
+  assert.ok(!/A conferir|Confirmar entradas/.test(h), 'o vocabulário antigo não volta')
+  // ⛔ A coluna "Status" saiu (painel, 08/09/2026): quem diz em que pé a nota está é o
+  // GRUPO onde ela aparece — "A lançar" no topo, "Lançadas" embaixo.
+  assert.ok(/A lançar \(2\)/.test(h) && /Lançadas \(2\)/.test(h), 'os dois grupos')
+  assert.ok(!/>Status</.test(h), 'a coluna Status não volta')
+  assert.ok(h.includes('Lançar NF') && h.includes('Ajustar'),
+    'a nota por lançar convida a lançar; a lançada, a ajustar')
 })
 
 test('Gestão › NF entrada: "Nova entrada" pergunta de onde vem a nota', () => {
@@ -91,8 +97,8 @@ test('Gestão › NF entrada: abrir a nota mostra a conferência item a item', (
   assert.ok(/Distribuidora Bebidas SA · NF 4410/.test(h))
   assert.ok(h.includes('Refrigerante 2L — cx 6') && h.includes('Preço unitário'))
   assert.ok(h.includes('sem vínculo'), 'item sem produto vinculado precisa gritar')
-  assert.ok(h.includes('Confirmar entradas'), 'nota pendente oferece confirmar')
-  assert.ok(/enquanto não confirmar, o estoque não muda/.test(h))
+  assert.ok(h.includes('✓ Lançar NF'), 'nota por lançar oferece lançar')
+  assert.ok(/enquanto não lançar, o estoque não muda/.test(h))
 })
 
 test('Gestão › NF entrada: nota já processada não oferece confirmar de novo', () => {

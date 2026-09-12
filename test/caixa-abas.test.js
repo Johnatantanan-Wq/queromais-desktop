@@ -62,8 +62,23 @@ test('a cor do cartão diz de quem é a vez', () => {
   const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
   const cartao = (n) => h.split('data-pedido="' + n + '"')[1].split('data-pedido=')[0]
   assert.ok(/Em trânsito/.test(cartao('1040')) && /7B2FF7/.test(cartao('1040')), 'quem saiu é roxo, não verde')
-  assert.ok(/Fechamento pedido/.test(cartao('1034')) && /C2410C/.test(cartao('1034')), 'esperando o caixa é laranja')
+  // "Aguardando prestação de conta" (painel, 08/09/2026): o motoboy já entregou e só
+  // falta voltar e prestar contas. "Fechamento pedido" dava a entender pedido em aberto.
+  assert.ok(/Aguardando prestação de conta/.test(cartao('1034')) && /C2410C/.test(cartao('1034')),
+    'esperando o caixa é laranja')
   assert.ok(/Pronto/.test(cartao('1045')))
+})
+
+test('os cards vêm agrupados por status: quem pede ação do caixa primeiro', () => {
+  // Antes vinham na ordem de chegada, espalhando as cores pela tela.
+  const h = C.htmlDoCaixa(base, { online: true, ts: Date.now(), aba: 'atual', subaba: 'delivery' })
+  const ordem = [...h.matchAll(/data-pedido="(\d+)"/g)].map((m) => m[1])
+  const estadoDe = { }
+  for (const e of base.entregas) estadoDe[e.pedido] = e.estado
+  const rank = { fechamento: 0, transito: 1, pronto: 2, preparo: 3 }
+  const ranks = ordem.map((n) => rank[estadoDe[n]])
+  assert.deepStrictEqual(ranks, ranks.slice().sort((a, b) => a - b),
+    'ordem saiu fora do agrupamento: ' + ordem.join(', '))
 })
 
 test('o guia de dinheiro só aparece em dinheiro, e muda conforme a fase', () => {

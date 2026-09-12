@@ -99,7 +99,9 @@ function barraAcoes(dados) {
   return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     + bt('venda-manual', '+ Venda manual', 'border:none;background:#6d28d9;color:#fff')
     + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-    + bt('pausar-cardapio', '⏸ Pausar cardápio', 'border:1px solid #f3c0bb;background:#fff;color:#b42318')
+    + (dados.pausadoAte
+      ? bt('pausar-cardapio', '▶ Retomar cardápio', 'border:none;background:#b42318;color:#fff')
+      : bt('pausar-cardapio', '⏸ Pausar cardápio', 'border:1px solid #f3c0bb;background:#fff;color:#b42318'))
     + bt('ver-transito', '🛵 Em trânsito / Entregue', 'border:1px solid #d8ccf5;background:#fff;color:#6d28d9')
     + '<span style="display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:'
     + (aberta ? 'var(--acento-texto)' : '#b42318') + '">'

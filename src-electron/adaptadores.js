@@ -217,9 +217,31 @@ function reconhecer(telefone, cadastro, pedidos) {
  * demonstração — Delivery (de /atendimento/entregas) e Mesas (de /atendimento/salao).
  * Uma rota que falhe não derruba o resumo: a aba fica vazia, o caixa continua.
  */
-function caixaCompleto({ resumoResp, entregasResp, salaoResp }) {
+function caixaCompleto({ resumoResp, entregasResp, salaoResp, semNotaResp }) {
   if (!resumoResp || !Object.prototype.hasOwnProperty.call(resumoResp, 'aberto')) return null
-  return { ...resumoResp, entregas: entregasDoCaixa(entregasResp), mesas: mesasDoCaixa(salaoResp) }
+  return { ...resumoResp, entregas: entregasDoCaixa(entregasResp), mesas: mesasDoCaixa(salaoResp),
+    nfPendentes: nfPendentes(semNotaResp) }
+}
+
+/** As vendas sem nota, como a aba do Caixa precisa. A rota fora do ar não derruba o
+ *  Caixa: vem `ativo: false` e a aba simplesmente não aparece — que é o mesmo que
+ *  acontece na loja que não emite NFC-e manual. */
+function nfPendentes(r) {
+  if (!r || r.error || !r.ativo) return { ativo: false, vendas: [] }
+  return {
+    ativo: true,
+    vendas: (Array.isArray(r.vendas) ? r.vendas : []).map((v) => ({
+      tipo: v.tipo === 'sessao' ? 'sessao' : 'pedido',
+      id: texto(v.id),
+      rotulo: texto(v.rotulo) || '—',
+      total: num(v.total),
+      quando: v.quando,
+      dia: v.dia || null,
+      forma: v.forma || null,
+      cartaoTipo: v.cartaoTipo || null,
+      formasConta: Array.isArray(v.formasConta) ? v.formasConta : [],
+    })),
+  }
 }
 
 const ESTADO_ENTREGA = { em_entrega: 'transito', pronto: 'pronto', em_producao: 'preparo', pago: 'preparo' }
@@ -422,14 +444,25 @@ const PAPEL = {
 }
 
 /** Quem tem acesso, com a função e por onde entra (e-mail ou CPF). */
+/** A equipe da loja. Vem de dois cadastros diferentes e isso IMPORTA na hora de editar:
+ *  quem entra por e-mail está em `usuarios_admin`, quem entra por CPF+senha está em
+ *  `colaboradores` — rotas diferentes, e mandar para a errada devolve 404 mudo.
+ *
+ *  ⚠️ Desativado NÃO some: sai da lista de cima e vai para o quadro "Desativados"
+ *  (painel, 08/09/2026). Apagar perderia o histórico de quem fez o quê. */
 function usuariosDaLoja(r) {
   const lista = (r && r.usuarios) || []
-  if (!lista.length) return []
-  const campos = lista.map((u) => ({
-    rotulo: u.nome || 'Sem nome',
-    valor: (PAPEL[u.papel] || u.papel || '—') + ' · ' + (u.email || (u.cpf ? 'CPF ' + u.cpf : 'sem acesso ao painel')),
+  return lista.map((u) => ({
+    id: texto(u.id),
+    nome: texto(u.nome) || 'Sem nome',
+    papel: texto(u.papel),
+    funcao: PAPEL[u.papel] || u.papel || '—',
+    email: texto(u.email),
+    cpf: texto(u.cpf),
+    // Quem tem CPF entra pelo cadastro de colaborador; quem tem e-mail, pelo de admin.
+    tipo: u.cpf ? 'colaborador' : 'admin',
+    ativo: u.ativo !== false,
   }))
-  return [{ titulo: 'Quem tem acesso (' + lista.length + ')', colunas: 2, campos }]
 }
 
 /** Plano da loja: o que se paga, quando vence e quanto do pacote já foi usado. */
@@ -849,7 +882,7 @@ function diaBR(iso) {
   return m ? m[3] + '/' + m[2] + '/' + m[1] : ''
 }
 
-function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoResp }) {
+function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoResp, prestadoresResp }) {
   const itens = Array.isArray(ingredientesResp) ? ingredientesResp : []
   const porTipo = new Map()
   for (const i of itens) {
@@ -872,6 +905,7 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
   }
   return {
     ...abasDaGestao(gestaoResp),
+    prestadores: prestadoresDaSefaz(prestadoresResp),
     categorias: [...porTipo.values()],
     nfEntrada: {
       notas: [],
@@ -893,6 +927,26 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
     })),
   }
 }
+/** Gestão › Prestadores de Serviço: a rota devolve prestadores e transportadoras em
+ *  duas listas; a tela desenha as duas seções a partir de uma lista só, com o tipo.
+ *  Rota fora do ar não derruba a aba — vem lista vazia e a seção diz que não há
+ *  documento sincronizado, que é a verdade. */
+function prestadoresDaSefaz(resp) {
+  if (!resp || resp.error) return []
+  const linha = (x, tipo) => ({
+    nome: texto(x.nome) || 'Sem nome',
+    cnpj: texto(x.cnpj),
+    tipo,
+    documentos: num(x.documentos),
+    valor: num(x.valor),
+    ultimo: x.ultimo || null,
+    cadastrado: !!x.cadastrado,
+    entregador: texto(x.entregador) || null,
+  })
+  return (Array.isArray(resp.prestadores) ? resp.prestadores : []).map((x) => linha(x, 'prestador'))
+    .concat((Array.isArray(resp.transportadoras) ? resp.transportadoras : []).map((x) => linha(x, 'transportadora')))
+}
+
 const PENDENCIA = { falta: 'Falta', avaria: 'Avaria', vencimento: 'Vencimento', divergencia: 'Divergência' }
 const rotuloPendencia = (t) => PENDENCIA[t] || 'Pendência'
 
@@ -975,8 +1029,151 @@ function fidelidade({ dashboardResp, atividadesResp, configResp }) {
   }
 }
 
+// ── Financeiro ──────────────────────────────────────────────────────────────
+/**
+ * O Financeiro é a tela do desktop com mais fontes: o grosso vem da rota do desktop
+ * (mesma conta do painel) e duas abas têm rota PRÓPRIA no painel — Despesas e Contas
+ * bancárias. Cada uma entra por fora, então uma que falhe não apaga as outras oito.
+ */
+function financeiro({ d, despesasResp, bancosResp }) {
+  const base = d && !d.error ? d : {}
+  return { ...base, ...despesasDeServico(despesasResp), ...contasBancarias(bancosResp, base) }
+}
+
+/** ⛔ Despesa é o GASTO (o que saiu, para quem, se a nota chegou) — não a obrigação.
+ *  Sem data de vencimento e sem estado de pagamento aqui de propósito: isso é Contas a
+ *  pagar, a aba vizinha. A data da despesa é quando o dinheiro SAIU (`liquidado_em`);
+ *  enquanto não saiu, a prevista é o que se sabe. */
+function despesasDeServico(resp) {
+  if (!resp || resp.error || !Array.isArray(resp.despesas)) return { despesas: [], resumoDespesas: null }
+  return {
+    despesas: resp.despesas.map((x) => ({
+      id: texto(x.id),
+      data: diaDe(x.liquidado_em || x.vencimento),
+      descricao: texto(x.descricao),
+      prestador: texto(x.contraparte) || null,
+      valor: num(x.valor),
+      fiscal: x.fiscal === 'documentada' || x.fiscal === 'pendente' ? x.fiscal : 'nao_se_aplica',
+    })),
+    resumoDespesas: resp.resumo || null,
+  }
+}
+
+/** As contas cadastradas e o que passou por cada uma no período. O movimento sai do
+ *  MESMO extrato da aba Extrato (regime de caixa): não é saldo de banco. Extrato sem a
+ *  conta na linha devolve movimento vazio — melhor a coluna zerada do que um número
+ *  inventado que ninguém consegue conferir. */
+function contasBancarias(resp, base) {
+  const lista = Array.isArray(resp) ? resp : (resp && Array.isArray(resp.contas) ? resp.contas : [])
+  const bancos = lista.filter((c) => c.ativo !== false).map((c) => ({
+    id: texto(c.id),
+    nome: texto(c.nome) || 'Sem nome',
+    tipo: texto(c.tipo) || 'banco',
+    diaFechamento: c.dia_fechamento || null,
+    diaVencimento: c.dia_vencimento || null,
+  }))
+  if (Array.isArray(base.movimentoPorConta)) return { bancos, movimentoPorConta: base.movimentoPorConta }
+  const por = new Map()
+  for (const m of (Array.isArray(base.extrato) ? base.extrato : [])) {
+    const id = texto(m.contaId || m.conta_id)
+    if (!id) continue
+    if (!por.has(id)) por.set(id, { id, movimentos: 0, entradas: 0, saidas: 0 })
+    const x = por.get(id)
+    x.movimentos += 1
+    if (m.direcao === 'saida') x.saidas += num(m.valor)
+    else x.entradas += num(m.valor)
+  }
+  return { bancos, movimentoPorConta: [...por.values()] }
+}
+
+/** As posições que o board devolve. `ativo` só quando ALGUM entregador em rota veio na
+ *  resposta: o rastreamento é beta por loja, e desenhar a seção vazia faria parecer que
+ *  o recurso está quebrado na loja que não o tem. */
+function rastreamentoDoBoard(r) {
+  const lista = r && !r.error && Array.isArray(r.motoboys) ? r.motoboys : []
+  if (!lista.length) return { ativo: false, entregadores: [] }
+  return {
+    ativo: true,
+    entregadores: lista.map((m) => ({
+      id: texto(m.id),
+      nome: texto(m.nome) || 'Entregador',
+      lat: m.rastreamento_lat == null ? null : Number(m.rastreamento_lat),
+      lng: m.rastreamento_lng == null ? null : Number(m.rastreamento_lng),
+      minutos: m.rastreamento_em ? minutosDesde(m.rastreamento_em) : null,
+    })),
+  }
+}
+
+// ── Entregadores ────────────────────────────────────────────────────────────
+/**
+ * As três abas da tela, cada uma da sua fonte. Uma fonte que falhe não derruba as
+ * outras: sem a rota de entregas a aba Equipe continua de pé, e sem a tela do desktop
+ * a prestação de contas continua.
+ */
+function entregadores({ d, entregasResp, fechamentosResp }) {
+  const base = d && !d.error ? d : { itens: [], contadores: { rota: 0, livre: 0 }, entregasHoje: 0 }
+  return {
+    ...base,
+    entregas: entregasDoRelatorio(entregasResp),
+    periodo: entregasResp && entregasResp.periodo ? entregasResp.periodo : null,
+    fechamentos: fechamentosDeEntrega(fechamentosResp),
+  }
+}
+
+/** Entrega a entrega, como a prestação de contas precisa.
+ *  ⚠️ `troco` e `aPrestar` vêm PRONTOS do servidor: o troco sai do caixa e volta na mão
+ *  do entregador (pedido de 50 com troco para 100 volta com a nota de 100), e refazer
+ *  essa conta aqui criaria um segundo acerto, diferente do que o painel paga. */
+function entregasDoRelatorio(r) {
+  if (!r || r.error || !Array.isArray(r.entregas)) return []
+  return r.entregas.map((e) => ({
+    id: texto(e.id),
+    numero: num(e.numero),
+    // ⚠️ `data` já vem no dia da LOJA (a rota resolve o fuso). Passá-la por diaDe()
+    // reinterpreta como UTC e joga a entrega para o dia anterior — uma entrega das
+    // 21h30 em GMT-3 viraria 00h30 do dia seguinte, e o acerto fecharia no dia errado.
+    data: /^\d{4}-\d{2}-\d{2}/.test('' + (e.data || ''))
+      ? ('' + e.data).slice(0, 10)
+      : diaDe(e.data || e.entregue_em || e.criado_em),
+    cliente: texto(e.cliente_nome) || 'Sem identificação',
+    entregadorId: texto(e.motoboy_id),
+    entregador: texto(e.motoboy_nome || e.entregador) || 'Sem entregador',
+    produtos: num(e.produtos),
+    taxaEntrega: num(e.taxa_entrega),
+    total: num(e.total),
+    troco: num(e.troco),
+    aPrestar: num(e.aPrestar),
+    forma: texto(e.forma),
+    pagoAntes: !!e.pagoAntes,
+    emRota: !!e.emRota,
+    pagamentos: Array.isArray(e.pagamentos)
+      ? e.pagamentos.map((p) => ({ forma: texto(p.forma), valor: num(p.valor) })) : [],
+  }))
+}
+
+/** Os períodos já fechados. ⚠️ Na cobertura de folga quem cobriu recebe, mas a NOTA sai
+ *  no nome do TITULAR — por isso os dois nomes viajam juntos. */
+function fechamentosDeEntrega(r) {
+  const lista = r && !r.error && Array.isArray(r.fechamentos) ? r.fechamentos : []
+  return lista.map((f) => ({
+    id: texto(f.id),
+    entregadorId: texto(f.motoboy_id),
+    entregador: texto(f.motoboy && f.motoboy.nome) || '—',
+    titular: (f.titular && texto(f.titular.nome)) || null,
+    periodoInicio: f.periodo_inicio || null,
+    periodoFim: f.periodo_fim || null,
+    entregas: num(f.entregas),
+    valor: num(f.valor),
+    vencimento: (f.conta && f.conta.vencimento) || f.vencimento || null,
+    // Sem conta lançada não há situação: a tela diz "Não lançado", que é a verdade.
+    situacao: f.conta ? texto(f.conta.status) : null,
+  }))
+}
+
 module.exports = {
-  caixaCompleto, entregasDoCaixa, mesasDoCaixa,
+  caixaCompleto, entregasDoCaixa, mesasDoCaixa, nfPendentes,
+  entregadores, entregasDoRelatorio, fechamentosDeEntrega, rastreamentoDoBoard,
+  financeiro, despesasDeServico, contasBancarias, prestadoresDaSefaz,
   whatsapp,
   conversas,
   filaDeProducao, juntarAcessoTv, salao, atendimento, configuracoes, clientes,

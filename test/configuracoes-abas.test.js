@@ -49,11 +49,65 @@ test('o usuário aparece com a função e por onde entra', () => {
       { nome: 'Zé', papel: 'cozinheiro' },
     ] },
   })
-  const campos = d.abas.usuario[0].campos
-  assert.ok(/Quem tem acesso \(3\)/.test(d.abas.usuario[0].titulo))
-  assert.strictEqual(campos[0].valor, 'Administrador · f@x.com')
-  assert.strictEqual(campos[1].valor, 'Garçom · CPF 111')
-  assert.strictEqual(campos[2].valor, 'Cozinheiro · sem acesso ao painel')
+  // A aba virou a EQUIPE (painel, 08/09/2026): lista com editar/desativar, não ficha.
+  const equipe = d.abas.usuario
+  assert.strictEqual(equipe.length, 3)
+  assert.strictEqual(equipe[0].funcao, 'Administrador')
+  assert.strictEqual(equipe[0].email, 'f@x.com')
+  assert.strictEqual(equipe[1].funcao, 'Garçom')
+  assert.strictEqual(equipe[1].cpf, '111')
+  // ⛔ O TIPO é o que decide a rota de edição: CPF vai para colaboradores, e-mail vai
+  // para usuarios_admin. Mandar para a errada volta 404 mudo.
+  assert.strictEqual(equipe[0].tipo, 'admin')
+  assert.strictEqual(equipe[1].tipo, 'colaborador')
+  assert.strictEqual(equipe[2].tipo, 'admin', 'sem CPF e sem e-mail, é cadastro de admin')
+  assert.ok(equipe.every((u) => u.ativo), 'sem `ativo: false` no dado, todo mundo está ativo')
+})
+
+test('a Equipe separa quem tem acesso de quem foi desativado', () => {
+  const Finais = require('../renderer/elo/telas-finais')
+  const h = Finais.equipeDaLoja([
+    { id: 'a', nome: 'Ana', funcao: 'Caixa', cpf: '1', tipo: 'colaborador', ativo: true },
+    { id: 'c', nome: 'Carla', funcao: 'Caixa', cpf: '2', tipo: 'colaborador', ativo: false },
+  ])
+  assert.match(h, /Com acesso \(1\)/)
+  assert.match(h, /Desativados \(1\)/)
+  // ⚠️ Desativado NÃO some: apagar levaria junto o histórico de quem fez o quê.
+  assert.match(h, /usuario:reativar:c/)
+  assert.match(h, /usuario:desativar:a/)
+})
+
+test('⛔ quem entra por e-mail não troca de função pelo app', () => {
+  const U = require('../src-electron/usuarios-acoes')
+  // Virar Administrador muda a forma de ENTRAR (e-mail e senha no lugar do CPF) — não
+  // é troca de rótulo, e o app explica em vez de quebrar o login de alguém.
+  const r = U.editar({ id: 'a1', nome: 'Bruno', tipo: 'admin' }, { nome: 'Bruno', funcao: 'caixa' })
+  assert.strictEqual(r.ok, false)
+  assert.match(r.motivo, /forma de entrar/)
+  // Mas corrigir o NOME vale para os dois cadastros.
+  const nome = U.editar({ id: 'a1', nome: 'Bruno', tipo: 'admin' }, { nome: 'Bruno Alves' })
+  assert.strictEqual(nome.ok, true)
+  assert.strictEqual(nome.caminho, '/api/admin/usuarios')
+  assert.strictEqual(nome.corpo.id, 'a1', 'esta rota identifica o usuário no corpo')
+})
+
+test('a rota da edição segue o cadastro de origem', () => {
+  const U = require('../src-electron/usuarios-acoes')
+  const colab = U.editar({ id: 'c1', nome: 'Ana', papel: 'caixa', tipo: 'colaborador' },
+    { nome: 'Ana', funcao: 'garcom' })
+  assert.strictEqual(colab.caminho, '/api/admin/colaboradores/c1')
+  assert.deepStrictEqual(colab.corpo.papeis, ['garcom'])
+  assert.strictEqual(colab.corpo.id, undefined, 'aqui o id vai na URL, não no corpo')
+})
+
+test('desativar não apaga — e quem entra por e-mail sai pelo painel', () => {
+  const U = require('../src-electron/usuarios-acoes')
+  const off = U.ativar({ id: 'c1', nome: 'Ana', tipo: 'colaborador' }, false)
+  assert.strictEqual(off.ok, true)
+  assert.deepStrictEqual(off.corpo, { ativo: false })
+  assert.match(off.resumo, /Desativados/)
+  const admin = U.ativar({ id: 'a1', nome: 'Bruno', tipo: 'admin' }, false)
+  assert.strictEqual(admin.ok, false, 'o acesso ao Supabase sai junto — isso é pelo painel')
 })
 
 test('o plano mostra mensalidade em reais, não em centavos', () => {

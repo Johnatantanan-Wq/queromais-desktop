@@ -64,3 +64,36 @@ test('nada pronto para entrega avisa em vez de tabela vazia', () => {
   const h = D.htmlDespacho({ ...dados, prontos: [] }, { visao: 'bairro' })
   assert.ok(/nenhum pedido pronto/i.test(h))
 })
+
+// ── Rastreamento ao vivo (painel, 09/09/2026 — beta por loja) ───────────────
+const Adapt = require('../src-electron/adaptadores')
+
+test('o rastreamento mostra a última posição e a IDADE dela', () => {
+  const h = D.rastreamento({ rastreamento: { ativo: true, entregadores: [
+    { nome: 'Tiago', lat: -12.26641, lng: -38.96632, minutos: 2 },
+  ] } })
+  assert.match(h, /Rastreamento ao vivo/)
+  assert.match(h, /há 2 min/, 'sem a idade, um ponto de 40 min atrás parece o entregador na esquina agora')
+  assert.match(h, /-12\.26641, -38\.96632/)
+})
+
+test('quem não mandou posição diz o que falta, em vez de sumir', () => {
+  const h = D.rastreamento({ rastreamento: { ativo: true, entregadores: [
+    { nome: 'Diego', lat: null, lng: null, minutos: null },
+  ] } })
+  assert.match(h, /Aguardando localização/)
+  assert.ok(!/Abrir no Maps/.test(h), 'sem ponto não há mapa para abrir')
+})
+
+test('loja sem o beta não vê a seção', () => {
+  assert.strictEqual(D.rastreamento({ rastreamento: { ativo: false, entregadores: [] } }), '')
+  assert.strictEqual(D.rastreamento({}), '')
+  assert.deepStrictEqual(Adapt.rastreamentoDoBoard({ pedidos: [] }), { ativo: false, entregadores: [] })
+})
+
+test('a idade da posição é dita em português', () => {
+  assert.strictEqual(D.idadeDaPosicao(0), 'agora')
+  assert.strictEqual(D.idadeDaPosicao(3), 'há 3 min')
+  assert.strictEqual(D.idadeDaPosicao(125), 'há 2 horas')
+  assert.strictEqual(D.idadeDaPosicao(null), '')
+})

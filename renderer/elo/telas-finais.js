@@ -334,6 +334,53 @@ function grupoCfg(titulo, campos, colunas) {
     + '</div></div>'
 }
 
+/** Configurações › Usuário: quem tem acesso, o que cada um é, e o que dá para mudar.
+ *
+ *  ⛔ Virar Administrador ou Contador NÃO é troca de rótulo: muda a forma de ENTRAR
+ *  (e-mail + senha em vez de CPF). Por isso o app deixa corrigir o NOME de qualquer um,
+ *  mas só oferece troca de função para quem entra por CPF — e explica o porquê, em vez
+ *  de oferecer um botão que quebraria o login.
+ *
+ *  ⚠️ Desativado não some: vai para o quadro de baixo. Apagar perderia o histórico. */
+function equipeDaLoja(lista) {
+  const todos = Array.isArray(lista) ? lista : []
+  if (!todos.length) {
+    return '<div class="ecard"><div class="evazio">Nenhum usuário além do dono da loja.</div></div>'
+  }
+  const ativos = todos.filter((u) => u.ativo)
+  const fora = todos.filter((u) => !u.ativo)
+  const linha = (u, desativado) => '<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;'
+    + 'border-bottom:1px solid #eef0f3' + (desativado ? ';opacity:.65' : '') + '">'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:13.5px;font-weight:800;color:#111;overflow:hidden;text-overflow:ellipsis;'
+    + 'white-space:nowrap">' + esc(u.nome) + '</div>'
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600">'
+    + esc(u.funcao) + ' · ' + esc(u.email || (u.cpf ? 'CPF ' + u.cpf : 'sem acesso ao painel')) + '</div></div>'
+    + (desativado
+      ? '<button type="button" data-acao="usuario:reativar:' + esc(u.id) + '" style="height:30px;padding:0 12px;'
+        + 'border:1px solid #e5e7eb;border-radius:9px;background:#fff;color:#111;font-family:inherit;'
+        + 'font-size:12px;font-weight:700;cursor:pointer">Reativar</button>'
+      : '<span style="display:flex;gap:6px">'
+        + '<button type="button" data-acao="usuario:editar:' + esc(u.id) + '" style="height:30px;padding:0 12px;'
+        + 'border:1px solid #e5e7eb;border-radius:9px;background:#fff;color:#111;font-family:inherit;'
+        + 'font-size:12px;font-weight:700;cursor:pointer">Editar</button>'
+        + '<button type="button" data-acao="usuario:desativar:' + esc(u.id) + '" style="height:30px;padding:0 12px;'
+        + 'border:1px solid #f3c0bb;border-radius:9px;background:#fff;color:#b42318;font-family:inherit;'
+        + 'font-size:12px;font-weight:700;cursor:pointer">Desativar</button></span>')
+    + '</div>'
+  const bloco = (titulo, itens, desativado) => itens.length
+    ? '<div class="ecard" style="padding:0;overflow:hidden;margin-bottom:14px;animation:eloFadeUp .5s ease both">'
+      + '<div style="padding:14px 18px;border-bottom:1px solid #eef0f3;font-size:14px;font-weight:800;color:#111">'
+      + esc(titulo) + ' (' + itens.length + ')</div>'
+      + itens.map((u) => linha(u, desativado)).join('') + '</div>'
+    : ''
+  return '<div style="font-size:19px;font-weight:800;color:#111;letter-spacing:-.02em;margin:6px 0 14px">Equipe</div>'
+    + bloco('Com acesso', ativos, false)
+    + bloco('Desativados', fora, true)
+    + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:4px">'
+    + 'cadastrar usuário novo e mexer nos acessos por módulo continuam no painel</div>'
+}
+
 function htmlConfiguracoes(dados, estado) {
   estado = estado || {}
   if (!dados) return semDados('de configuração')
@@ -358,6 +405,10 @@ function htmlConfiguracoes(dados, estado) {
       + estado.corpoWhatsapp
   }
 
+  // A sub-aba Usuário (dentro de Geral) deixou de ser ficha de leitura: é a EQUIPE,
+  // com editar, desativar e reativar.
+  if (aba === 'geral' && sub === 'usuario') return cabecalho + equipeDaLoja(dados.abas && dados.abas.usuario)
+
   const secoes = ((dados.abas || {})[aba === 'geral' ? sub : aba]) || []
   const titulo = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;'
     + 'flex-wrap:wrap;margin:6px 0 14px">'
@@ -378,4 +429,4 @@ function htmlConfiguracoes(dados, estado) {
     + 'alterar qualquer configuração ainda é pelo painel</div>'
 }
 
-module.exports = { htmlInsights, htmlRelatorios, htmlConfiguracoes, PERIODOS_REL, ABAS_REL, ABAS_CFG, SUB_CFG_GERAL }
+module.exports = { htmlInsights, htmlRelatorios, htmlConfiguracoes, equipeDaLoja, PERIODOS_REL, ABAS_REL, ABAS_CFG, SUB_CFG_GERAL }

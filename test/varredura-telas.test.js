@@ -20,6 +20,7 @@ const TelaConversas = require('../renderer/elo/tela-conversas')
 const TelaCompras = require('../renderer/elo/tela-compras')
 const Mkt = require('../renderer/elo/telas-marketing')
 const TelaVenda = require('../renderer/elo/tela-venda')
+const TelaEntregadores = require('../renderer/elo/tela-entregadores')
 
 const listas = demo.listas()
 const apoio = demo.listasApoio()
@@ -47,7 +48,9 @@ const TELAS = {
     taxasBairro: { Centro: 7 },
   }, estado),
   '/admin/financeiro': () => Principais.htmlFinanceiroVisao(comAbas.financeiro.visao, estado),
-  '/admin/motoboys': () => Catalogo.htmlDaRota('/admin/motoboys', listas.entregadores, estado),
+  '/admin/motoboys': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...estado, aba: 'entregas' }),
+  '/admin/motoboys#fechamentos': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...estado, aba: 'fechamentos' }),
+  '/admin/motoboys#equipe': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...estado, aba: 'equipe' }),
   '/admin/relatorios': () => Finais.htmlRelatorios(finais.relatorios, estado),
   '/admin/insights': () => Finais.htmlInsights(finais.insights, estado),
   '/admin/food-marketing/campanhas': () => Mkt.htmlCampanhas(apoio.campanhas, estado),

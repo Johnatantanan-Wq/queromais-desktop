@@ -557,10 +557,17 @@ async function createWindow() {
     const enviarAoPainel = async (caminho, corpo, metodo) => {
       const wc = global.cardapioView?.webContents
       if (!wc || wc.isDestroyed()) return null
+      // GET não leva corpo: o fetch lança TypeError se levar, e a chamada voltaria
+      // null sem dizer por quê. Serve para conferir algo ANTES de escrever — é o que
+      // o preço faz, olhando em quantas opções o item é vendido.
+      const m = metodo || 'POST'
+      const opcoes = m === 'GET'
+        ? "{method:'GET',credentials:'include'}"
+        : "{method:" + JSON.stringify(m) + ",credentials:'include',"
+          + "headers:{'content-type':'application/json'},body:" + JSON.stringify(JSON.stringify(corpo)) + "}"
       return wc.executeJavaScript(
-        "fetch(" + JSON.stringify(caminho) + ",{method:" + JSON.stringify(metodo || 'POST') + ",credentials:'include',"
-        + "headers:{'content-type':'application/json'},body:" + JSON.stringify(JSON.stringify(corpo))
-        + "}).then(r=>r.json().catch(()=>null)).catch(()=>null)", true)
+        "fetch(" + JSON.stringify(caminho) + "," + opcoes
+        + ").then(r=>r.json().catch(()=>null)).catch(()=>null)", true)
     }
 
     // qualquer rota de leitura do painel, pela view logada
@@ -616,13 +623,16 @@ async function createWindow() {
           if (chave === 'cardapio') {
             return { dados: registroCardapio.aplicar(dados), offline: false, ts: Date.now(), demo: true }
           }
+          if (chave === 'entregadores' || chave === 'clientes') {
+            return { dados: registroLoja.aplicar(chave, dados), offline: false, ts: Date.now(), demo: true }
+          }
           if (chave === 'despacho') {
-            return { dados: registroDespacho.aplicar(dados), offline: false, ts: Date.now(), demo: true }
+            return { dados: registroLoja.aplicar('despacho', registroDespacho.aplicar(dados)), offline: false, ts: Date.now(), demo: true }
           }
           if (chave === 'pedidos') {
             const manuais = registroVendas.listar().map(registroVendas.comoPedido)
             const juntos = manuais.length ? { ...dados, itens: manuais.concat(dados.itens) } : dados
-            return { dados: registroEtapas.aplicar(juntos), offline: false, ts: Date.now(), demo: true }
+            return { dados: registroLoja.aplicar('pedidos', registroEtapas.aplicar(juntos)), offline: false, ts: Date.now(), demo: true }
           }
           return { dados, offline: false, ts: Date.now(), demo: true }
         })
@@ -669,6 +679,23 @@ async function createWindow() {
       const registroContas = require('./contas-local').criarRegistro()
       // Gestão em demonstração: o cadastro entra na lista, a sincronização responde.
       const registroEstoque = require('./estoque-local').criarRegistro()
+      // Loja e operação em demonstração: o estado fica na sessão.
+      const registroLoja = require('./loja-local').criarRegistro()
+      const acoesLoja = require('./loja-acoes')
+      const simples = (canal, fn, efeito) => ipcMain.handle(canal, (e, a) => {
+        const d = fn(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+        const extra = efeito ? efeito(d, a || {}) : null
+        return { ok: true, resumo: (extra && extra.resumo) || d.resumo, ...(extra || {}), demo: true }
+      })
+      simples('loja-aceite', (a) => acoesLoja.aceiteAutomatico(a.ligado), (d) => { registroLoja.aceite(d.corpo.aceitar_pedidos_auto) })
+      simples('loja-aberta', (a) => acoesLoja.lojaAberta(a.aberta), (d) => { registroLoja.aberta(d.corpo.aberta) })
+      simples('loja-tempos', (a) => acoesLoja.tempos(a), (d) => { registroLoja.tempos({ balcao: d.corpo.tempo_estimado_balcao, delivery: d.corpo.tempo_estimado_delivery }) })
+      simples('loja-pausar', (a) => acoesLoja.pausar(a.minutos), (d) => { registroLoja.pausar(d.corpo.pausado_ate) })
+      simples('kds-gerar-codigo', () => acoesLoja.gerarCodigoKds(), () => { const c = registroLoja.codigoKds(); return { codigo: c, resumo: 'Código novo: ' + c } })
+      simples('kds-revogar', () => acoesLoja.revogarTelasKds())
+      simples('entregador-novo', (a) => acoesLoja.novoEntregador(a), (d) => { registroLoja.entregador(d.corpo) })
+      simples('rota-fechar', (a) => acoesLoja.fecharRota(a.rota, a), (d, a) => { registroLoja.fecharRota(a.rota.rotaId || a.rota.entregador) })
+      simples('cliente-novo', (a) => acoesLoja.novoCliente(a), (d) => { registroLoja.cliente(d.corpo) })
       const acoesEstoque = require('./estoque-acoes')
       ipcMain.handle('estoque-sincronizar', () => ({ ok: true, resumo: 'Sincronizado: 0 criado(s), 3 vinculado(s).', demo: true }))
       ipcMain.handle('estoque-novo-insumo', (e, a) => {
@@ -890,6 +917,12 @@ async function createWindow() {
       ipcMain.handle('cache-get', () => null)
       ipcMain.handle('cache-set', () => ({ ok: true }))
       ipcMain.handle('abrir-rota', () => ({ ok: false, demo: true }))
+      // O mapa é de fora do painel: abre no navegador mesmo em demonstração.
+      ipcMain.handle('abrir-externo', (e, url) => {
+        if (!/^https:\/\//.test('' + url)) return { ok: false }
+        shell.openExternal('' + url)
+        return { ok: true }
+      })
     } else ponte.registrar({
       ipcMain, cache: cacheDisco, monitorRede,
       pedirAoPainel: pedirMenuAoPainel,
@@ -920,6 +953,8 @@ async function createWindow() {
     if (!DEMO) require('./compras-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./contas-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
     if (!DEMO) require('./estoque-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./loja-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
+    if (!DEMO) require('./usuarios-envio').registrar({ ipcMain, enviar: enviarAoPainel, log })
 
     // Tela nativa na frente: a BrowserView sai da área de conteúdo (setBounds 0x0).
     // Esconder assim, em vez de remover a view, mantém o padrão que não congela no

@@ -8,10 +8,23 @@ const finais = demo.apoioFinal()
 
 test('Cupons: a lista e o formulário do painel ficam lado a lado', () => {
   const h = M.htmlCupons(apoio.cupons, {})
-  assert.ok(h.includes('4 cupom(ns) cadastrado(s) · 3 ativo(s)'))
+  assert.ok(h.includes('5 cupom(ns) cadastrado(s) · 4 ativo(s)'))
   assert.ok(h.includes('VOLTA10') && h.includes('Novo cupom'))
   assert.ok(h.includes('Código (sem espaços)') && h.includes('Dias da semana'))
   assert.ok(/Isenta a taxa de entrega inteira/.test(h), 'o que cada opção faz é explicado, como no painel')
+})
+
+test('Cupons: o cupom RESTRITO diz em que ele vale (painel, 09/09/2026)', () => {
+  // Sem isso na lista, o lojista olha dois cupons parecidos e não entende por que um
+  // não pegou no carrinho do cliente.
+  const h = M.htmlCupons(apoio.cupons, {})
+  const pizza = h.split('data-linha="PIZZA25"')[1].split('data-linha=')[0]
+  assert.ok(pizza.includes('vale só em 2 categorias + 1 produto'), pizza.slice(0, 300))
+  const volta = h.split('data-linha="VOLTA10"')[1].split('data-linha=')[0]
+  assert.ok(!volta.includes('vale só em'), 'cupom sem restrição não ganha etiqueta')
+  // O nome do campo pode vir do banco (`categoria_ids`) ou já traduzido: os dois contam.
+  assert.strictEqual(M.restricaoDoCupom({ categoria_ids: ['a'], produto_ids: ['x', 'y'] }), '1 categoria + 2 produtos')
+  assert.strictEqual(M.restricaoDoCupom({}), '')
 })
 
 test('Cupons: o que muda o comportamento do cupom aparece na linha', () => {

@@ -25,19 +25,18 @@ const DESTINOS = {
   'novo-pedido': { app: 'venda' },
   'venda-manual': { app: 'venda' },
   'imprimir': { app: 'comanda' },
-  'aceite-automatico': { rota: '/admin/configuracoes', o: 'ligar o aceite automático' },
-  'editar-tempos': { rota: '/admin/configuracoes', o: 'editar os tempos de preparo' },
-  'pausar-cardapio': { rota: '/admin/cardapio', o: 'pausar o cardápio' },
-  'alternar-loja': { rota: '/admin/escolher-loja', o: 'trocar de loja' },
   'ver-transito': { rota: '/admin/despacho', o: 'ver quem está na rua' },
+  // O ponto do entregador abre no NAVEGADOR, fora do app: mapa é da internet, e o app
+  // não finge ter mapa offline.
+  'rastreio:mapa': { app: 'mapa' },
   'limpar-selecao': { app: 'limpar-selecao' },
-  'rota:fechar': { rota: '/admin/despacho', o: 'fechar a rota e acertar' },
   'acerto-entregador': { rota: '/admin/motoboys', o: 'acertar com o entregador' },
-  'novo-entregador': { rota: '/admin/motoboys', o: 'cadastrar entregador' },
+  // Fechar o período gera o repasse e pode lançá-lo no contas a pagar. Vai para o
+  // painel de propósito: fechamento SOBREPOSTO paga o entregador duas vezes, e a tela
+  // de lá é a única que sabe o que já foi fechado antes de deixar fechar de novo.
+  'entregador:fechar-periodo': { rota: '/admin/motoboys', o: 'fechar o período deste entregador' },
 
   // ── Cozinha e bar ──
-  'kds:gerar-codigo': { rota: '/admin/cozinha', o: 'gerar o código da TV' },
-  'kds:revogar-telas': { rota: '/admin/cozinha', o: 'desconectar as telas' },
 
   // ── Cardápio ──
   'nova-categoria': { rota: '/admin/cardapio', o: 'criar categoria' },
@@ -52,7 +51,6 @@ const DESTINOS = {
   'ver-no-celular': { rota: '/admin/cardapio', o: 'ver o cardápio no celular' },
 
   // ── Clientes ──
-  'novo-cliente': { rota: '/admin/clientes', o: 'cadastrar cliente' },
   'segmentos': { rota: '/admin/clientes', o: 'ver os segmentos' },
   'ordenar-clientes': { app: 'ordenar-clientes' },
 
@@ -68,10 +66,20 @@ const DESTINOS = {
   'entrada:sem-nota': { rota: '/admin/estoque', o: 'lançar a entrada sem nota' },
   'entrada:confirmar': { rota: '/admin/estoque', o: 'confirmar as entradas' },
   'entrada:ajustar': { rota: '/admin/estoque', o: 'ajustar o item da nota' },
+  // "Ajustar" da nota JÁ LANÇADA: o app faz — abre a nota e oferece reabrir, que estorna
+  // o estoque e devolve a nota para "A lançar".
+  'entrada:ajustar-nota': { app: 'entrada-ajustar' },
+  'entrada:danfe': { app: 'entrada-danfe' },
+  'entrada:reabrir': { app: 'entrada-reabrir' },
   'entrada:resolver': { rota: '/admin/estoque', o: 'resolver a pendência' },
   'entrada:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas no período' },
   'estoque:nova-entrada': { rota: '/admin/estoque', o: 'lançar entrada' },
   'estoque:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas' },
+  // NF pendentes (aba do Caixa): emitir NFC-e é ato FISCAL e irreversível — o app leva
+  // para o Caixa do painel, onde está o popup completo com a prévia da nota. Fazer a
+  // emissão daqui exigiria repetir a montagem da nota, e uma nota errada não se apaga.
+  'nf:emitir-venda': { rota: '/admin/caixa', o: 'emitir a nota desta venda' },
+  'nf:emitir-coluna': { rota: '/admin/caixa', o: 'emitir as notas desta forma de pagamento' },
   'nf:emitir-manual': { rota: '/admin/nf', o: 'emitir nota manualmente' },
   'nf:gerar': { rota: '/admin/nf', o: 'gerar a nota' },
   'nf:atualizar-status': { rota: '/admin/nf', o: 'atualizar o status fiscal' },

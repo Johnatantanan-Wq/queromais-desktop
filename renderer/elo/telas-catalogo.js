@@ -179,28 +179,9 @@ const CATALOGO = {
     })),
   },
 
-  '/admin/motoboys': {
-    canal: 'entregadores-carregar',
-    def: (d) => ({
-      titulo: 'Entregadores',
-      subtitulo: 'quem está disponível e como foi o dia',
-      kpis: [
-        { rotulo: 'Na rua', valor: String(d.contadores.rota), sub: 'entregando', cor: '#1d4ed8' },
-        { rotulo: 'Livres', valor: String(d.contadores.livre), sub: 'disponíveis', cor: '#0A7A3E' },
-        { rotulo: 'Entregas hoje', valor: String(d.entregasHoje), sub: 'concluídas' },
-      ],
-      filtros: [{ chave: 'todos', rotulo: 'Todos' }, { chave: 'rota', rotulo: 'Na rua' }, { chave: 'livre', rotulo: 'Livres' }],
-      busca: 'Buscar entregador',
-      colunas: ['Entregador', 'Telefone', 'Situação', 'Entregas hoje', 'A receber'],
-      grade: '1fr 150px 130px 130px 130px',
-      direita: [4],
-      acoes: [{ chave: 'novo-entregador', rotulo: '+ Novo entregador', primaria: true }],
-    }),
-    linhas: (d) => d.itens.map((m) => ({
-      chave: m.nome,
-      celulas: [m.nome, m.telefone, etiqueta(m.situacao), String(m.entregas), { texto: brl(m.aReceber), forte: true, cor: '#111' }],
-    })),
-  },
+  // '/admin/motoboys' saiu do catálogo em 11/09/2026: Entregadores virou tela com as
+  // TRÊS abas do painel (Entregas, Fechamentos, Equipe) em tela-entregadores.js. O que
+  // havia aqui era só o equivalente à aba Equipe.
 
   '/admin/estoque': {
     canal: 'estoque-carregar',

@@ -7,6 +7,20 @@ const CANAIS = {
   'estoque-novo-insumo': (a) => A.novoInsumo(a || {}),
 }
 function registrar({ ipcMain, enviar, log }) {
+  // Reabrir a nota lançada (o "Ajustar" da lista). Confirmação vem da tela: o estorno
+  // mexe no estoque de todos os itens da nota.
+  ipcMain.handle('estoque-reabrir-nota', async (e, args) => {
+    const d = A.reabrirNota(args && args.nota)
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    let r = null
+    try { r = await enviar(d.caminho, d.corpo) } catch (err) {
+      if (log) log.warn('[ESTOQUE] reabrir falhou:', err && err.message)
+      return { ok: false, erro: 'Não deu para falar com o painel agora. A nota não foi reaberta.' }
+    }
+    if (!r) return { ok: false, erro: 'Sem resposta do painel. A nota não foi reaberta.' }
+    if (r.error) return { ok: false, erro: String(r.error) }
+    return { ok: true, resumo: d.resumo }
+  })
   for (const canal of Object.keys(CANAIS)) {
     ipcMain.handle(canal, async (e, args) => {
       const d = CANAIS[canal](args)

@@ -69,4 +69,39 @@ function brl(v) {
   return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-module.exports = { esgotarItem, esgotarCategoria, editarPreco, precoDigitado }
+/**
+ * O MESMO item vendido como OPÇÃO dentro de outro produto (meia pizza, sabor de combo)
+ * cobra por outro campo: `sabores.preco_adicional`, não `produtos.preco`. Mexer só no
+ * preço do produto deixa o cliente pagando o valor VELHO ao escolher aquele item dentro
+ * de outro — foi o que o painel fechou em 08/09/2026, e é o buraco que faltava aqui.
+ *
+ * Esta função decide o que fazer com a resposta do painel: quantos lugares existem,
+ * quantos ainda cobram o preço antigo, e QUAIS levar junto. ⚠️ Só entram os que cobram
+ * o preço antigo: opção de R$ 0 (bebida inclusa no combo) tem que ficar em R$ 0.
+ */
+function opcoesParaAtualizar(consulta, precoAntigo) {
+  const r = consulta || {}
+  const opcoes = Array.isArray(r.opcoes) ? r.opcoes : []
+  if (!opcoes.length) return { lugares: 0, comPrecoAntigo: 0, sabores: [] }
+  // O painel já devolve quais acompanham o preço do produto hoje; sem isso, compara-se
+  // com o preço antigo, que é a mesma conta.
+  const marcados = Array.isArray(r.acompanhamPorPadrao) && r.acompanhamPorPadrao.length
+    ? r.acompanhamPorPadrao
+    : opcoes.filter((o) => Math.abs((Number(o.preco_adicional) || 0) - (Number(precoAntigo) || 0)) < 0.005)
+      .map((o) => o.id)
+  const ids = marcados.map((m) => (m && m.id ? m.id : m)).filter(Boolean)
+  return { lugares: opcoes.length, comPrecoAntigo: ids.length, sabores: ids }
+}
+
+/** O PATCH que leva o preço novo para as opções. `apenasOpcoes` porque o preço do
+ *  produto já foi gravado pela rota dele — sem isso o painel gravaria duas vezes. */
+function propagarPreco(produtoId, preco, sabores) {
+  if (!produtoId || !sabores || !sabores.length) return null
+  return {
+    caminho: '/api/admin/estoque/preco-venda/' + produtoId,
+    corpo: { preco: Math.round((Number(preco) || 0) * 100) / 100, sabores, apenasOpcoes: true },
+  }
+}
+
+module.exports = { esgotarItem, esgotarCategoria, editarPreco, precoDigitado,
+  opcoesParaAtualizar, propagarPreco }

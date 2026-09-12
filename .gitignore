@@ -6,3 +6,6 @@ dist/
 # multi-marca: gerados por scripts/apply-brand.js
 electron-builder.brand.json
 src-electron/brand.generated.json
+
+# symlink local de build (python3), criado por engano
+.build-shims/

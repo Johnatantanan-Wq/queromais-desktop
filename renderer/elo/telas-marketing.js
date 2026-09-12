@@ -72,6 +72,20 @@ const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const CORES_CUPOM = ['#14CE6B', '#d19b0e', '#ea6a20', '#e04343', '#2f7ff0', '#9b5de5']
 
 // ── Cupons ──────────────────────────────────────────────────────────────────
+/** "vale só em 2 categorias + 3 produtos" — o que limita o cupom, dito na lista. */
+function restricaoDoCupom(c) {
+  // Aceita os dois nomes: o do banco (`categoria_ids`) e o já traduzido. O cupom vem de
+  // rota que ainda pode mudar de forma, e uma restrição que some da tela é pior do que
+  // um nome duplicado aqui — o lojista olharia dois cupons iguais sem entender por que
+  // um não pega no carrinho.
+  const cats = (c && (c.categorias || c.categoria_ids)) || []
+  const prods = (c && (c.produtos || c.produto_ids)) || []
+  const partes = []
+  if (cats.length) partes.push(cats.length + (cats.length === 1 ? ' categoria' : ' categorias'))
+  if (prods.length) partes.push(prods.length + (prods.length === 1 ? ' produto' : ' produtos'))
+  return partes.join(' + ')
+}
+
 function htmlCupons(dados, estado) {
   if (!dados) return semDados('de cupons')
   const itens = dados.itens || []
@@ -85,7 +99,14 @@ function htmlCupons(dados, estado) {
       + '<div style="font-size:14px;font-weight:800;color:#111;letter-spacing:.02em">' + esc(c.codigo) + '</div>'
       + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:2px">' + esc(c.desconto)
       + ' · vale até ' + esc(c.validade) + ' · ' + esc(c.usos) + ' uso(s)'
-      + (c.primeiraCompra ? ' · só 1ª compra' : '') + (c.freteGratis ? ' · frete grátis' : '') + '</div></div>'
+      + (c.primeiraCompra ? ' · só 1ª compra' : '') + (c.freteGratis ? ' · frete grátis' : '') + '</div>'
+      // Cupom restrito (painel, 09/09/2026): vale só em certas categorias ou produtos.
+      // Sem isso na lista, o lojista olha dois cupons iguais e não entende por que um
+      // não pegou no carrinho do cliente.
+      + (restricaoDoCupom(c)
+        ? '<div style="font-size:11px;font-weight:700;color:#8a6508;background:#fff3cc;border-radius:6px;'
+          + 'padding:2px 8px;margin-top:4px;display:inline-block">vale só em ' + esc(restricaoDoCupom(c)) + '</div>'
+        : '') + '</div>'
       + '<span style="font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 9px;'
       + (c.situacao === 'Ativo' ? 'color:var(--acento-texto);background:var(--acento-suave)' : 'color:#6b7280;background:#eef0f3')
       + '">' + esc(c.situacao) + '</span></div>').join('')
@@ -487,4 +508,5 @@ function htmlFidelidade(dados, estado) {
     + '<div style="margin-top:18px">' + premios + '</div>' + participantes
 }
 
-module.exports = { htmlCupons, htmlCampanhas, htmlPush, htmlParceiros, htmlFidelidade, PERFIS, ABAS_CAMPANHA, ABAS_FIDELIDADE }
+module.exports = { htmlCupons, htmlCampanhas, htmlPush, htmlParceiros, htmlFidelidade, restricaoDoCupom,
+  PERFIS, ABAS_CAMPANHA, ABAS_FIDELIDADE }

@@ -32,6 +32,10 @@ function caixa() {
     aberto: { id: 'demo-caixa', abertoEm: hora(9, 56), abertoPor: 'Administrador', fundoInicial: 0, abertoHaMin: 298 },
     resumo: {
       vendaDinheiro: 842.50, vendaPix: 1310.00, vendaCartao: 2145.90,
+      // Os dois PIX: o do site já caiu na conta (gateway), o manual é o único que o
+      // operador confere no fechamento. Proporção medida num turno real da Pizzas do
+      // Jasson (09/09): a maior parte do PIX vem do site.
+      vendaPixOnline: 1104.25, vendaPixConferir: 205.75,
       vendaAReceber: 180.00, suprimentos: 50, sangrias: 300, ajustes: 0,
     },
     esperadoDinheiro: 592.50,
@@ -66,6 +70,20 @@ function caixa() {
       { id: 'desp-1045', pedido: '1045', cliente: 'Johnatan', entregador: null, forma: 'dinheiro', valor: 48.50,
         saiuHa: 0, tipo: 'retirada', estado: 'pronto', trocoPara: 60.00 },
     ],
+    // NF pendentes: as vendas de hoje e de ontem que ainda não viraram nota. `ativo`
+    // diz que ESTA loja emite NFC-e manual — sem isso a aba nem aparece.
+    nfPendentes: {
+      ativo: true,
+      vendas: [
+        { tipo: 'pedido', id: 'nf1', rotulo: '#1041', total: 54.00, quando: hora(20, 5), forma: 'dinheiro' },
+        { tipo: 'pedido', id: 'nf2', rotulo: '#1043', total: 132.40, quando: hora(20, 14), forma: 'pix' },
+        { tipo: 'pedido', id: 'nf3', rotulo: '#1042', total: 89.90, quando: hora(19, 58), forma: 'cartao_entrega', cartaoTipo: 'debito' },
+        { tipo: 'pedido', id: 'nf4', rotulo: '#1040', total: 118.00, quando: hora(19, 31), forma: 'cartao_entrega', cartaoTipo: 'credito' },
+        { tipo: 'sessao', id: 'nf5', rotulo: 'Mesa 7', total: 128.48, quando: hora(18, 40), formasConta: ['dinheiro'] },
+        { tipo: 'sessao', id: 'nf6', rotulo: 'Mesa 12', total: 214.90, quando: hora(17, 55), formasConta: ['pix', 'dinheiro'] },
+        { tipo: 'pedido', id: 'nf7', rotulo: '#1038', total: 76.50, quando: hora(13, 20), dia: 'ontem', forma: 'pix' },
+      ],
+    },
     historico: [
       { id: 'h1', aberto: '06/09 08:00', fechado: '06/09 23:40', operador: 'Ana Paula', vendas: 4210.00, diferenca: -12.50 },
       { id: 'h2', aberto: '05/09 08:10', fechado: '05/09 23:20', operador: 'Bruno Alves', vendas: 3980.70, diferenca: 0 },
@@ -300,6 +318,16 @@ function listas() {
         { entregador: 'Tiago Moura', entregas: 2, dinheiroAReceber: 197.30, esperadoDeVolta: 247.30, rotaId: 'r1' },
         { entregador: 'Wesley Barros', entregas: 3, dinheiroAReceber: 88.00, esperadoDeVolta: 138.00, rotaId: 'r2' },
       ],
+      // Rastreamento ao vivo (beta por loja): a ÚLTIMA posição que o app do entregador
+      // mandou. Quem não mandou nada aparece dizendo o que falta, em vez de sumir.
+      rastreamento: {
+        ativo: true,
+        entregadores: [
+          { id: 'a1a1a1a1-0000-4000-8000-000000000001', nome: 'Tiago Moura', lat: -12.26641, lng: -38.96632, minutos: 2 },
+          { id: 'a1a1a1a1-0000-4000-8000-000000000002', nome: 'Wesley Barros', lat: -12.27310, lng: -38.95870, minutos: 14 },
+          { id: 'a1a1a1a1-0000-4000-8000-000000000003', nome: 'Diego Rocha', lat: null, lng: null, minutos: null },
+        ],
+      },
       // Como o painel manda: com id, porque despachar é por uuid — só nome não sai.
       entregadores: [
         { id: 'a1a1a1a1-0000-4000-8000-000000000001', nome: 'Tiago Moura' },
@@ -321,6 +349,49 @@ function listas() {
     },
     entregadores: {
       contadores: { rota: 3, livre: 2 }, entregasHoje: 24,
+      periodo: { de: '2026-09-11', ate: '2026-09-11' },
+      // A prestação de contas do turno. Os casos que importam estão todos aqui: troco
+      // que volta com a NOTA (leva 50, volta com 100), entrega ainda EM ROTA (o acerto
+      // é previsão), venda que já estava PAGA antes de sair (não entra na prestação) e
+      // pagamento DIVIDIDO entre duas formas numa entrega só.
+      entregas: [
+        { id: 'en1', numero: 1041, data: '2026-09-11', cliente: 'Marina Prado', entregadorId: 'm1',
+          entregador: 'Tiago Moura', produtos: 41.00, taxaEntrega: 9.00, total: 50.00, troco: 50.00,
+          aPrestar: 100.00, forma: 'dinheiro', pagoAntes: false, emRota: false,
+          pagamentos: [{ forma: 'dinheiro', valor: 50.00 }] },
+        { id: 'en2', numero: 1042, data: '2026-09-11', cliente: 'Rafael Souza', entregadorId: 'm1',
+          entregador: 'Tiago Moura', produtos: 80.90, taxaEntrega: 9.00, total: 89.90, troco: 0,
+          aPrestar: 89.90, forma: 'credito', pagoAntes: false, emRota: false,
+          pagamentos: [{ forma: 'credito', valor: 89.90 }] },
+        { id: 'en3', numero: 1043, data: '2026-09-11', cliente: 'Carla Nunes', entregadorId: 'm2',
+          entregador: 'Wesley Barros', produtos: 123.40, taxaEntrega: 9.00, total: 132.40, troco: 0,
+          aPrestar: 132.40, forma: 'pix', pagoAntes: false, emRota: false,
+          pagamentos: [{ forma: 'pix', valor: 132.40 }] },
+        { id: 'en4', numero: 1044, data: '2026-09-11', cliente: 'Otávio Brito', entregadorId: 'm2',
+          entregador: 'Wesley Barros', produtos: 55.90, taxaEntrega: 9.00, total: 64.90, troco: 0,
+          aPrestar: 64.90, forma: 'dinheiro', pagoAntes: false, emRota: true,
+          pagamentos: [{ forma: 'dinheiro', valor: 64.90 }] },
+        { id: 'en5', numero: 1039, data: '2026-09-11', cliente: 'Sandra Reis', entregadorId: 'm3',
+          entregador: 'Diego Rocha', produtos: 119.00, taxaEntrega: 9.00, total: 128.00, troco: 0,
+          aPrestar: 0, forma: 'pix', pagoAntes: true, emRota: false, pagamentos: [] },
+        { id: 'en6', numero: 1045, data: '2026-09-11', cliente: 'Johnatan Tanan', entregadorId: 'm3',
+          entregador: 'Diego Rocha', produtos: 109.00, taxaEntrega: 9.00, total: 118.00, troco: 0,
+          aPrestar: 118.00, forma: 'debito', pagoAntes: false, emRota: false,
+          pagamentos: [{ forma: 'debito', valor: 70.00 }, { forma: 'dinheiro', valor: 48.00 }] },
+      ],
+      // Um período já fechado: a linha do entregador diz "✓ Fechado" e não oferece
+      // fechar de novo — fechamento sobreposto paga o repasse duas vezes.
+      fechamentos: [
+        { id: 'fc1', entregadorId: 'm1', entregador: 'Tiago Moura', titular: null,
+          periodoInicio: '2026-09-01', periodoFim: '2026-09-07', entregas: 64, valor: 576.00,
+          vencimento: '2026-09-15', situacao: 'pendente' },
+        { id: 'fc2', entregadorId: 'm2', entregador: 'Wesley Barros', titular: 'Tiago Moura',
+          periodoInicio: '2026-09-01', periodoFim: '2026-09-07', entregas: 48, valor: 432.00,
+          vencimento: '2026-09-10', situacao: 'pago' },
+        { id: 'fc3', entregadorId: 'm3', entregador: 'Diego Rocha', titular: null,
+          periodoInicio: '2026-09-01', periodoFim: '2026-09-07', entregas: 31, valor: 279.00,
+          vencimento: null, situacao: null },
+      ],
       itens: [
         { nome: 'Tiago Moura', telefone: '(75) 99000-1111', situacao: 'Em rota', entregas: 11, aReceber: 88.00 },
         { nome: 'Wesley Barros', telefone: '(75) 99000-2222', situacao: 'Em rota', entregas: 8, aReceber: 64.00 },
@@ -414,6 +485,8 @@ function listasApoio() {
         { codigo: 'VOLTA10', descricao: '10% off pra quem sumiu', desconto: '10%', validade: '30/09', usos: 64, situacao: 'Ativo', cor: '#14CE6B', primeiraCompra: false, freteGratis: false },
         { codigo: 'PRIMEIRA15', descricao: '15% na primeira compra', desconto: '15%', validade: '31/12', usos: 41, situacao: 'Ativo', cor: '#2f7ff0', primeiraCompra: true, freteGratis: false },
         { codigo: 'FRETEGRATIS', descricao: 'Entrega por nossa conta', desconto: 'Entrega grátis', validade: '15/09', usos: 23, situacao: 'Ativo', cor: '#ea6a20', primeiraCompra: false, freteGratis: true },
+        // Cupom RESTRITO: vale só em parte do cardápio (painel, 09/09/2026).
+        { codigo: 'PIZZA25', descricao: '25% nas pizzas grandes', desconto: '25%', validade: '30/09', usos: 12, situacao: 'Ativo', cor: '#0ea5e9', primeiraCompra: false, freteGratis: false, categorias: ['cat-pizzas', 'cat-promo'], produtos: ['prod-calabresa'] },
         { codigo: 'AGOSTO20', descricao: 'Promoção de agosto', desconto: '20%', validade: '31/08', usos: 156, situacao: 'Inativo', cor: '#9b5de5', primeiraCompra: false, freteGratis: false },
       ],
     },
@@ -631,13 +704,20 @@ function apoioFinal() {
             { rotulo: 'Entrega grátis acima de', valor: 'R$ 120,00' },
           ] },
         ],
+        // A EQUIPE: dois cadastros diferentes convivendo na mesma lista — quem entra
+        // por e-mail e quem entra por CPF. É a diferença que decide o que dá para
+        // editar aqui e por qual rota isso vai.
         usuario: [
-          { titulo: 'Quem está usando o app', colunas: 2, campos: [
-            { rotulo: 'Nome', valor: 'Admin' },
-            { rotulo: 'E-mail', valor: 'johnatan.tanan@gmail.com' },
-            { rotulo: 'Perfil', valor: 'Dono da loja' },
-            { rotulo: 'Último acesso', valor: '07/09/2026 16:01' },
-          ] },
+          { id: 'u-dono', nome: 'Administrador', papel: 'dono', funcao: 'Dono da loja',
+            email: 'johnatan.tanan@gmail.com', cpf: '', tipo: 'admin', ativo: true },
+          { id: 'u-ana', nome: 'Ana Paula', papel: 'caixa', funcao: 'Caixa',
+            email: '', cpf: '123.456.789-00', tipo: 'colaborador', ativo: true },
+          { id: 'u-bruno', nome: 'Bruno Alves', papel: 'garcom', funcao: 'Garçom',
+            email: '', cpf: '987.654.321-00', tipo: 'colaborador', ativo: true },
+          { id: 'u-tiago', nome: 'Tiago Moura', papel: 'motoboy', funcao: 'Entregador',
+            email: '', cpf: '111.222.333-44', tipo: 'colaborador', ativo: true },
+          { id: 'u-carla', nome: 'Carla Dias', papel: 'caixa', funcao: 'Caixa',
+            email: '', cpf: '555.666.777-88', tipo: 'colaborador', ativo: false },
         ],
         gestor: [
           { titulo: 'App Gestor', colunas: 2, campos: [
@@ -855,6 +935,35 @@ function telasComAbas() {
       entradas: 20418, saidas: 11620, aReceber: 28000, aPagar: 25720.50,
       serie: { labels: dias, entradas: entradasDia, saidas: saidasDia },
       extrato, livroCaixa, contas, repasses, vendas, dre,
+      // Despesas: o GASTO com prestador de serviço. Sem vencimento e sem estado de
+      // pagamento — isso é Contas a pagar, a aba vizinha.
+      despesas: [
+        { id: 'dsp1', data: '2026-09-09', descricao: 'Repasse de entregas — semana 36',
+          prestador: 'Tiago Moura ME', valor: 640.00, fiscal: 'documentada' },
+        { id: 'dsp2', data: '2026-09-08', descricao: 'Repasse de entregas — semana 36',
+          prestador: 'Wesley Barros MEI', valor: 512.00, fiscal: 'pendente' },
+        { id: 'dsp3', data: '2026-09-05', descricao: 'Honorários contábeis — setembro',
+          prestador: 'Contabilidade Andrade', valor: 1200.00, fiscal: 'documentada' },
+        { id: 'dsp4', data: '2026-09-04', descricao: 'Conserto da câmara fria',
+          prestador: 'Refrigeração Souza', valor: 980.00, fiscal: 'pendente' },
+        { id: 'dsp5', data: '2026-09-02', descricao: 'Frete de insumos — Salvador',
+          prestador: 'Transportes Litoral', valor: 420.50, fiscal: 'documentada' },
+      ],
+      resumoDespesas: { total: 3752.50, documentado: 2260.50, pendente: 1492.00, qtdPendente: 2 },
+      // Contas bancárias: de onde sai cada pagamento. Cartão de crédito tem ciclo — é
+      // ele que junta as compras numa fatura só.
+      bancos: [
+        { id: 'b1', nome: 'Banco do Brasil — corrente', tipo: 'banco', diaFechamento: null, diaVencimento: null },
+        { id: 'b2', nome: 'Nubank PJ', tipo: 'banco', diaFechamento: null, diaVencimento: null },
+        { id: 'b3', nome: 'Cartão Itaú Empresas', tipo: 'cartao_credito', diaFechamento: 28, diaVencimento: 5 },
+        { id: 'b4', nome: 'Gaveta do caixa', tipo: 'caixa', diaFechamento: null, diaVencimento: null },
+      ],
+      movimentoPorConta: [
+        { id: 'b1', movimentos: 42, entradas: 14820.00, saidas: 7310.50 },
+        { id: 'b2', movimentos: 11, entradas: 3980.00, saidas: 1240.00 },
+        { id: 'b3', movimentos: 6, entradas: 0, saidas: 2860.00 },
+        { id: 'b4', movimentos: 28, entradas: 1618.00, saidas: 209.50 },
+      ],
     },
     atendimento: {
       salao: op.salao,
@@ -934,25 +1043,25 @@ function telasComAbas() {
       ],
       nfEntrada: {
         notas: [
-          { numero: '8821', fornecedor: 'Laticínios Vale Verde', cnpj: '12.345.678/0001-90', emissao: '05/09',
+          { id: 'nfe-8821', lancadaPor: 'Ana Paula', lancadaEm: '08/09 14:20', numero: '8821', fornecedor: 'Laticínios Vale Verde', cnpj: '12.345.678/0001-90', emissao: '05/09',
             tipoDocumento: 'nfe', situacao: 'processada', valor: 4200.00, fornecedorCadastrado: true, itens: [
               { nome: 'Muçarela peça 5kg', qtd: 12, unidade: 'cx', precoUnitario: 210.00, destino: 'Muçarela' },
               { nome: 'Requeijão balde 3kg', qtd: 8, unidade: 'un', precoUnitario: 84.00, destino: 'Requeijão' },
               { nome: 'Creme de leite 1L', qtd: 24, unidade: 'un', precoUnitario: 12.30, destino: 'Creme de leite' },
             ] },
-          { numero: '4410', fornecedor: 'Distribuidora Bebidas SA', cnpj: '98.765.432/0001-10', emissao: '04/09',
+          { id: 'nfe-4410', numero: '4410', fornecedor: 'Distribuidora Bebidas SA', cnpj: '98.765.432/0001-10', emissao: '04/09',
             tipoDocumento: 'nfe', situacao: 'pendente', valor: 3180.90, fornecedorCadastrado: true, itens: [
               { nome: 'Refrigerante 2L — cx 6', qtd: 30, unidade: 'cx', precoUnitario: 41.40, destino: 'Refrigerante 2L' },
               { nome: 'Cerveja long neck — cx 24', qtd: 15, unidade: 'cx', precoUnitario: 100.80, destino: 'Cerveja long neck' },
               { nome: 'Energético 269ml', qtd: 48, unidade: 'un', precoUnitario: 6.90, destino: null },
               { nome: 'Água com gás 500ml', qtd: 60, unidade: 'un', precoUnitario: 1.60, destino: null },
             ] },
-          { numero: '992', fornecedor: 'Hortifruti do Porto', cnpj: '45.111.222/0001-33', emissao: '03/09',
+          { id: 'nfe-992', lancadaPor: 'Bruno Alves', lancadaEm: '05/09 09:40', numero: '992', fornecedor: 'Hortifruti do Porto', cnpj: '45.111.222/0001-33', emissao: '03/09',
             tipoDocumento: 'nfe', situacao: 'processada', valor: 1290.40, fornecedorCadastrado: true, itens: [
               { nome: 'Tomate caixa 20kg', qtd: 6, unidade: 'cx', precoUnitario: 98.00, destino: 'Tomate' },
               { nome: 'Cebola saco 20kg', qtd: 4, unidade: 'sc', precoUnitario: 72.00, destino: 'Cebola' },
             ] },
-          { numero: '1571', fornecedor: 'Embalagens Norte', cnpj: '77.888.999/0001-55', emissao: '02/09',
+          { id: 'nfe-1571', numero: '1571', fornecedor: 'Embalagens Norte', cnpj: '77.888.999/0001-55', emissao: '02/09',
             tipoDocumento: 'manual', situacao: 'pendente', valor: 880.00, fornecedorCadastrado: false, itens: [
               { nome: 'Caixa de pizza G', qtd: 400, unidade: 'un', precoUnitario: 1.80, destino: 'Caixa de pizza G' },
               { nome: 'Sacola kraft', qtd: 500, unidade: 'un', precoUnitario: 0.32, destino: null },
@@ -1016,6 +1125,21 @@ function telasComAbas() {
         { nome: 'Distribuidora Bebidas SA', cnpj: '98.765.432/0001-10', telefone: '(75) 3222-2020', ultima: '04/09', mes: 6320.90 },
         { nome: 'Hortifruti do Porto', cnpj: '45.111.222/0001-33', telefone: '(75) 3222-3030', ultima: '03/09', mes: 2580.80 },
         { nome: 'Embalagens Norte', cnpj: '77.888.999/0001-55', telefone: '(75) 3222-4040', ultima: '02/09', mes: 1760.00 },
+      ],
+      // Prestadores de Serviço: quem emitiu NFS-e/CT-e para a loja, direto da SEFAZ.
+      // "Fora do cadastro" é quem emitiu nota e não existe como fornecedor — é essa
+      // linha que faz a despesa entrar sem dono.
+      prestadores: [
+        { nome: 'Tiago Moura ME', cnpj: '31222333000144', tipo: 'prestador', documentos: 12, valor: 3840.00,
+          ultimo: '2026-09-09', cadastrado: true, entregador: 'Tiago Moura' },
+        { nome: 'Contabilidade Andrade', cnpj: '09887766000122', tipo: 'prestador', documentos: 1, valor: 1200.00,
+          ultimo: '2026-09-05', cadastrado: true, entregador: null },
+        { nome: 'Wesley Barros MEI', cnpj: '55667788000199', tipo: 'prestador', documentos: 9, valor: 2760.00,
+          ultimo: '2026-09-08', cadastrado: false, entregador: null },
+        { nome: 'Refrigeração Souza', cnpj: '12988777000166', tipo: 'prestador', documentos: 2, valor: 980.00,
+          ultimo: '2026-08-28', cadastrado: false, entregador: null },
+        { nome: 'Transportes Litoral', cnpj: '44555666000177', tipo: 'transportadora', documentos: 4, valor: 1420.50,
+          ultimo: '2026-09-06', cadastrado: true, entregador: null },
       ],
     },
   }

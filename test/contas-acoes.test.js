@@ -76,3 +76,54 @@ test('em demonstração: baixa parcial vira "parcial", inteira vira paga/recebid
   assert.strictEqual(d.contas[2].descricao, 'Luz')
   assert.strictEqual(base.contas[0].valorPago, 0, 'o dado de origem não é tocado')
 })
+
+// ── Parcelamento (painel, 09/09/2026) ───────────────────────────────────────
+// O operador digita o TOTAL da nota — que é o que ele tem na mão — e em quantas vezes.
+const C = require('../src-electron/contas-acoes')
+
+test('⚠️ a sobra dos centavos vai na ÚLTIMA parcela — a soma fecha com a nota', () => {
+  const g = C.parcelasSugeridas(1000, 3, '2026-03-10')
+  assert.strictEqual(g.length, 3)
+  assert.strictEqual(g[0].valor, 333.33)
+  assert.strictEqual(g[2].valor, 333.34, 'sem isso o fornecedor cobra um centavo que o sistema não tem')
+  assert.strictEqual(g.reduce((s, p) => s + p.valor, 0), 1000)
+})
+
+test('dia que não existe no mês transborda para o seguinte', () => {
+  // 31/01 + 1 mês: fevereiro não tem 31, então cai em março.
+  const g = C.parcelasSugeridas(300, 2, '2026-01-31')
+  assert.ok(g[1].vencimento.startsWith('2026-03'), g[1].vencimento)
+})
+
+test('vencimento em fim de semana anda para o próximo dia útil', () => {
+  // 2026-03-07 é sábado.
+  const g = C.parcelasSugeridas(100, 1, '2026-03-07')
+  assert.strictEqual(new Date(g[0].vencimento + 'T12:00:00Z').getUTCDay(), 1, 'tem que cair na segunda')
+})
+
+test('conta parcelada manda a grade pronta e o total como valor', () => {
+  const r = C.nova({ direcao: 'pagar', descricao: 'NF 8821', valor: '4.200,00',
+    vencimento: '10/10/2026', parcelas: 3, documento: '8821' })
+  assert.strictEqual(r.ok, true)
+  assert.strictEqual(r.corpo.natureza, 'parcelada')
+  assert.strictEqual(r.corpo.parcelas, 3)
+  assert.strictEqual(r.corpo.documento, '8821')
+  assert.strictEqual(r.corpo.parcelas_detalhe.length, 3)
+  assert.match(r.resumo, /3x/)
+})
+
+test('uma parcela só continua sendo conta avulsa', () => {
+  const r = C.nova({ direcao: 'pagar', descricao: 'Aluguel', valor: '6.800,00', vencimento: '05/10/2026', parcelas: 1 })
+  assert.strictEqual(r.corpo.natureza, undefined)
+  assert.strictEqual(r.corpo.valor, 6800)
+})
+
+test('o documento da NF vira campo próprio, não texto solto na descrição', () => {
+  const r = C.nova({ direcao: 'pagar', descricao: 'Compra', valor: '100', vencimento: '05/10/2026', documento: 'NF 123' })
+  assert.strictEqual(r.corpo.documento, 'NF 123', 'solto na descrição ninguém acha pela busca')
+})
+
+test('mais de 60 parcelas é recusado antes de sair', () => {
+  const r = C.nova({ direcao: 'pagar', descricao: 'x', valor: '100', vencimento: '05/10/2026', parcelas: 61 })
+  assert.strictEqual(r.ok, false)
+})

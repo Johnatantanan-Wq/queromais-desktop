@@ -131,3 +131,46 @@ test('pedido sem id não vira chamada com "undefined" na URL', () => {
   assert.strictEqual(r.ok, false)
   assert.ok(!/undefined/.test(r.motivo || ''))
 })
+
+// ── Entrega ⇄ retirada na edição (painel, 08/09/2026) ───────────────────────
+// O cliente liga e muda de ideia. Quem recalcula a taxa, cobra a diferença por Pix e
+// avisa o cliente é o SERVIDOR — o app manda o campo e barra o que ele recusaria.
+const FichaPedidoConversa = require('../renderer/elo/ficha-pedido-conversa')
+const A = require('../src-electron/pedido-acoes')
+
+test('trocar retirada por entrega manda o tipo e avisa que a taxa entra', () => {
+  const r = A.correcao({ id: 'p1', tipo: 'retirada', etapa: 'producao' }, { tipo: 'entrega' })
+  assert.strictEqual(r.ok, true)
+  assert.deepStrictEqual(r.corpo, { tipo: 'entrega' })
+  assert.deepStrictEqual(r.trocouTipo, { de: 'retirada', para: 'entrega' })
+})
+
+test('⛔ pedido de mesa não troca de tipo', () => {
+  const r = A.correcao({ id: 'p1', tipo: 'consumo_local', etapa: 'producao' }, { tipo: 'entrega' })
+  assert.strictEqual(r.ok, false)
+  assert.match(r.motivo, /entrega e retirada/)
+})
+
+test('⛔ pedido já entregue não troca de tipo', () => {
+  const r = A.correcao({ id: 'p1', tipo: 'entrega', etapa: 'entregue' }, { tipo: 'retirada' })
+  assert.strictEqual(r.ok, false)
+  assert.match(r.motivo, /já entregue/)
+})
+
+test('escolher o mesmo tipo não conta como mudança', () => {
+  const r = A.correcao({ id: 'p1', tipo: 'entrega', etapa: 'producao' }, { tipo: 'entrega' })
+  assert.strictEqual(r.ok, false)
+  assert.strictEqual(r.motivo, 'Nada mudou.')
+})
+
+test('⚠️ escolher o tipo na tela não mexe no pedido — é o original que diz se mudou', () => {
+  const p = { numero: 1041, tipo: 'retirada', telefone: '75988887766' }
+  const h = FichaPedidoConversa.corpoPedido(p, true, 'entrega')
+  assert.ok(/data-tipo-pedido="entrega"[^>]*font-weight:800/.test(h), 'a escolha nova tem que aparecer marcada')
+  assert.strictEqual(p.tipo, 'retirada', 'guardar a escolha por cima do pedido faria a troca virar "nada mudou"')
+})
+
+test('a tela avisa da cobrança antes de o lojista salvar', () => {
+  const h = FichaPedidoConversa.corpoPedido({ numero: 1, tipo: 'retirada' }, true)
+  assert.match(h, /cobrança Pix da diferença/)
+})

@@ -118,6 +118,59 @@ function fichaMovimentacao(tipo, motivos) {
     + '</div>'
 }
 
+function fichaTempos(tempos) {
+  const t = tempos || {}
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'É o tempo que o cliente vê no cardápio e a meta do quadro. Minutos inteiros, de 1 a 180.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('Balcão / retirada (min)', 'balcao', t.balcao != null ? String(t.balcao) : '')
+    + campo('Delivery (min)', 'delivery', t.delivery != null ? String(t.delivery) : '') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('loja:cancelar', 'Cancelar', false) + botaoFicha('loja:tempos:confirmar', 'Salvar tempos', true) + '</div>'
+}
+
+function fichaPausar() {
+  const opcao = (min, rotulo) => '<button type="button" data-acao="loja:pausar:confirmar:' + min + '" class="ecard ecard-vivo"'
+    + ' style="padding:16px;cursor:pointer;font-family:inherit;text-align:center;border:1.5px solid #e8eaee;background:#fff">'
+    + '<div style="font-size:18px;font-weight:800;color:#111">' + esc(rotulo) + '</div></button>'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Enquanto estiver pausado, ninguém consegue pedir pelo cardápio. Volta sozinho quando o tempo acaba, ou antes se você retomar.</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">' + opcao(15, '15 min') + opcao(30, '30 min') + opcao(60, '1 hora') + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' + botaoFicha('loja:cancelar', 'Cancelar', false) + '</div>'
+}
+
+function fichaNovoEntregador() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'O entregador entra no app dele com o telefone — o código de acesso aparece depois de cadastrar.</div>'
+    + campo('Nome', 'nome', '') + campo('Telefone com DDD', 'telefone', '', 'Ex.: (75) 99999-0000')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('loja:cancelar', 'Cancelar', false) + botaoFicha('entregador:confirmar', 'Cadastrar', true) + '</div>'
+}
+
+function fichaFecharRota(rota) {
+  const r = rota || {}
+  const esperado = Number(r.esperadoDeVolta) || 0
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">'
+    + 'O entregador voltou. Conte o dinheiro que ele trouxe — o esperado é o fundo que levou mais o que recebeu na rua.</div>'
+    + '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:800;color:#111">' + esc(r.entregador || '') + '</span>'
+    + '<span style="font-size:13px;font-weight:800;color:#111">esperado ' + esc(brl(esperado)) + '</span></div>'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-top:3px">' + esc((r.entregas || 0) + (r.entregas === 1 ? ' entrega' : ' entregas'))
+    + ' · a receber na rua ' + esc(brl(r.dinheiroAReceber)) + '</div></div>'
+    + campo('Dinheiro que trouxe', 'contado', esperado.toFixed(2).replace('.', ','), 'Diferença vira acerto do entregador.')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('loja:cancelar', 'Cancelar', false) + botaoFicha('rota:confirmar:' + esc(r.rotaId || ''), 'Fechar rota', true) + '</div>'
+}
+
+function fichaNovoCliente() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'O telefone é a chave: é por ele que o pedido, a conversa e a fidelidade reconhecem o cliente.</div>'
+    + campo('Nome', 'nome', '') + campo('Telefone com DDD', 'telefone', '')
+    + campo('CPF ou CNPJ (opcional)', 'documento', '', 'Para nota fiscal com CPF.')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('loja:cancelar', 'Cancelar', false) + botaoFicha('cliente:confirmar', 'Cadastrar', true) + '</div>'
+}
+
 const UNIDADES_ESTOQUE = ['un', 'kg', 'g', 'l', 'ml', 'cx', 'pct']
 const NOME_GRUPO_ESTOQUE = { insumos: 'Insumos', producao: 'Produção própria', revenda: 'Revenda' }
 
@@ -256,20 +309,44 @@ function fichaBaixa(conta, hojeBR) {
 }
 
 /** Conta nova, avulsa. */
-function fichaNovaConta(direcao) {
+/** Nova conta. O operador digita o VALOR DO LANÇAMENTO (o total da nota, que é o que
+ *  ele tem na mão) e em quantas vezes — o sistema divide e sugere as datas de mês em
+ *  mês. A grade aparece assim que o número de parcelas passa de 1. */
+function fichaNovaConta(direcao, parcelas) {
   const receber = direcao === 'receber'
+  const grade = (parcelas || []).length > 1
+    ? '<div style="background:#f7f8fa;border-radius:10px;padding:12px 14px;margin-bottom:14px">'
+      + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em;'
+      + 'margin-bottom:8px">As ' + parcelas.length + ' parcelas</div>'
+      + parcelas.map((p) => '<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0;'
+        + 'font-size:12.5px;font-weight:600;color:#6b7280">'
+        + '<span>' + p.numero + ' de ' + parcelas.length + ' · '
+        + esc(('' + p.vencimento).split('-').reverse().join('/')) + '</span>'
+        + '<span style="color:#111;font-weight:700">' + esc(brl(p.valor)) + '</span></div>').join('')
+      + '<div style="display:flex;justify-content:space-between;gap:12px;padding-top:8px;margin-top:6px;'
+      + 'border-top:1px solid #e5e7eb;font-size:12.5px;font-weight:800;color:#111">'
+      + '<span>Soma</span><span>' + esc(brl(parcelas.reduce((t, p) => t + p.valor, 0))) + '</span></div>'
+      + '<div style="font-size:11px;color:#9ca3af;font-weight:600;margin-top:6px;line-height:1.45">'
+      + 'Datas de mês em mês; fim de semana anda para o próximo dia útil. Ajustar data combinada '
+      + 'com o fornecedor ainda é pelo painel.</div></div>'
+    : ''
   return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
     + (receber ? 'Uma entrada que alguém deve à loja.' : 'Uma obrigação da loja, com vencimento.')
-    + ' Conta fixa mensal e parcelada ainda são pelo painel.</div>'
+    + ' Conta fixa mensal ainda é pelo painel.</div>'
     + campo('Descrição', 'descricao', '', receber ? 'Ex.: Repasse iFood setembro' : 'Ex.: Aluguel de outubro')
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-    + campo('Valor', 'valor', '') + campo('Vencimento', 'vencimento', '', 'dd/mm/aaaa') + '</div>'
+    + campo('Valor do lançamento', 'valor', '', 'o total da nota') + campo('Vencimento', 'vencimento', '', 'dd/mm/aaaa') + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + campo('Documento / NF (opcional)', 'documento', '', 'o número da nota do fornecedor')
+    + campo('Parcelas', 'parcelas', '1', 'em quantas vezes') + '</div>'
+    + grade
     + seletorForma('')
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
     + campo(receber ? 'Quem paga (opcional)' : 'Fornecedor (opcional)', 'contraparte', '')
     + campo('Categoria (opcional)', 'categoria', '') + '</div>'
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
     + botaoFicha('conta:nova:cancelar', 'Cancelar', false)
+    + botaoFicha('conta:nova:parcelar:' + direcao, 'Ver parcelas', false)
     + botaoFicha('conta:nova:confirmar:' + direcao, 'Lançar conta', true)
     + '</div>'
 }
@@ -289,15 +366,75 @@ function fichaRecebimento(item) {
     + '</div>'
 }
 
-/** Editar o preço de um produto: um campo, o preço atual à vista. */
-function fichaPreco(item) {
+/** Editar o preço de um produto: um campo, o preço atual à vista.
+ *
+ *  ⛔ O preço mora em DOIS lugares: `produtos.preco` e, quando o mesmo item é vendido
+ *  como OPÇÃO dentro de outro produto (meia pizza, sabor de combo), `preco_adicional`
+ *  da opção — e é esse segundo que o cliente paga ali. Mudar só o primeiro deixa o
+ *  cliente pagando o valor velho. Por isso, quando o item é opção em algum lugar, a
+ *  caixa pergunta antes de salvar. As opções que cobram OUTRO preço (a bebida inclusa
+ *  a R$ 0, por exemplo) ficam de fora — e a tela diz quantas são. */
+function fichaPreco(item, opcoes) {
   const p = item || {}
+  const o = opcoes || null
+  const deFora = o && o.lugares > o.comPrecoAntigo ? o.lugares - o.comPrecoAntigo : 0
   return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
     + 'Preço atual: <b style="color:#111">' + esc(brl(p.preco)) + '</b>. Vale a partir de agora, no cardápio e na venda manual.</div>'
     + campo('Novo preço', 'preco', '', 'Pode digitar 59,90 ou 59.90.')
+    + (o && o.lugares
+      ? '<label style="display:flex;gap:10px;align-items:flex-start;background:#fff9e8;border:1px solid #eed571;'
+        + 'border-radius:10px;padding:11px 13px;margin-bottom:14px;cursor:pointer">'
+        + '<input type="checkbox" data-campo="opcoes" ' + (o.comPrecoAntigo ? 'checked' : '')
+        + (o.comPrecoAntigo ? '' : ' disabled') + ' style="margin-top:2px">'
+        + '<span style="font-size:12.5px;color:#8a6508;font-weight:600;line-height:1.45">'
+        + 'Este item também é vendido como <b>opção em ' + o.lugares
+        + (o.lugares === 1 ? ' lugar' : ' lugares') + '</b>'
+        + (o.comPrecoAntigo
+          ? ', e em ' + o.comPrecoAntigo + (o.comPrecoAntigo === 1 ? ' dele' : ' deles')
+            + ' pelo preço de agora (' + esc(brl(p.preco)) + '). Atualizar também?'
+          : ', mas nenhum cobra o preço de agora — nada a atualizar lá.')
+        + (deFora
+          ? '<br><span style="font-size:11.5px;color:#9ca3af">' + deFora
+            + (deFora === 1 ? ' opção fica' : ' opções ficam') + ' de fora: cobra' + (deFora === 1 ? '' : 'm')
+            + ' outro valor (ex.: item incluso a R$ 0).</span>'
+          : '')
+        + '</span></label>'
+      : '')
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
     + botaoFicha('cardapio:preco:cancelar', 'Cancelar', false)
     + botaoFicha('cardapio:preco:confirmar:' + (p.nome || ''), 'Salvar preço', true)
+    + '</div>'
+}
+
+/** Editar quem tem acesso: nome sempre; função só para quem entra por CPF.
+ *
+ *  ⛔ Virar Administrador ou Contador mudaria a forma de ENTRAR (e-mail e senha no lugar
+ *  do CPF) — não é troca de rótulo. A caixa explica isso em vez de oferecer um botão que
+ *  quebraria o login de alguém. */
+function fichaUsuario(u) {
+  const user = u || {}
+  const FUNCOES = require('../../src-electron/usuarios-acoes').FUNCOES_CPF
+  const podeTrocar = user.tipo === 'colaborador'
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:16px;line-height:1.5">'
+    + 'Entra por <b style="color:#111">' + esc(user.email ? 'e-mail' : 'CPF ' + (user.cpf || '')) + '</b>. '
+    + 'Senha e acessos por módulo continuam no painel.</div>'
+    + campo('Nome', 'nome', user.nome || '')
+    + (podeTrocar
+      ? '<label style="display:block;margin-bottom:14px">'
+        + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+        + 'letter-spacing:.06em;margin-bottom:6px">Função</span>'
+        + '<select data-campo-usuario="funcao" style="width:100%;height:40px;border:1px solid #e5e7eb;'
+        + 'border-radius:10px;padding:0 10px;font-family:inherit;font-size:14px;font-weight:600;color:#111;'
+        + 'background:#fff;box-sizing:border-box">'
+        + FUNCOES.map((f) => '<option value="' + esc(f.chave) + '"' + (f.chave === user.papel ? ' selected' : '')
+          + '>' + esc(f.rotulo) + '</option>').join('')
+        + '</select></label>'
+      : '<div style="background:#f7f8fa;border-radius:10px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;'
+        + 'color:#6b7280;font-weight:600;line-height:1.45">Função: <b style="color:#111">' + esc(user.funcao || '—')
+        + '</b>. Trocar a função de quem entra por e-mail mudaria a forma de entrar no sistema — isso é pelo painel.</div>')
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+    + botaoFicha('usuario:cancelar', 'Cancelar', false)
+    + botaoFicha('usuario:salvar', 'Salvar', true)
     + '</div>'
 }
 
@@ -313,9 +450,16 @@ function fichaAbertura() {
     + '</div>'
 }
 
-/** Fechamento: os três contados são obrigatórios — é o que o painel exige. */
+/** Fechamento: os três contados são obrigatórios — é o que o painel exige.
+ *
+ *  ⛔ O Pix do SITE fica fora da conferência (regra do dono no painel, 09/09/2026 —
+ *  PainelCaixa.tsx `pixEsperado = resumo.vendaPixConferir`). Pedir o Pix total faz o
+ *  operador contar só o que passou pela mão dele e o sistema acusar uma falta que não
+ *  existe: no turno em que isso apareceu, R$ 1.122 de falta falsa. */
 function fichaFechamento(caixa) {
   const r = (caixa && caixa.resumo) || {}
+  const pixOnline = Number(r.vendaPixOnline) || 0
+  const pixConferir = r.vendaPixConferir != null ? r.vendaPixConferir : (Number(r.vendaPix) || 0) - pixOnline
   const esperado = (rotulo, v) => '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0">'
     + '<span style="font-size:12.5px;color:#6b7280;font-weight:600">' + esc(rotulo) + '</span>'
     + '<span style="font-size:12.5px;color:#111;font-weight:700">' + brl(v) + '</span></div>'
@@ -325,10 +469,17 @@ function fichaFechamento(caixa) {
     + '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.08em;'
     + 'margin-bottom:6px">Esperado pelo sistema</div>'
     + esperado('Dinheiro', caixa && caixa.esperadoDinheiro)
-    + esperado('Pix', r.vendaPix)
+    + esperado(pixOnline > 0 ? 'Pix manual' : 'Pix', pixConferir)
     + esperado('Cartão', r.vendaCartao) + '</div>'
+    + (pixOnline > 0
+      ? '<div style="display:flex;align-items:center;gap:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;'
+        + 'padding:10px 12px;margin-bottom:16px;font-size:12px;font-weight:600;color:#3730a3;line-height:1.45">'
+        + '<span>Mais <strong>' + brl(pixOnline) + '</strong> em Pix do site já confirmado pelo banco — '
+        + 'não entra na conferência.</span></div>'
+      : '')
     + campo('Dinheiro contado', 'dinheiro', '')
-    + campo('Pix conferido', 'pix', '')
+    + campo(pixOnline > 0 ? 'Pix manual conferido' : 'Pix conferido', 'pix', '',
+      pixOnline > 0 ? 'Só o Pix recebido por gente na entrega ou no balcão — o do site não entra aqui.' : '')
     + campo('Cartão conferido', 'cartao', '')
     + campo('Observação (opcional)', 'observacao', '')
     + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
@@ -429,4 +580,4 @@ function fichaAcessoTv(estado) {
     + '</div>'
 }
 
-module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }
+module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, brl }

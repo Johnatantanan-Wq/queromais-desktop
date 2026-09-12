@@ -92,13 +92,37 @@ function modoVer(p) {
     + '</div>'
 }
 
-function modoEditar(p) {
+function modoEditar(p, tipoEscolhido) {
   const end = p.enderecoCampos || {}
   const temEndereco = !!p.enderecoCampos
+  // Entrega ⇄ retirada (painel, 08/09/2026): o cliente liga e muda de ideia. Quem
+  // recalcula a taxa e cobra a diferença por Pix é o servidor — aqui só se escolhe.
+  const trocavel = p.tipo === 'entrega' || p.tipo === 'retirada'
+  // O tipo original NÃO muda enquanto se escolhe: é ele que diz se houve troca na
+  // hora de salvar. Guardar a escolha por cima do pedido fazia a comparação dar
+  // "nada mudou" e a troca não sair do lugar.
+  const tipoNaTela = tipoEscolhido || p.tipo
   return '<div style="font-size:12.5px;color:#6b7280;font-weight:500;line-height:1.55;margin-bottom:16px">'
     + 'Corrigir o que o cliente disse na conversa. Mudar o bairro <b>recalcula a taxa de entrega</b>.</div>'
 
     + '<div style="margin-bottom:14px">' + campo({ chave: 'telefone', rotulo: 'Telefone do cliente' }, p.telefone) + '</div>'
+
+    + (trocavel
+      ? '<div style="margin-bottom:14px">'
+        + '<span style="display:block;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;'
+        + 'letter-spacing:.06em;margin-bottom:6px">Como o cliente recebe</span>'
+        + '<div style="display:inline-flex;background:#eef0f3;border-radius:9px;padding:2px">'
+        + [{ v: 'entrega', r: 'Entrega' }, { v: 'retirada', r: 'Retirada no balcão' }].map((o) =>
+          '<button type="button" data-tipo-pedido="' + esc(o.v) + '"'
+          + ' style="height:28px;padding:0 13px;border:none;border-radius:7px;font-family:inherit;font-size:12px;'
+          + 'cursor:pointer;' + (o.v === tipoNaTela
+            ? 'background:#fff;color:#111;font-weight:800;box-shadow:0 1px 2px rgba(17,17,17,.08)'
+            : 'background:none;color:#6b7280;font-weight:600') + '">' + esc(o.r) + '</button>').join('')
+        + '</div>'
+        + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:6px;line-height:1.45">'
+        + 'Virar entrega acrescenta a taxa do bairro. Se o pedido já estiver pago, o sistema gera '
+        + 'uma cobrança Pix da diferença e avisa o cliente.</div></div>'
+      : '')
 
     + (temEndereco
       ? '<div style="font-size:10.5px;font-weight:800;color:#a9aeb8;text-transform:uppercase;letter-spacing:.06em;'
@@ -126,9 +150,9 @@ function modoEditar(p) {
     + 'font-weight:800;cursor:pointer">Salvar correção</button></div>'
 }
 
-function corpoPedido(p, editando) {
+function corpoPedido(p, editando, tipoEscolhido) {
   if (!p) return '<div class="evazio">Não achei este pedido.</div>'
-  return editando ? modoEditar(p) : modoVer(p)
+  return editando ? modoEditar(p, tipoEscolhido) : modoVer(p)
 }
 
 module.exports = { corpoPedido, CAMPOS_ENDERECO, ETAPA }

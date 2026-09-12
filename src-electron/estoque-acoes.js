@@ -62,4 +62,27 @@ function novoInsumo({ grupo, nome, unidade, qtd, minimo, custo } = {}) {
   }
 }
 
-module.exports = { sincronizar, novaCategoria, novoFornecedor, novoInsumo, UNIDADES, GRUPO }
+/**
+ * "Ajustar" de uma nota já lançada: REABRE. O estoque volta atrás (movimento de ajuste
+ * negativo no kardex, auditável) e a nota retorna para "A lançar", para ser lançada de
+ * novo já corrigida. É o caminho de quem lançou errado — item no insumo trocado, fator
+ * de caixa errado, quantidade errada.
+ *
+ * ⚠️ O que NÃO se desfaz, de propósito (regra do painel): produto criado na conferência,
+ * preço de venda, fornecedor, embalagem aprendida, custo médio e as contas a pagar
+ * geradas pela nota. Apagar isso quebraria mais do que conserta — o relançamento
+ * sobrescreve o que mudar.
+ */
+function reabrirNota(nota) {
+  const n = nota || {}
+  if (!n.id) return { ok: false, motivo: 'Esta nota veio sem identificação — recarregue a tela.' }
+  if (n.situacao === 'pendente') return { ok: false, motivo: 'Esta nota ainda não foi lançada.' }
+  return {
+    ok: true,
+    caminho: '/api/admin/estoque/entradas/' + n.id + '/reabrir',
+    corpo: {},
+    resumo: 'NF ' + (n.numero || '') + ' reaberta: o estoque foi estornado e ela voltou para "A lançar".',
+  }
+}
+
+module.exports = { sincronizar, novaCategoria, novoFornecedor, novoInsumo, reabrirNota, UNIDADES, GRUPO }

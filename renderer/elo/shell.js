@@ -27,7 +27,10 @@ const TELAS_MARKETING = ['/admin/cupons', '/admin/vendedores', '/admin/fidelidad
 const TELAS_DO_APP = ['/app/impressao']
 // Venda manual: existe no painel (/admin/venda) e agora TAMBÉM no app, fechando de verdade.
 const TELA_VENDA = ['/admin/venda']
-const TELAS_NATIVAS = ['/admin', '/admin/caixa', '/admin/whatsapp'].concat(Object.keys(CATALOGO_LISTAS))
+// ⚠️ '/admin/motoboys' entra AQUI porque saiu do catálogo (virou tela com abas): tela
+// que não está nesta lista fica esmaecida e inalcançável sem internet — foi assim que
+// seis telas sumiram no modo offline em 07/09.
+const TELAS_NATIVAS = ['/admin', '/admin/caixa', '/admin/whatsapp', '/admin/motoboys'].concat(Object.keys(CATALOGO_LISTAS))
   .concat(TELAS_OPERACAO).concat(TELAS_FINAIS).concat(TELAS_MARKETING).concat(TELA_VENDA).concat(TELAS_DO_APP)
 
 function ehNativa(rota) {
@@ -143,6 +146,8 @@ if (typeof document !== 'undefined') {
   let FORA_DO_FAT = []          // Visão geral: partes tiradas do cálculo do faturamento
   let FICHA_ABERTA = null       // Gestão › Fichas técnicas: produto escolhido na lista
   let PERIODO_REL = '30dias'    // Relatórios e Insights: período escolhido
+  let PERIODO_ENTREGADOR = 'hoje' // Entregadores › Entregas: período do acerto
+  let QUEM_ENTREGADOR = 'todos'   // Entregadores › Entregas: entregador escolhido
   let ABA_REL = 'vendas'        // Relatórios: aba escolhida
   let ABA_CAMPANHA = 'nova'     // Campanhas: nova | histórico | configurações
   let ABA_FIDELIDADE = 'visao'  // Fidelidade: visão geral | configurações | atividades
@@ -361,6 +366,20 @@ if (typeof document !== 'undefined') {
       ...estado, aba: ABA['/admin/cardapio'], abertas: CATEGORIAS_ABERTAS, termo: TERMO['/admin/cardapio'],
     }),
     erro: 'Não deu para carregar o cardápio agora.',
+  }
+
+  // Entregadores: as MESMAS três abas do painel (Entregas, Fechamentos, Equipe). Era
+  // uma lista só — o equivalente à aba Equipe — e o que o dono usa todo dia é a
+  // primeira, que virou a prestação de contas do entregador.
+  const TelaEntregadores = require('./tela-entregadores')
+  NATIVAS['/admin/motoboys'] = {
+    canal: 'entregadores-carregar',
+    desenhar: (dados, estado) => TelaEntregadores.htmlEntregadores(dados, {
+      ...estado, aba: ABA['/admin/motoboys'],
+      periodoEntregador: PERIODO_ENTREGADOR, quemEntregador: QUEM_ENTREGADOR,
+    }),
+    argumentos: () => ({ periodo: PERIODO_ENTREGADOR }),
+    erro: 'Não deu para carregar os entregadores agora.',
   }
 
   NATIVAS['/admin/despacho'] = {
@@ -686,6 +705,14 @@ if (typeof document !== 'undefined') {
   }
 
   document.addEventListener('click', (e) => {
+    // Entregadores: trocar o período recarrega do servidor — quem decide o que é "hoje"
+    // é o fuso da LOJA, não o relógio desta máquina.
+    const btPerEnt = e.target.closest ? e.target.closest('[data-periodo-entregador]') : null
+    if (btPerEnt) {
+      PERIODO_ENTREGADOR = btPerEnt.getAttribute('data-periodo-entregador')
+      carregarTelaNativa(ROTA)
+      return
+    }
     const btPerFin = e.target.closest ? e.target.closest('[data-periodo-fin]') : null
     if (btPerFin) {
       PERIODO_FIN = btPerFin.getAttribute('data-periodo-fin')
@@ -981,6 +1008,15 @@ if (typeof document !== 'undefined') {
     }
     const btBusca = e.target.closest ? e.target.closest('[data-busca-idx]') : null
     if (btBusca) { irParaResultado(Number(btBusca.getAttribute('data-busca-idx'))); return }
+    // Entrega ⇄ retirada na edição do pedido: só marca a escolha e redesenha o popup.
+    // Nada vai para o servidor antes do "Salvar correção" — trocar o tipo mexe na taxa
+    // e pode gerar cobrança Pix, e isso não pode sair de um clique de rascunho.
+    const btTipoPedido = e.target.closest ? e.target.closest('[data-tipo-pedido]') : null
+    if (btTipoPedido) {
+      TIPO_PEDIDO_NOVO = btTipoPedido.getAttribute('data-tipo-pedido')
+      abrirPopupPedido()
+      return
+    }
     const btAcao = e.target.closest ? e.target.closest('[data-acao]') : null
     if (btAcao) {
       const acao = btAcao.getAttribute('data-acao')
@@ -1002,6 +1038,47 @@ if (typeof document !== 'undefined') {
         imprimirComanda(btAcao, null, acao === 'impressao:teste' ? 'impressao-teste' : 'impressao-comanda')
         return
       }
+
+      // Loja e operação: aceite automático, tempos, aberta/fechada, pausa do cardápio,
+      // TV da cozinha, entregador novo, acerto da rota, cliente novo.
+      if (acao === 'aceite-automatico') { mandarCompras(btAcao, 'loja-aceite', { ligado: !!btAcao.checked }); return }
+      if (acao === 'alternar-loja') { mandarCompras(btAcao, 'loja-aberta', { aberta: !(DADOS_TELA && DADOS_TELA.lojaAberta) }); return }
+      if (acao === 'editar-tempos') { abrirPopup('Tempos de atendimento', Ficha.fichaTempos(DADOS_TELA && DADOS_TELA.tempos), 440); return }
+      if (acao === 'loja:cancelar') { fecharFicha(); return }
+      if (acao === 'loja:tempos:confirmar') { mandarCompras(btAcao, 'loja-tempos', { balcao: campoDaFicha('balcao'), delivery: campoDaFicha('delivery') }, fecharFicha); return }
+      if (acao === 'pausar-cardapio') {
+        if (DADOS_TELA && DADOS_TELA.pausadoAte) { mandarCompras(btAcao, 'loja-pausar', { minutos: null }); return }
+        abrirPopup('Pausar o cardápio', Ficha.fichaPausar(), 480)
+        return
+      }
+      if (acao.indexOf('loja:pausar:confirmar:') === 0) { mandarCompras(btAcao, 'loja-pausar', { minutos: Number(acao.split(':').pop()) }, fecharFicha); return }
+      if (acao === 'kds:gerar-codigo' || acao === 'kds:revogar-telas') {
+        btAcao.disabled = true
+        ipcRenderer.invoke(acao === 'kds:gerar-codigo' ? 'kds-gerar-codigo' : 'kds-revogar').then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) { avisar(r.resumo || 'Pronto.', 'ok'); if (r.codigo) { CODIGO_KDS = r.codigo; carregarTelaNativa(ROTA) } }
+          else avisar((r && r.erro) || 'Não deu.', 'erro')
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel.', 'erro') })
+        return
+      }
+      if (acao === 'novo-entregador') { abrirPopup('Novo entregador', Ficha.fichaNovoEntregador(), 460); return }
+      if (acao === 'entregador:confirmar') { mandarCompras(btAcao, 'entregador-novo', { nome: campoDaFicha('nome'), telefone: campoDaFicha('telefone') }, fecharFicha); return }
+      if (acao.indexOf('rota:fechar:') === 0) {
+        const chave = acao.slice('rota:fechar:'.length)
+        const rota = ((DADOS_TELA && DADOS_TELA.emTransito) || []).find((t) => String(t.rotaId || t.entregador) === chave)
+        if (!rota) { avisar('Não achei essa rota na tela — recarregue.', 'erro'); return }
+        abrirPopup('Fechar rota', Ficha.fichaFecharRota(rota), 460)
+        return
+      }
+      if (acao.indexOf('rota:confirmar:') === 0) {
+        const id = acao.slice('rota:confirmar:'.length)
+        const rota = ((DADOS_TELA && DADOS_TELA.emTransito) || []).find((t) => String(t.rotaId) === id)
+        if (!rota) { avisar('Não achei essa rota — recarregue.', 'erro'); return }
+        mandarCompras(btAcao, 'rota-fechar', { rota, contado: campoDaFicha('contado') }, fecharFicha)
+        return
+      }
+      if (acao === 'novo-cliente') { abrirPopup('Novo cliente', Ficha.fichaNovoCliente(), 460); return }
+      if (acao === 'cliente:confirmar') { mandarCompras(btAcao, 'cliente-novo', { nome: campoDaFicha('nome'), telefone: campoDaFicha('telefone'), documento: campoDaFicha('documento') }, fecharFicha); return }
 
       // Gestão: os cadastros de um passo. Nota fiscal de entrada continua pelo painel.
       if (acao === 'estoque:sincronizar-cardapio') { mandarCompras(btAcao, 'estoque-sincronizar', {}); return }
@@ -1083,6 +1160,27 @@ if (typeof document !== 'undefined') {
         }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada foi lançado.', 'erro') })
         return
       }
+      // "Ver parcelas": divide o total pelo número de vezes e mostra a grade ANTES de
+      // lançar — quem tem a nota na mão sabe o total, não a divisão.
+      if (acao.indexOf('conta:nova:parcelar:') === 0) {
+        const direcao = acao.slice('conta:nova:parcelar:'.length)
+        const campos = {
+          descricao: campoDaFicha('descricao'), valor: campoDaFicha('valor'),
+          vencimento: campoDaFicha('vencimento'), documento: campoDaFicha('documento'),
+          parcelas: campoDaFicha('parcelas'), contraparte: campoDaFicha('contraparte'),
+          categoria: campoDaFicha('categoria'),
+        }
+        ipcRenderer.invoke('conta-parcelas', campos).then((r) => {
+          if (!r || !r.ok) { avisar((r && r.erro) || 'Informe o valor, o vencimento e as parcelas.', 'aviso'); return }
+          abrirPopup('Nova conta a ' + direcao, Ficha.fichaNovaConta(direcao, r.parcelas), 560)
+          // Devolve o que já estava digitado: reabrir o popup limpo apagaria tudo.
+          for (const k of Object.keys(campos)) {
+            const el = document.querySelector('#eloFicha [data-campo="' + k + '"]')
+            if (el) el.value = campos[k] || ''
+          }
+        }).catch(() => avisar('Não deu para calcular as parcelas.', 'erro'))
+        return
+      }
       if (acao.indexOf('conta:nova:') === 0 && acao.indexOf('conta:nova:confirmar:') !== 0) {
         const direcao = acao.slice('conta:nova:'.length)
         abrirPopup('Nova conta a ' + direcao, Ficha.fichaNovaConta(direcao), 560)
@@ -1095,6 +1193,7 @@ if (typeof document !== 'undefined') {
         ipcRenderer.invoke('conta-nova', {
           direcao, descricao: campoDaFicha('descricao'), valor: campoDaFicha('valor'), vencimento: campoDaFicha('vencimento'),
           forma: campoDaFicha('forma'), contraparte: campoDaFicha('contraparte'), categoria: campoDaFicha('categoria'),
+          documento: campoDaFicha('documento'), parcelas: campoDaFicha('parcelas'),
         }).then((r) => {
           if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
           else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
@@ -1165,9 +1264,32 @@ if (typeof document !== 'undefined') {
       if (acao.indexOf('editar-preco:') === 0) {
         const item = produtoDoCardapio(acao.slice('editar-preco:'.length))
         if (!item) { avisar('Não achei esse produto na tela — recarregue.', 'erro'); return }
+        OPCOES_DO_PRECO = null
         abrirPopup(item.nome || 'Preço', Ficha.fichaPreco(item), 440)
         const c = document.querySelector('#eloFicha [data-campo="preco"]')
         if (c) c.focus()
+        // O mesmo item pode ser vendido como OPÇÃO dentro de outro produto, e ali quem
+        // manda é outro campo. A consulta é assíncrona: a caixa abre na hora e ganha a
+        // pergunta quando a resposta chega — esperar deixaria o clique sem retorno.
+        ipcRenderer.invoke('cardapio-opcoes-do-preco', { item }).then((r) => {
+          if (!r || !r.ok || !r.lugares) return
+          if (!document.querySelector('#eloFicha [data-campo="preco"]')) return  // já fechou
+          const digitado = campoDaFicha('preco')
+          OPCOES_DO_PRECO = r
+          abrirPopup(item.nome || 'Preço', Ficha.fichaPreco(item, r), 440)
+          const campo = document.querySelector('#eloFicha [data-campo="preco"]')
+          if (campo) { campo.value = digitado || ''; campo.focus() }
+        }).catch(() => {})
+        return
+      }
+      if (acao.indexOf('rastreio:mapa:') === 0) {
+        const coord = acao.slice('rastreio:mapa:'.length)
+        // O mapa abre FORA do app, no navegador. Sem o aviso, o clique parece não ter
+        // feito nada — a janela sobe atrás e o lojista clica de novo.
+        avisar('Abrindo a posição no navegador…', 'aviso')
+        ipcRenderer.invoke('abrir-externo', 'https://www.google.com/maps?q=' + encodeURIComponent(coord))
+          .then((r) => { if (!r || !r.ok) avisar('Não deu para abrir o mapa.', 'erro') })
+          .catch(() => avisar('Não deu para abrir o mapa.', 'erro'))
         return
       }
       if (acao === 'cardapio:preco:cancelar') { fecharFicha(); return }
@@ -1175,8 +1297,12 @@ if (typeof document !== 'undefined') {
         const item = produtoDoCardapio(acao.slice('cardapio:preco:confirmar:'.length))
         if (!item) { avisar('Não achei esse produto — recarregue.', 'erro'); return }
         btAcao.disabled = true
-        ipcRenderer.invoke('cardapio-editar-preco', { item, preco: campoDaFicha('preco') }).then((r) => {
-          if (r && r.ok) { fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+        // Só leva as opções junto se a caixa foi marcada — desmarcar é a resposta do
+        // lojista que quer mudar o preço do produto sem mexer onde ele é opção.
+        const marcada = document.querySelector('#eloFicha [data-campo="opcoes"]')
+        const sabores = (marcada && marcada.checked && OPCOES_DO_PRECO) ? OPCOES_DO_PRECO.sabores : []
+        ipcRenderer.invoke('cardapio-editar-preco', { item, preco: campoDaFicha('preco'), sabores }).then((r) => {
+          if (r && r.ok) { fecharFicha(); avisar(r.resumo, r.parcial ? 'aviso' : 'ok'); carregarTelaNativa(ROTA) }
           else { btAcao.disabled = false; avisar((r && r.erro) || 'Não deu.', 'erro') }
         }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. O preço não mudou.', 'erro') })
         return
@@ -1266,8 +1392,10 @@ if (typeof document !== 'undefined') {
         abrirPopupPedido()
         return
       }
+      // (a escolha de entrega/retirada é tratada antes, no clique do segmentado)
       if (acao === 'pedido-conversa:editar' || acao === 'pedido-conversa:ver') {
         EDITANDO_PEDIDO = acao === 'pedido-conversa:editar'
+        TIPO_PEDIDO_NOVO = null
         abrirPopupPedido()
         return
       }
@@ -1276,14 +1404,20 @@ if (typeof document !== 'undefined') {
         for (const el of document.querySelectorAll('#eloFicha [data-campo-pedido]')) {
           campos[el.getAttribute('data-campo-pedido')] = el.value
         }
+        if (TIPO_PEDIDO_NOVO) campos.tipo = TIPO_PEDIDO_NOVO
         btAcao.disabled = true
         ipcRenderer.invoke('pedido-corrigir', { pedido: PEDIDO_NA_CONVERSA, campos }).then((r) => {
           btAcao.disabled = false
           if (r && r.ok) {
             fecharFicha()
-            avisar(r.trocouBairro
-              ? 'Endereço corrigido — a taxa de entrega foi recalculada.'
-              : 'Pedido corrigido.', 'ok')
+            avisar(r.trocouTipo
+              ? (r.trocouTipo.para === 'entrega'
+                ? 'Agora é ENTREGA — a taxa do bairro entrou no total. Se o pedido já estava pago, '
+                  + 'o cliente recebeu a cobrança Pix da diferença.'
+                : 'Agora é RETIRADA no balcão — a taxa de entrega saiu do total.')
+              : r.trocouBairro
+                ? 'Endereço corrigido — a taxa de entrega foi recalculada.'
+                : 'Pedido corrigido.', 'ok')
             carregarTelaNativa(ROTA)
           } else {
             avisar((r && r.erro) || 'Não deu para corrigir.', 'erro')
@@ -1475,6 +1609,77 @@ if (typeof document !== 'undefined') {
         return
       }
       if (destino && destino.app === 'entrada-fechar') { NOTA_ABERTA = null; redesenharTelaAtual(); return }
+      // "Ajustar" numa nota já lançada: abre a conferência dela, de onde sai o botão de
+      // reabrir. Ver antes de mexer — o estorno mexe no estoque de TODOS os itens.
+      if (destino && destino.app === 'entrada-ajustar') {
+        const n = acao.split(':')[2]
+        NOTA_ABERTA = NOTA_ABERTA === n ? null : n
+        MENU_ENTRADA = false
+        redesenharTelaAtual()
+        return
+      }
+      // O DANFE é um PDF que o SERVIDOR monta a partir da chave de acesso. O app abre a
+      // rota dele na view já logada — não há como gerar essa folha aqui sem refazer a
+      // leitura do XML da SEFAZ.
+      // ── Configurações › Equipe ──
+      if (acao.indexOf('usuario:editar:') === 0) {
+        const id = acao.slice('usuario:editar:'.length)
+        const u = ((DADOS_TELA && DADOS_TELA.abas && DADOS_TELA.abas.usuario) || []).find((x) => x.id === id)
+        if (!u) { avisar('Não achei esse usuário — recarregue.', 'erro'); return }
+        USUARIO_EDITANDO = u
+        abrirPopup(u.nome || 'Usuário', Ficha.fichaUsuario(u), 460)
+        return
+      }
+      if (acao === 'usuario:cancelar') { USUARIO_EDITANDO = null; fecharFicha(); return }
+      if (acao === 'usuario:salvar') {
+        const u = USUARIO_EDITANDO
+        if (!u) { fecharFicha(); return }
+        const seletor = document.querySelector('#eloFicha [data-campo-usuario="funcao"]')
+        btAcao.disabled = true
+        ipcRenderer.invoke('usuario-editar', { usuario: u,
+          campos: { nome: campoDaFicha('nome'), funcao: seletor ? seletor.value : '' } }).then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) { USUARIO_EDITANDO = null; fecharFicha(); avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else avisar((r && r.erro) || 'Não deu para salvar.', 'erro')
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada mudou.', 'erro') })
+        return
+      }
+      if (acao.indexOf('usuario:desativar:') === 0 || acao.indexOf('usuario:reativar:') === 0) {
+        const ligado = acao.indexOf('usuario:reativar:') === 0
+        const id = acao.slice(ligado ? 'usuario:reativar:'.length : 'usuario:desativar:'.length)
+        const u = ((DADOS_TELA && DADOS_TELA.abas && DADOS_TELA.abas.usuario) || []).find((x) => x.id === id)
+        if (!u) { avisar('Não achei esse usuário — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('usuario-ativar', { usuario: u, ligado }).then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) { avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else avisar((r && r.erro) || 'Não deu.', 'erro')
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. Nada mudou.', 'erro') })
+        return
+      }
+      if (destino && destino.app === 'entrada-danfe') {
+        const numero = acao.split(':')[2]
+        const nota = ((DADOS_TELA && DADOS_TELA.nfEntrada && DADOS_TELA.nfEntrada.notas) || [])
+          .find((x) => String(x.numero) === String(numero))
+        if (!nota || !nota.id) { avisar('Esta nota não tem chave de acesso para montar o DANFE.', 'aviso'); return }
+        avisar('Abrindo o DANFE da NF ' + numero + '…', 'aviso')
+        ipcRenderer.invoke('abrir-rota', '/api/admin/estoque/entradas/' + nota.id + '/danfe')
+          .catch(() => avisar('Não deu para abrir o DANFE.', 'erro'))
+        return
+      }
+      if (destino && destino.app === 'entrada-reabrir') {
+        const numero = acao.split(':')[2]
+        const nota = ((DADOS_TELA && DADOS_TELA.nfEntrada && DADOS_TELA.nfEntrada.notas) || [])
+          .find((x) => String(x.numero) === String(numero))
+        if (!nota) { avisar('Não achei essa nota na tela — recarregue.', 'erro'); return }
+        btAcao.disabled = true
+        ipcRenderer.invoke('estoque-reabrir-nota', { nota }).then((r) => {
+          btAcao.disabled = false
+          if (r && r.ok) { NOTA_ABERTA = null; avisar(r.resumo, 'ok'); carregarTelaNativa(ROTA) }
+          else avisar((r && r.erro) || 'Não deu para reabrir a nota.', 'erro')
+        }).catch(() => { btAcao.disabled = false; avisar('Não deu para falar com o painel. A nota não foi reaberta.', 'erro') })
+        return
+      }
       if (destino && destino.app === 'venda-etapa') { VENDA.etapa = acao.split(':')[2]; redesenharTelaAtual(); return }
       if (destino && destino.app === 'venda-fechar') { fecharVenda(); return }
       if (destino && destino.app === 'venda-nova') {
@@ -1671,6 +1876,11 @@ if (typeof document !== 'undefined') {
       redesenharTelaAtual()
       return
     }
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-quem-entregador')) {
+      QUEM_ENTREGADOR = e.target.value
+      redesenharTelaAtual()
+      return
+    }
     // Os filtros do Financeiro são <select>: mudam no change, não no clique.
     const FIN_SELECTS = {
       'data-categoria-fin': 'categoria', 'data-forma-fin': 'forma', 'data-origem-fin': 'origem',
@@ -1774,7 +1984,7 @@ if (typeof document !== 'undefined') {
   function abrirPopupPedido() {
     const p = PEDIDO_NA_CONVERSA
     if (!p) return
-    abrirPopup('Pedido #' + p.numero, FichaPedidoConversa.corpoPedido(p, EDITANDO_PEDIDO), 560)
+    abrirPopup('Pedido #' + p.numero, FichaPedidoConversa.corpoPedido(p, EDITANDO_PEDIDO, TIPO_PEDIDO_NOVO), 560)
   }
 
   // ── busca do topo (⌘K) ──
@@ -1824,6 +2034,8 @@ if (typeof document !== 'undefined') {
   let CONVERSA_ABERTA = null
   // A venda manual abre em POPUP, sobre a tela em que se está — quem vende no balcão
   // não quer perder de vista o quadro de pedidos para lançar uma venda.
+  // Último código da TV gerado nesta sessão — a ficha do KDS mostra.
+  let CODIGO_KDS = null
   let VENDA_POPUP = null
   // Espera entre a última tecla e a busca do cliente (telefone/nome).
   const ESPERA_PARAR_DE_DIGITAR = 450
@@ -1832,6 +2044,15 @@ if (typeof document !== 'undefined') {
   // O pedido aberto no popup da conversa, e se está em modo de edição.
   let PEDIDO_NA_CONVERSA = null
   let EDITANDO_PEDIDO = false
+  // Entrega ⇄ retirada escolhida na edição, enquanto não se salva. Fica fora do
+  // pedido para o cancelamento não deixar a escolha grudada na próxima abertura.
+  let TIPO_PEDIDO_NOVO = null
+
+  // Em quantos lugares o produto que está com o preço aberto é vendido como OPÇÃO.
+  let OPCOES_DO_PRECO = null
+
+  // O usuário aberto na caixa de edição da Equipe.
+  let USUARIO_EDITANDO = null
 
   // ── ficha do caixa ──
   let MOTIVO_CAIXA = null

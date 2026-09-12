@@ -43,8 +43,15 @@ function rotuloTipo(t) { return TIPOS[t] || (t ? ('' + t).charAt(0).toUpperCase(
 
 // Os nomes que o banco usa de verdade (conferido nas lojas abertas 07/09): dinheiro,
 // pix e cartao_entrega. Não há crédito/débito separado — é cartão na maquininha.
-const FORMAS = { dinheiro: 'Dinheiro', pix: 'Pix', cartao_entrega: 'Cartão na entrega',
-  cartao: 'Cartão', credito: 'Crédito', debito: 'Débito', a_receber: 'A receber' }
+//
+// `a_receber` = CRÉDITO FUNC desde 11/09/2026 (painel: app/admin/pedidos/logica.ts
+// LABEL_FORMA_CURTA). Só o NOME mudou — a chave no banco continua `a_receber`. Aqui é
+// rótulo de FORMA DE PAGAMENTO da venda; onde "A receber" significa o balde de dinheiro
+// que ainda não chegou (KPI do caixa, coluna do despacho, conta em aberto) o nome antigo
+// fica, porque lá é outra coisa.
+const FORMAS = { dinheiro: 'Dinheiro', pix: 'Pix', pix_online: 'Pix online (site)',
+  cartao_entrega: 'Cartão na entrega',
+  cartao: 'Cartão', credito: 'Crédito', debito: 'Débito', a_receber: 'CRÉDITO FUNC' }
 function rotuloForma(f) { return f ? (FORMAS[f] || f) : '—' }
 
 function kpi(rotulo, valor, sub, cor) {
@@ -113,8 +120,11 @@ function subabaMesas(dados) {
 // é enfeite: ela diz de quem é a vez. Laranja é o único que pede ação do caixa agora
 // ("Fechamento pedido": o dinheiro voltou e ninguém lançou); roxo é o pedido que saiu
 // mas ainda não foi finalizado — por isso não pode parecer verde.
+// "Aguardando prestação de conta", não "Fechamento pedido" (painel, 08/09/2026): o
+// motoboy já ENTREGOU e só falta voltar e prestar contas do dinheiro/maquininha que
+// levou. "Fechamento pedido" dava a entender que o pedido ainda estava em aberto.
 const COR_ENTREGA = {
-  fechamento: { bg: '#FFF7ED', borda: '#FDBA74', texto: '#C2410C', rotulo: 'Fechamento pedido' },
+  fechamento: { bg: '#FFF7ED', borda: '#FDBA74', texto: '#C2410C', rotulo: 'Aguardando prestação de conta' },
   preparo: { bg: '#EFF6FF', borda: '#93C5FD', texto: '#1D4ED8', rotulo: 'Em preparo' },
   pronto: { bg: '#F0FDF4', borda: '#86EFAC', texto: '#166534', rotulo: 'Pronto' },
   transito: { bg: '#F5F3FF', borda: '#C4B5FD', texto: '#7B2FF7', rotulo: 'Em trânsito' },
@@ -164,8 +174,132 @@ function botaoDaEntrega(e) {
  * mesa. A tabela que havia aqui antes escondia justamente o que o caixa precisa achar
  * de longe: qual pedido está esperando o fechamento dele.
  */
+
+// ── NF pendentes ────────────────────────────────────────────────────────────
+//
+// Aba do painel desde 09/09/2026: as vendas do dia sem nota fiscal em COLUNAS por forma
+// de pagamento — é assim que quem opera o caixa fecha o dia (o dinheiro da gaveta, o
+// extrato do PIX, o lote da maquininha), e emitir na mesma ordem torna 40 notas tarefa
+// de dois cliques em vez de quarenta.
+//
+// ⛔ CARTÃO É UMA COLUNA SÓ — crédito e débito juntos: para emitir a NFC-e o que importa
+// é o lote da maquininha, que é um só. O tipo não se perde: cada card mostra o dele, e a
+// nota sai com crédito/débito certos porque quem decide é a forma gravada no pedido.
+//
+// A aba só existe em loja que emite NFC-e manual (`ativo`): lista vazia sozinha não
+// distingue "tudo em dia" de "esta loja não emite nota".
+const LABEL_COLUNA_NF = { dinheiro: 'Dinheiro', pix: 'PIX', cartao: 'Cartão', outros: 'Outras formas' }
+const ORDEM_COLUNAS_NF = ['dinheiro', 'pix', 'cartao', 'outros']
+
+function daFormaSimples(forma) {
+  if (forma === 'dinheiro') return 'dinheiro'
+  if (forma === 'pix') return 'pix'
+  if (forma === 'credito' || forma === 'debito' || forma === 'cartao') return 'cartao'
+  return 'outros'
+}
+
+/** A coluna de uma venda pendente. Conta de mesa paga em mais de uma forma não pertence
+ *  a coluna nenhuma — vai para "Outras formas", onde o operador decide olhando a conta.
+ *  ⚠️ O tipo do cartão só vale quando a forma É cartão na entrega: existe pedido PIX com
+ *  `cartaoTipo` sujo de uma correção de forma, e ler o tipo sem olhar a forma jogaria um
+ *  PIX na coluna de débito (visto na Pizzas do Jasson, 09/09). */
+function chaveFormaNf(v) {
+  if (v.tipo === 'sessao') {
+    const distintas = [...new Set(v.formasConta || [])]
+    return distintas.length === 1 ? daFormaSimples(distintas[0]) : 'outros'
+  }
+  if (v.forma === 'cartao_entrega') return 'cartao'
+  return daFormaSimples(v.forma || '')
+}
+
+/** O que o CARD mostra: "Cartão" seco só quando a venda não guardou o tipo — chutar
+ *  crédito aqui viraria conferência errada de maquininha. */
+function rotuloFormaNf(v) {
+  if (v.tipo === 'sessao') {
+    const distintas = [...new Set(v.formasConta || [])]
+    if (distintas.length > 1) return 'Dividido'
+    if (!distintas.length) return 'Sem pagamento registrado'
+    return FORMAS[distintas[0]] || distintas[0]
+  }
+  if (v.forma === 'cartao_entrega') {
+    if (v.cartaoTipo === 'credito') return 'Crédito'
+    if (v.cartaoTipo === 'debito') return 'Débito'
+    return 'Cartão'
+  }
+  return FORMAS[v.forma || ''] || v.forma || 'Pagamento'
+}
+
+/** Colunas na ordem do fechamento — só as que têm venda pendente. */
+function colunasNfPendentes(vendas) {
+  const porChave = new Map()
+  for (const v of (vendas || [])) {
+    const chave = chaveFormaNf(v)
+    if (porChave.has(chave)) porChave.get(chave).push(v)
+    else porChave.set(chave, [v])
+  }
+  return ORDEM_COLUNAS_NF.filter((c) => (porChave.get(c) || []).length).map((chave) => {
+    const lista = porChave.get(chave)
+    return { chave, label: LABEL_COLUNA_NF[chave], vendas: lista,
+      total: lista.reduce((s, v) => s + (Number(v.total) || 0), 0) }
+  })
+}
+
+function subabaNf(dados) {
+  const nf = dados.nfPendentes || {}
+  const vendas = nf.vendas || []
+  if (!vendas.length) {
+    return cartaoBloco('NF pendentes', 'nada esperando nota',
+      '<div class="evazio">Todas as vendas de hoje e de ontem já têm nota fiscal.</div>')
+  }
+  const colunas = colunasNfPendentes(vendas)
+  const totalGeral = vendas.reduce((s, v) => s + (Number(v.total) || 0), 0)
+
+  const corpo = '<div style="display:grid;grid-template-columns:repeat(' + colunas.length
+    + ',minmax(0,1fr));gap:14px">'
+    + colunas.map((col) => '<div style="background:#f7f8fa;border-radius:12px;padding:12px;min-width:0">'
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px">'
+      + '<span style="font-size:12.5px;font-weight:800;color:#111">' + esc(col.label) + '</span>'
+      + '<span style="font-size:13px;font-weight:800;color:#111">R$ ' + fmtBRL(col.total) + '</span></div>'
+      // Hierarquia do painel: "Emitir todas" da coluna fica NEUTRO e o "Emitir" de cada
+      // nota é que tem destaque — a emissão em série é a exceção, não o caminho comum.
+      + '<button type="button" data-acao="nf:emitir-coluna:' + esc(col.chave) + '" style="width:100%;height:30px;'
+      + 'border:1px solid #e5e7eb;border-radius:9px;background:#fff;font-family:inherit;font-size:12px;'
+      + 'font-weight:700;color:#111;cursor:pointer;margin-bottom:10px">Emitir todas da coluna ('
+      + col.vendas.length + ')</button>'
+      + col.vendas.map((v) => '<div style="background:#fff;border:1px solid #ececec;border-radius:10px;'
+        + 'padding:9px 11px;margin-bottom:8px">'
+        + '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">'
+        + '<span style="font-size:13px;font-weight:800;color:#111">' + esc(v.rotulo || '—') + '</span>'
+        + '<span style="font-size:12.5px;font-weight:800;color:#111">R$ ' + fmtBRL(v.total) + '</span></div>'
+        + '<div style="font-size:11px;color:#9ca3af;font-weight:600;margin:3px 0 8px">'
+        + (v.dia === 'ontem' ? 'ontem ' : '') + esc(fmtHora(v.quando)) + ' · ' + esc(rotuloFormaNf(v)) + '</div>'
+        + '<button type="button" data-acao="nf:emitir-venda:' + esc(v.id) + '" style="width:100%;height:28px;'
+        + 'border:none;border-radius:8px;background:var(--acento);color:#fff;font-family:inherit;font-size:12px;'
+        + 'font-weight:800;cursor:pointer">Emitir</button></div>').join('')
+      + '</div>').join('')
+    + '</div>'
+
+  return cartaoBloco('NF pendentes',
+    vendas.length + ' venda(s) · R$ ' + fmtBRL(totalGeral) + ' sem nota', corpo)
+}
+
+// Prioridade de cima para baixo: quem precisa de ação do caixa AGORA primeiro, depois
+// quem está na rua, quem está pronto e por último o que ainda está em preparo. Antes os
+// cards vinham na ordem de chegada, espalhando as cores pela tela.
+const RANK_ENTREGA = { fechamento: 0, transito: 1, pronto: 2, preparo: 3, fechado: 4 }
+
+function ordenarEntregas(entregas) {
+  return (entregas || []).slice().sort((a, b) => {
+    const ra = RANK_ENTREGA[a.estado] != null ? RANK_ENTREGA[a.estado] : 9
+    const rb = RANK_ENTREGA[b.estado] != null ? RANK_ENTREGA[b.estado] : 9
+    if (ra !== rb) return ra - rb
+    // Dentro do mesmo grupo, quem saiu há mais tempo primeiro — é quem está esperando.
+    return (Number(b.saiuHa) || 0) - (Number(a.saiuHa) || 0)
+  })
+}
+
 function subabaDelivery(dados) {
-  const entregas = dados.entregas || []
+  const entregas = ordenarEntregas(dados.entregas)
   if (!entregas.length) {
     return cartaoBloco('Delivery e retirada', 'nada em andamento',
       '<div class="evazio">Nenhuma entrega em andamento no momento.</div>')
@@ -252,6 +386,10 @@ function htmlDoCaixa(dados, estado) {
   if (dados.temMesas !== false) subabas.push({ chave: 'mesas', rotulo: 'Mesas', contador: (dados.mesas || []).length })
   subabas.push({ chave: 'delivery', rotulo: 'Delivery', contador: (dados.entregas || []).length })
   subabas.push({ chave: 'movimentacoes', rotulo: 'Movimentações', contador: (dados.movimentacoes || []).length })
+  // Só em loja que emite NFC-e manual — quem não emite nem vê a aba (painel, 09/09/2026).
+  if (dados.nfPendentes && dados.nfPendentes.ativo) {
+    subabas.push({ chave: 'nf', rotulo: 'NF pendentes', contador: (dados.nfPendentes.vendas || []).length })
+  }
   const subaba = subabas.some((x) => x.chave === estado.subaba) ? estado.subaba : subabas[0].chave
 
   // Faixa de status: quem abriu, há quanto tempo e desde que hora — é a primeira coisa
@@ -282,10 +420,21 @@ function htmlDoCaixa(dados, estado) {
 
   const r = dados.resumo || {}
   const naRua = (dados.entregas || []).reduce((s, e) => s + (Number(e.valor) || 0), 0)
-  const kpis = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both;margin-bottom:18px">'
+  // Dois PIX que não se conferem igual (painel, 09/09/2026): o do site/app é confirmado
+  // pelo gateway e JÁ caiu na conta; o que uma pessoa lançou na porta/balcão é o único
+  // que precisa bater no fechamento. Loja sem PIX online segue com um card "Pix" só —
+  // é também o que acontece enquanto o servidor não manda os dois campos.
+  const pixOnline = Number(r.vendaPixOnline) || 0
+  const cartoesPix = pixOnline > 0
+    ? kpi('Pix online', fmtBRL(pixOnline), 'site/app — já caiu na conta', '#6366F1')
+      + kpi('Pix manual', fmtBRL(r.vendaPixConferir != null ? r.vendaPixConferir : (Number(r.vendaPix) || 0) - pixOnline),
+        'confere no fechamento', '#818CF8')
+    : kpi('Pix', fmtBRL(r.vendaPix), 'no turno')
+  const colunas = pixOnline > 0 ? 5 : 4
+  const kpis = '<div style="display:grid;grid-template-columns:repeat(' + colunas + ',minmax(0,1fr));gap:18px;animation:eloFadeUp .5s ease both;margin-bottom:18px">'
     + kpi('Esperado em dinheiro', fmtBRL(dados.esperadoDinheiro), 'fundo de R$ ' + fmtBRL(dados.aberto.fundoInicial))
     + kpi('Vendas em dinheiro', fmtBRL(r.vendaDinheiro), 'na gaveta')
-    + kpi('Pix', fmtBRL(r.vendaPix), 'no turno')
+    + cartoesPix
     + kpi('Cartão', fmtBRL(r.vendaCartao), 'no turno')
     + '</div>'
 
@@ -303,6 +452,7 @@ function htmlDoCaixa(dados, estado) {
   let corpo
   if (subaba === 'mesas') corpo = subabaMesas(dados)
   else if (subaba === 'delivery') corpo = subabaDelivery(dados)
+  else if (subaba === 'nf') corpo = subabaNf(dados)
   else corpo = movimentacoesHtml(dados, selo)
 
   return '<div>' + barraAbas + faixa + kpis + resumoLinha + alertaRua + barra(subabas, subaba, 'data-subaba') + corpo + '</div>'
@@ -341,4 +491,5 @@ function movimentacoesHtml(dados, selo) {
     + (dados.movimentacoes || []).length + ' movimentações · estornar movimentação ainda é pelo painel</div></div>'
 }
 
-module.exports = { htmlDoCaixa, fmtBRL, fmtHora, idadeDoDado, rotuloTipo, rotuloForma, tempoLongo, esc }
+module.exports = { htmlDoCaixa, fmtBRL, fmtHora, idadeDoDado, rotuloTipo, rotuloForma, tempoLongo, esc,
+  colunasNfPendentes, chaveFormaNf, rotuloFormaNf, LABEL_COLUNA_NF, ORDEM_COLUNAS_NF }

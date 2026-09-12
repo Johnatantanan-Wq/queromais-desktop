@@ -60,3 +60,25 @@ test('em demonstração o insumo entra na categoria do grupo, e o fornecedor na 
   assert.deepStrictEqual(d.fornecedores.map((f) => f.nome), ['ACME', 'Vale Verde'])
   assert.strictEqual(base.categorias[1].subcategorias[0].itens.length, 0, 'o dado de origem não é tocado')
 })
+
+const E = require('../src-electron/estoque-acoes')
+
+// ── "Ajustar" reabre a nota já lançada (painel, 08/09/2026) ────────────────
+test('reabrir estorna o estoque e devolve a nota para "A lançar"', () => {
+  const r = E.reabrirNota({ id: 'n1', numero: '8821', situacao: 'processada' })
+  assert.strictEqual(r.ok, true)
+  assert.strictEqual(r.caminho, '/api/admin/estoque/entradas/n1/reabrir')
+  assert.match(r.resumo, /estornado/)
+  assert.match(r.resumo, /A lançar/)
+})
+
+test('⛔ nota que ainda não foi lançada não tem o que estornar', () => {
+  const r = E.reabrirNota({ id: 'n1', numero: '4410', situacao: 'pendente' })
+  assert.strictEqual(r.ok, false)
+  assert.match(r.motivo, /ainda não foi lançada/)
+})
+
+test('nota sem id não vira chamada com "undefined" na URL', () => {
+  assert.strictEqual(E.reabrirNota({ numero: '1' }).ok, false)
+  assert.strictEqual(E.reabrirNota(null).ok, false)
+})

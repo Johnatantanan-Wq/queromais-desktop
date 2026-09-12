@@ -64,8 +64,53 @@ function baixa(conta, { valor, data, forma, observacao } = {}, hoje) {
   }
 }
 
+const DIA_MS = 86400000
+
+/** Sábado/domingo anda para segunda — banco e fornecedor não compensam no fim de semana. */
+function diaUtil(d) {
+  const semana = d.getUTCDay()
+  if (semana === 6) return new Date(d.getTime() + 2 * DIA_MS)
+  if (semana === 0) return new Date(d.getTime() + DIA_MS)
+  return d
+}
+
+/** Mesmo dia, N meses depois. Dia que não existe no mês de destino TRANSBORDA para o
+ *  seguinte (31/01 + 1 mês cai em março, porque fevereiro não tem 31) — é a regra que o
+ *  dono descreveu no painel. */
+function somarMeses(baseISO, meses) {
+  const [a, m, d] = ('' + baseISO).split('-').map(Number)
+  const alvoMes = m - 1 + meses
+  const ano = a + Math.floor(alvoMes / 12)
+  const mes = ((alvoMes % 12) + 12) % 12
+  return new Date(Date.UTC(ano, mes, d))
+}
+
+const isoDe = (d) => d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0')
+  + '-' + String(d.getUTCDate()).padStart(2, '0')
+
+/**
+ * A grade de parcelas sugerida — porte de `parcelasSugeridas` do painel (09/09/2026).
+ *
+ * Quem tem a nota na mão sabe o TOTAL, não a divisão: o operador informa o valor do
+ * lançamento e em quantas vezes, e o sistema divide e sugere as datas.
+ *
+ * ⚠️ A sobra dos centavos vai na ÚLTIMA parcela: a soma tem que fechar com o total da
+ * nota, senão o fornecedor cobra um centavo que o sistema não tem.
+ */
+function parcelasSugeridas(valorTotal, parcelas, primeiroVencimento) {
+  const n = Math.max(1, Math.floor(Number(parcelas) || 1))
+  const centavos = Math.round((Number(valorTotal) || 0) * 100)
+  const base = Math.floor(centavos / n)
+  const out = []
+  for (let i = 0; i < n; i++) {
+    const cent = i === n - 1 ? centavos - base * (n - 1) : base
+    out.push({ numero: i + 1, valor: cent / 100, vencimento: isoDe(diaUtil(somarMeses(primeiroVencimento, i))) })
+  }
+  return out
+}
+
 /** Conta nova, avulsa: uma obrigação, um vencimento. */
-function nova({ direcao, descricao, valor, vencimento, forma, categoria, contraparte } = {}) {
+function nova({ direcao, descricao, valor, vencimento, forma, categoria, contraparte, documento, parcelas } = {}) {
   if (direcao !== 'pagar' && direcao !== 'receber') return { ok: false, motivo: 'Diga se é a pagar ou a receber.' }
   const desc = ('' + (descricao || '')).trim()
   if (!desc) return { ok: false, motivo: 'Diga do que é a conta.' }
@@ -79,6 +124,25 @@ function nova({ direcao, descricao, valor, vencimento, forma, categoria, contrap
   if (f) corpo.forma_pagamento = f
   if (categoria && ('' + categoria).trim()) corpo.categoria = ('' + categoria).trim()
   if (contraparte && ('' + contraparte).trim()) corpo.contraparte = ('' + contraparte).trim()
+  // Documento de referência (o número da NF do fornecedor). Antes só existia solto
+  // dentro da descrição, e ninguém achava pela busca.
+  const doc = ('' + (documento || '')).trim()
+  if (doc) corpo.documento = doc.slice(0, 60)
+
+  // Parcelado: o valor digitado é o TOTAL da nota, e o painel recebe a grade pronta.
+  const n = Math.max(1, Math.floor(Number(parcelas) || 1))
+  if (n > 1) {
+    if (n > 60) return { ok: false, motivo: 'No máximo 60 parcelas.' }
+    const grade = parcelasSugeridas(v, n, venc)
+    return {
+      ok: true, caminho: '/api/admin/contas',
+      corpo: { ...corpo, natureza: 'parcelada', parcelas: n, primeiro_vencimento: venc,
+        valor_parcela: grade[0].valor, parcelas_detalhe: grade },
+      parcelas: grade,
+      resumo: 'Conta a ' + direcao + ' lançada em ' + n + 'x: ' + desc + ', ' + brl(v) + ' no total, '
+        + 'a primeira de ' + brl(grade[0].valor) + ' em ' + grade[0].vencimento.split('-').reverse().join('/') + '.',
+    }
+  }
   return {
     ok: true, caminho: '/api/admin/contas', corpo,
     resumo: 'Conta a ' + direcao + ' lançada: ' + desc + ', ' + brl(v) + ' para ' + venc.split('-').reverse().join('/') + '.',
@@ -89,4 +153,4 @@ function brl(v) {
   return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-module.exports = { baixa, nova, saldoDe, dataISO, hojeISO, FORMAS, NOME_FORMA }
+module.exports = { baixa, nova, saldoDe, dataISO, hojeISO, FORMAS, NOME_FORMA, parcelasSugeridas }

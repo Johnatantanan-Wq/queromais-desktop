@@ -36,26 +36,97 @@ function linhaCampo(rotulo, valor, destaque) {
     + '<span style="font-size:13px;font-weight:' + (destaque ? '800' : '600') + ';color:' + (destaque || '#111') + '">' + esc(valor) + '</span></div>'
 }
 
+/** Agrupa os adicionais/sabores por GRUPO, preservando a ordem em que apareceram.
+ *
+ *  ⚠️ Só funde grupos CONSECUTIVOS de mesmo nome (olha o último aberto, não procura no
+ *  meio da lista): um combo com "Escolha a pizza 1", "Turbine com molho", "Escolha a
+ *  pizza 2" tem o mesmo nome de grupo repetido, e juntar tudo num só embaralharia a
+ *  ordem em que a cozinha monta. Regra do painel (ComandaTermica.tsx, 08/09/2026).
+ */
+function agruparSabores(sabores) {
+  const grupos = []
+  for (const s of (sabores || [])) {
+    const aberto = grupos[grupos.length - 1]
+    if (aberto && aberto.grupo === s.grupo) { aberto.itens.push(s); continue }
+    grupos.push({ grupo: s.grupo, itens: [s] })
+  }
+  return grupos
+}
+
+/** A linha de um adicional. O destaque (negrito + sublinhado, ligado por loja) vai só
+ *  no NOME, nunca no prefixo "+"/"•": sublinhar o rótulo inteiro deixava um traço solto
+ *  sobrando no fim da linha quebrada. */
+function linhaAdicional(s, recuo, destacar) {
+  const pago = Number(s.precoAdicional || s.preco_adicional) > 0
+  const nome = destacar
+    ? '<b style="text-decoration:underline">' + esc(s.nome) + '</b>'
+    : esc(s.nome)
+  return '<div style="padding-left:' + recuo + 'px">' + (pago ? '+ ' : '• ') + nome + '</div>'
+}
+
+/** Um item da comanda. Aceita o formato simples ("1x Pizza G", que é como as telas de
+ *  lista trazem) e o completo, com sabores e observação. */
+function linhaItem(i, destacar) {
+  if (typeof i === 'string') return '<div>' + esc(i) + '</div>'
+  const qtd = Number(i.qtd) || 1
+  const cabeca = '<div style="display:flex;justify-content:space-between;gap:8px">'
+    + '<span>' + qtd + 'x ' + esc(i.nome || '') + '</span>'
+    + (i.valor != null ? '<span>' + esc(brl(i.valor)) + '</span>' : '') + '</div>'
+  const grupos = agruparSabores(i.sabores).map((g) =>
+    (g.grupo ? '<div style="padding-left:12px;font-weight:700">' + esc(g.grupo) + ':</div>' : '')
+    + g.itens.map((s) => linhaAdicional(s, g.grupo ? 20 : 12, destacar)).join('')).join('')
+  const obs = i.obs || i.observacao
+  return cabeca + grupos
+    + (obs ? '<div style="padding-left:12px;font-style:italic">OBS: ' + esc(obs) + '</div>' : '')
+}
+
 /** A comanda como ela sai na bobina — mesma largura de 72mm da impressão real. */
 function htmlComanda(pedido, loja) {
   if (!pedido) return ''
+  const cfg = (loja && loja.comanda) || {}
   const linha = '<div style="border-top:1px dashed #000;margin:5px 0"></div>'
-  const itens = (pedido.itens || []).map((i) =>
-    '<div style="display:flex;justify-content:space-between;gap:8px"><span>' + esc(i) + '</span></div>').join('')
+  const itens = (pedido.itens || []).map((i) => linhaItem(i, !!cfg.destacarAdicional)).join('')
+  const end = pedido.enderecoCampos || null
+  // ⚠️ CAIXA ALTA por CSS, não no dado: é o bloco que o entregador lê na moto, muitas
+  // vezes no escuro e com a bobina amassada. O endereço continua gravado como o cliente
+  // digitou — etiqueta, WhatsApp e histórico não mudam.
+  const blocoEndereco = (end || pedido.endereco) && pedido.canal !== 'Balcão'
+    ? linha
+      + '<div style="font-weight:800">ENDEREÇO DE ENTREGA</div>'
+      + '<div style="text-transform:uppercase">'
+      + esc(end
+        ? end.rua + ', ' + end.numero + (end.complemento ? ' - ' + end.complemento : '')
+          + '<br>' + end.bairro + (end.referencia ? ' — ' + end.referencia : '')
+        : pedido.endereco).replace(/&lt;br&gt;/g, '<br>')
+      + '</div>'
+    : ''
+  const troco = Number(pedido.trocoPara) || 0
   return '<div style="width:72mm;padding:4mm;background:#fff;font-family:\'Courier New\',monospace;font-size:12px;color:#000;'
     + 'border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 1px 2px rgba(17,17,17,.04)">'
+    + (cfg.cabecalho ? '<div style="text-align:center;white-space:pre-line">' + esc(cfg.cabecalho) + '</div>' : '')
     + '<div style="text-align:center;font-weight:800;font-size:14px">' + esc((loja && loja.nome) || 'Loja') + '</div>'
     + '<div style="text-align:center">' + esc((loja && loja.documento) || '') + '</div>'
     + linha
     + '<div style="font-weight:800">PEDIDO #' + esc(pedido.numero) + '</div>'
     + '<div>' + esc(pedido.canal || '') + ' · ' + esc(pedido.hora || '') + '</div>'
     + '<div>Cliente: ' + esc(pedido.cliente || '') + '</div>'
+    + (pedido.telefone ? '<div>Tel: ' + esc(pedido.telefone) + '</div>' : '')
+    + blocoEndereco
     + linha + itens + linha
+    + (Number(pedido.taxa) ? '<div style="display:flex;justify-content:space-between"><span>Taxa de entrega</span>'
+      + '<span>' + brl(pedido.taxa) + '</span></div>' : '')
     + '<div style="display:flex;justify-content:space-between"><span>TOTAL</span>'
     + '<span style="font-weight:800">' + brl(pedido.valor) + '</span></div>'
     + '<div style="display:flex;justify-content:space-between"><span>Pagamento</span><span>' + esc(pedido.pagamento || '—') + '</span></div>'
+    // ⛔ Troco: o entregador LEVA o pedido e VOLTA COM A NOTA. Sai na comanda porque é
+    // ali que ele confere quanto separar antes de sair.
+    + (troco > 0
+      ? '<div style="display:flex;justify-content:space-between"><span>Troco para</span><span>' + brl(troco) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;font-weight:800"><span>Levar de troco</span>'
+        + '<span>' + brl(Math.max(0, troco - (Number(pedido.valor) || 0))) + '</span></div>'
+      : '')
     + linha
-    + '<div style="text-align:center">Obrigado pela preferência!</div>'
+    + '<div style="text-align:center;white-space:pre-line">' + esc(cfg.rodape || 'Obrigado pela preferência!') + '</div>'
     + '</div>'
 }
 
@@ -110,4 +181,4 @@ function htmlImpressao(dados, estado) {
     + '</div>'
 }
 
-module.exports = { htmlImpressao, htmlComanda }
+module.exports = { htmlImpressao, htmlComanda, agruparSabores, linhaItem }

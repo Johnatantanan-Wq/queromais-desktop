@@ -77,6 +77,52 @@ function linhaPedido(p, entregadores, estado) {
     + '</div>'
 }
 
+/** "há 3 min" — a idade da última posição. Sem isso um ponto de 40 minutos atrás
+ *  parece o entregador parado na esquina agora. */
+function idadeDaPosicao(min) {
+  if (min == null) return ''
+  if (min <= 0) return 'agora'
+  if (min < 60) return 'há ' + min + ' min'
+  const h = Math.floor(min / 60)
+  return 'há ' + h + (h === 1 ? ' hora' : ' horas')
+}
+
+/**
+ * Rastreamento ao vivo (painel, 09/09/2026 — beta por loja). É a última posição que o
+ * app do entregador mandou, não um GPS contínuo: por isso a idade do ponto aparece
+ * sempre, e quem não mandou nada diz o que falta em vez de sumir da lista.
+ *
+ * ⚠️ Sem MAPA embutido de propósito: o mapa do painel é um iframe do Google, que sem
+ * internet vira um quadrado branco dentro de um app feito para funcionar offline. O
+ * ponto abre no navegador quando o lojista pedir — aí ele já sabe que precisa de rede.
+ */
+function rastreamento(dados) {
+  const r = (dados && dados.rastreamento) || null
+  if (!r || !r.ativo) return ''
+  const pontos = r.entregadores || []
+  if (!pontos.length) return ''
+  const cartoes = pontos.map((m) => {
+    const tem = m.lat != null && m.lng != null
+    return '<div style="border:1px solid #e8eaee;border-radius:12px;padding:12px 14px;min-width:0;background:#fff">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">'
+      + '<span style="font-size:13px;font-weight:800;color:#111">🛵 ' + esc(m.nome || 'Entregador') + '</span>'
+      + (tem ? '<span style="font-size:11px;color:#9ca3af;font-weight:700">' + esc(idadeDaPosicao(m.minutos)) + '</span>' : '')
+      + '</div>'
+      + (tem
+        ? '<div style="font-size:11.5px;color:#6b7280;font-weight:600;margin-bottom:10px">'
+          + esc(Number(m.lat).toFixed(5)) + ', ' + esc(Number(m.lng).toFixed(5)) + '</div>'
+          + botao('rastreio:mapa:' + m.lat + ',' + m.lng, 'Abrir no Maps', false, true)
+        : '<div style="font-size:12px;color:#9ca3af;font-weight:600;line-height:1.45">Aguardando localização — '
+          + 'o entregador precisa estar com o painel aberto e uma entrega em mãos.</div>')
+      + '</div>'
+  }).join('')
+  return '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .07s both">'
+    + '<div style="margin-bottom:14px"><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:4px">'
+    + 'Rastreamento ao vivo</div>'
+    + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500">última posição que o app do entregador mandou</div></div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">' + cartoes + '</div></div>'
+}
+
 function htmlDespacho(dados, estado) {
   estado = estado || {}
   if (!dados) {
@@ -146,6 +192,7 @@ function htmlDespacho(dados, estado) {
 
   return '<div style="display:flex;flex-direction:column;gap:18px">'
     + kpis
+    + rastreamento(dados)
     + '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap">'
     + '<div><div style="font-size:15px;font-weight:800;color:#111;margin-bottom:4px">Pronto para entrega ('
@@ -179,4 +226,4 @@ function htmlDespacho(dados, estado) {
     + '</div>'
 }
 
-module.exports = { htmlDespacho, brl, LIMITE_ESPERA }
+module.exports = { htmlDespacho, brl, LIMITE_ESPERA, rastreamento, idadeDaPosicao }

@@ -67,3 +67,59 @@ test('em demonstração as mudanças ficam e os contadores acompanham', () => {
   assert.strictEqual(d.disponiveis, 1)
   assert.strictEqual(dados.categorias[0].itens[0].esgotado, false, 'o dado de origem não é tocado')
 })
+
+// ── O preço precisa chegar nas OPÇÕES (painel, 08/09/2026) ──────────────────
+// ⛔ O preço mora em DOIS campos: `produtos.preco` e, quando o mesmo item é vendido
+// como opção dentro de outro produto (meia pizza, sabor de combo), `preco_adicional`
+// da opção — e é esse que o cliente paga ali. Mexer só no primeiro deixa o cliente
+// pagando o valor velho, sem ninguém perceber.
+const Ficha = require('../renderer/elo/ficha')
+
+test('leva junto só as opções que cobram o preço ANTIGO', () => {
+  const r = A.opcoesParaAtualizar({
+    opcoes: [{ id: 's1', preco_adicional: 12 }, { id: 's2', preco_adicional: 12 }, { id: 's3', preco_adicional: 0 }],
+  }, 12)
+  assert.strictEqual(r.lugares, 3)
+  assert.strictEqual(r.comPrecoAntigo, 2)
+  assert.deepStrictEqual(r.sabores, ['s1', 's2'])
+})
+
+test('⛔ a opção incluída a R$ 0 (bebida do combo) fica intacta', () => {
+  const r = A.opcoesParaAtualizar({ opcoes: [{ id: 's3', preco_adicional: 0 }] }, 12)
+  assert.strictEqual(r.comPrecoAntigo, 0)
+  assert.deepStrictEqual(r.sabores, [], 'subir a bebida inclusa para o preço da pizza cobraria do cliente duas vezes')
+})
+
+test('quando o painel já diz quais acompanham, é a palavra dele que vale', () => {
+  const r = A.opcoesParaAtualizar({
+    opcoes: [{ id: 's1', preco_adicional: 99 }, { id: 's2', preco_adicional: 99 }],
+    acompanhamPorPadrao: ['s1'],
+  }, 12)
+  assert.deepStrictEqual(r.sabores, ['s1'])
+})
+
+test('produto que não é opção em lugar nenhum não gera segunda chamada', () => {
+  assert.deepStrictEqual(A.opcoesParaAtualizar({ opcoes: [] }, 12), { lugares: 0, comPrecoAntigo: 0, sabores: [] })
+  assert.strictEqual(A.propagarPreco('p1', 17, []), null)
+})
+
+test('a propagação não regrava o preço do produto', () => {
+  const p = A.propagarPreco('p1', 17, ['s1'])
+  assert.strictEqual(p.caminho, '/api/admin/estoque/preco-venda/p1')
+  assert.strictEqual(p.corpo.apenasOpcoes, true, 'sem isso o painel gravaria o preço do produto duas vezes')
+  assert.deepStrictEqual(p.corpo.sabores, ['s1'])
+})
+
+test('a caixa do preço pergunta antes de salvar, e diz quem fica de fora', () => {
+  const h = Ficha.fichaPreco({ nome: 'Pizza Calabresa G', preco: 12 },
+    { lugares: 3, comPrecoAntigo: 2, sabores: ['s1', 's2'] })
+  assert.match(h, /opção em 3 lugares/)
+  assert.match(h, /2 deles pelo preço de agora/)
+  assert.match(h, /1 opção fica de fora/)
+  assert.match(h, /data-campo="opcoes"[^>]*checked/)
+})
+
+test('item que não é opção não ganha pergunta nenhuma', () => {
+  const h = Ficha.fichaPreco({ nome: 'X', preco: 9 }, null)
+  assert.ok(!/data-campo="opcoes"/.test(h))
+})

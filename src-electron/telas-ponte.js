@@ -107,6 +107,9 @@ const TELAS = [
       pendenciasResp: '/api/admin/estoque/pendencias',
       fornecedoresResp: '/api/admin/fornecedores',
       gestaoResp: '/api/admin/desktop/estoque',
+      // Prestadores de Serviço (aba do painel desde 08/09/2026): quem emitiu NFS-e/CT-e
+      // para a loja. Rota própria e já no ar — a aba não depende da rota do desktop.
+      prestadoresResp: '/api/admin/estoque/prestadores',
     },
     adaptar: (r) => A.estoque(r),
     valida: (r) => Array.isArray(r.ingredientesResp),
@@ -137,14 +140,41 @@ const TELAS = [
   // O painel devolve o dado JÁ no formato da tela: a tradução mora do lado do
   // servidor, junto das regras (o que é "hoje" no fuso da loja, o que entra no
   // quadro, o que conta como pago). Duplicar isso aqui criaria uma segunda verdade.
-  ...['pedidos', 'despacho', 'cardapio', 'carrinhos', 'cupons', 'entregadores', 'compras']
+  {
+    // Despacho: além da tela, as POSIÇÕES dos entregadores em rota — o board do painel
+    // já devolve isso com `incluir=motoboys`, e a rota está no ar. Beta por loja: sem o
+    // sinal do servidor, a seção de rastreamento nem aparece.
+    canal: 'despacho-carregar', cache: 'despacho',
+    rotas: {
+      d: '/api/admin/desktop/despacho',
+      boardResp: '/api/admin/pedidos/board?status=pronto,em_entrega&incluir=rotas,motoboys',
+    },
+    adaptar: (r) => ({ ...(r.d && !r.d.error ? r.d : {}), rastreamento: A.rastreamentoDoBoard(r.boardResp) }),
+    valida: (r) => !!(r.d && !r.d.error),
+  },
+  ...['pedidos', 'cardapio', 'carrinhos', 'cupons', 'compras']
     .map((tela) => ({
-      canal: tela === 'entregadores' ? 'entregadores-carregar' : tela + '-carregar',
+      canal: tela + '-carregar',
       cache: tela,
       rotas: { d: '/api/admin/desktop/' + tela },
       adaptar: (r) => r.d,
       valida: (r) => !!r.d && !r.d.error,
     })),
+  {
+    // Entregadores tem TRÊS abas (painel, EntregadoresTabs.tsx) e cada uma tem a sua
+    // fonte, todas já no ar: a prestação de contas e os fechamentos vêm das rotas de
+    // entregadores; a equipe, da tela do desktop. O período viaja na rota E na chave do
+    // cache — quem decide o que é "hoje" é o fuso da LOJA, não o relógio da máquina.
+    canal: 'entregadores-carregar', cache: 'entregadores',
+    rotas: {
+      d: '/api/admin/desktop/entregadores',
+      entregasResp: '/api/admin/entregadores/entregas',
+      fechamentosResp: '/api/admin/entregadores/fechamentos',
+    },
+    adaptar: (r) => A.entregadores(r),
+    valida: (r) => !!(r.d && !r.d.error) || !!(r.entregasResp && Array.isArray(r.entregasResp.entregas)),
+    comArgumentos: (args) => '?preset=' + encodeURIComponent((args && args.periodo) || 'hoje'),
+  },
   {
     // Insights e Relatórios saem das MESMAS contas do painel (lib/insights/agregacoes),
     // que a tela dele também usa.
@@ -169,8 +199,15 @@ const TELAS = [
     // O Financeiro muda com o período; o painel aceita o preset por parâmetro e devolve
     // DRE, extrato e livro caixa da MESMA conta que ele mostra.
     canal: 'financeiro-abas-carregar', cache: 'financeiro',
-    rotas: { d: '/api/admin/desktop/financeiro' },
-    adaptar: (r) => r.d,
+    rotas: {
+      d: '/api/admin/desktop/financeiro',
+      // Abas que o painel ganhou depois (09 e 10/09/2026) e que têm rota PRÓPRIA, já em
+      // produção: Despesas (o gasto com prestador) e Contas bancárias (de onde sai cada
+      // pagamento). Vêm por fora para a aba existir mesmo que a rota do desktop falhe.
+      despesasResp: '/api/admin/financeiro/despesas',
+      bancosResp: '/api/admin/contas-financeiras',
+    },
+    adaptar: (r) => A.financeiro(r),
     valida: (r) => !!r.d && !r.d.error && Array.isArray(r.d.extrato),
     comArgumentos: (args) => '?preset=' + encodeURIComponent((args && args.preset) || 'mes'),
   },

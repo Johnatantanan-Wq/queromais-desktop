@@ -63,12 +63,31 @@ const OBRIGATORIOS = [
   { chave: 'uf', rotulo: 'UF' }, { chave: 'cep', rotulo: 'CEP' },
 ]
 
+// Entrega ⇄ retirada: só esses dois trocam entre si. Consumo local é outro bicho
+// (sessão de mesa, sem endereço nem taxa) e o painel recusa.
+const TIPOS_TROCAVEIS = ['entrega', 'retirada']
+
 function correcao(pedido, campos) {
   const p = pedido || {}
   const c = campos || {}
   if (!p.id) return { ok: false, motivo: 'Este pedido veio sem identificação — recarregue a tela.' }
 
   const corpo = {}
+
+  // Trocar de retirada para entrega (ou o contrário) — o cliente ligou e mudou de
+  // ideia. Quem recalcula a taxa, cobra a diferença por Pix e avisa o cliente é o
+  // SERVIDOR: aqui só se manda o campo e se barra o que ele recusaria, para o
+  // lojista não tomar "Dados inválidos" sem saber o quê.
+  const tipoNovo = ('' + (c.tipo || '')).trim()
+  if (tipoNovo && tipoNovo !== p.tipo) {
+    if (TIPOS_TROCAVEIS.indexOf(tipoNovo) < 0 || TIPOS_TROCAVEIS.indexOf(p.tipo) < 0) {
+      return { ok: false, motivo: 'Só dá para trocar entre entrega e retirada.' }
+    }
+    if (p.etapa === 'entregue' || p.situacao === 'Entregue') {
+      return { ok: false, motivo: 'Pedido já entregue — não dá para mudar o tipo.' }
+    }
+    corpo.tipo = tipoNovo
+  }
   const tel = ('' + (c.telefone || '')).trim()
   if (tel) {
     if (('' + tel).replace(/\D/g, '').length < 10) {
@@ -101,8 +120,12 @@ function correcao(pedido, campos) {
     caminho: '/api/admin/pedidos/' + p.id + '/editar',
     corpo,
     // O bairro muda a taxa: quem corrigiu precisa saber que o total pode ter mudado.
-    trocouBairro: !!(corpo.endereco && corpo.endereco.bairro !== ('' + (p.enderecoCampos.bairro || '')).trim()),
+    trocouBairro: !!(corpo.endereco && p.enderecoCampos
+      && corpo.endereco.bairro !== ('' + (p.enderecoCampos.bairro || '')).trim()),
+    // Virar entrega acrescenta a taxa. Se o pedido já estava pago, o painel gera uma
+    // cobrança Pix da diferença — o lojista precisa saber que isso vai acontecer.
+    trocouTipo: corpo.tipo ? { de: p.tipo, para: corpo.tipo } : null,
   }
 }
 
-module.exports = { avanco, correcao, PROXIMO, ETAPA_DEPOIS, ehLocal }
+module.exports = { avanco, correcao, PROXIMO, ETAPA_DEPOIS, ehLocal, TIPOS_TROCAVEIS }

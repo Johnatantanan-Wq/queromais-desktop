@@ -22,11 +22,16 @@ const ETIQ = { Pago: 'verde', Pendente: 'amarelo', Vencido: 'vermelho', 'A vence
 const et = (t) => ({ texto: t, etiqueta: ETIQ[t] || 'cinza' })
 
 const ABAS = {
+  // A ordem é a do painel (PainelFinanceiro.tsx): Despesas entrou entre Livro Caixa e
+  // Contas a Pagar em 09/09/2026, e Contas bancárias depois do DRE em 10/09 — as duas
+  // por pedido do dono, e as duas com significado próprio (despesa é o GASTO, conta a
+  // pagar é a OBRIGAÇÃO; conta bancária é de onde o pagamento sai).
   '/admin/financeiro': [
     { chave: 'visao', rotulo: 'Visão geral' }, { chave: 'vendas', rotulo: 'Vendas' },
     { chave: 'extrato', rotulo: 'Extrato' }, { chave: 'livro', rotulo: 'Livro caixa' },
+    { chave: 'despesas', rotulo: 'Despesas' },
     { chave: 'pagar', rotulo: 'Contas a pagar' }, { chave: 'receber', rotulo: 'Contas a receber' },
-    { chave: 'dre', rotulo: 'DRE' },
+    { chave: 'dre', rotulo: 'DRE' }, { chave: 'bancos', rotulo: 'Contas bancárias' },
   ],
   '/admin/atendimento': [
     { chave: 'salao', rotulo: 'Salão' }, { chave: 'solicitacoes', rotulo: 'Solicitações' },
@@ -38,6 +43,8 @@ const ABAS = {
     { chave: 'produtos', rotulo: 'Produtos' }, { chave: 'entrada', rotulo: 'Nota fiscal (entrada)' },
     { chave: 'saida', rotulo: 'Nota fiscal (saída)' }, { chave: 'movimentacoes', rotulo: 'Movimentações' },
     { chave: 'fichas', rotulo: 'Fichas técnicas' }, { chave: 'fornecedores', rotulo: 'Fornecedores' },
+    // 08/09/2026, painel (EstoqueTabs.tsx): quem emite NFS-e/CT-e para a loja.
+    { chave: 'prestadores', rotulo: 'Prestadores de serviço' },
   ],
 }
 
@@ -310,7 +317,7 @@ const SUB_MOV = [
 const SUB_FICHAS = [{ chave: 'produto', rotulo: 'Por produto' }, { chave: 'insumo', rotulo: '⇄ Por insumo (onde é usado)' }]
 
 // ── Nota Fiscal (Entrada) ───────────────────────────────────────────────────
-// Conforme PainelEntradas.tsx: a nota entra "A conferir" e o estoque SÓ muda quando
+// Conforme PainelEntradas.tsx: a nota entra em "A lançar" e o estoque SÓ muda quando
 // alguém confirma os itens. Por isso a tela tem dois níveis: a lista de notas e, ao
 // abrir uma, a conferência item a item com o destino de cada um.
 //
@@ -319,7 +326,7 @@ const SUB_FICHAS = [{ chave: 'produto', rotulo: 'Por produto' }, { chave: 'insum
 // fornecedor mandou, ou digitando à mão — e aí ainda pergunta se tem nota fiscal.
 
 const STATUS_NOTA = {
-  pendente: { rotulo: 'A conferir', etiqueta: 'amarelo' },
+  pendente: { rotulo: 'A lançar', etiqueta: 'amarelo' },
   processada: { rotulo: 'Processada', etiqueta: 'verde' },
   ignorada: { rotulo: 'Ignorada', etiqueta: 'cinza' },
 }
@@ -358,7 +365,14 @@ function conferenciaDaNota(nota) {
     + '</div>'
     + '<div style="display:flex;gap:8px;flex-shrink:0">'
     + botaoEstoque('entrada:fechar', 'Fechar', false)
-    + (nota.situacao === 'pendente' ? botaoEstoque('entrada:confirmar:' + nota.numero, '✓ Confirmar entradas', true) : '')
+    // "Ver DANFE" (painel, 10/09/2026): a nota inteira numa folha só, para conferir
+    // contra o papel que o entregador trouxe antes de dar entrada.
+    + (nota.id ? botaoEstoque('entrada:danfe:' + nota.numero, 'Ver DANFE', false) : '')
+    // Vocabulário único na tela (painel, 08/09/2026): "Conferir" virou "Lançar NF", e o
+    // botão que confirma também.
+    + (nota.situacao === 'pendente'
+      ? botaoEstoque('entrada:confirmar:' + nota.numero, '✓ Lançar NF', true)
+      : botaoEstoque('entrada:reabrir:' + nota.numero, '↩ Reabrir para ajuste', false))
     + '</div></div>'
 
   const linhas = itens.map((i) => ({
@@ -382,7 +396,11 @@ function conferenciaDaNota(nota) {
       grade: '1fr 80px 80px 130px 130px 160px 110px', direita: [1, 3, 4],
     }, linhas)
     + '<div style="font-size:12px;color:#9ca3af;font-weight:600;padding-top:14px">'
-    + 'enquanto não confirmar, o estoque não muda — é assim no painel</div></div></div>'
+    + (nota.situacao === 'pendente'
+      ? 'enquanto não lançar, o estoque não muda — é assim no painel'
+      : 'reabrir ESTORNA do estoque o que esta nota deu de entrada e devolve a nota para "A lançar". '
+        + 'Produto criado na conferência, preço de venda e conta a pagar não se desfazem.')
+    + '</div></div></div>'
 }
 
 function gestaoEntrada(d, estado) {
@@ -415,7 +433,8 @@ function gestaoEntrada(d, estado) {
   const barra = '<div class="ecard" style="padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;'
     + 'gap:14px;flex-wrap:wrap">' + botaoEstoque('entrada:nova', '+ Nova entrada', true)
     + '<span style="margin-left:auto;font-size:12.5px;color:#9ca3af;font-weight:500">'
-    + 'A nota entra como “A conferir” — o estoque só muda quando você confirmar os itens.</span></div>'
+    // Vocabulário único na tela (painel, 08/09/2026): "conferir" saiu, "lançar" ficou.
+    + 'A nota entra em “A lançar” — o estoque só muda quando você lançar os itens.</span></div>'
     + (estado.menuEntrada ? menuNovaEntrada() : '')
     + (aberta ? conferenciaDaNota(aberta) : '')
 
@@ -426,20 +445,39 @@ function gestaoEntrada(d, estado) {
     + campoFalso('DE', 'dd/mm/aaaa', '150px') + campoFalso('ATÉ', 'dd/mm/aaaa', '150px')
     + botaoEstoque('entrada:buscar-notas', 'Buscar', true, true) + '</span></div>'
 
+  // ⛔ A coluna "Status" saiu (painel, 08/09/2026): quem diz em que pé a nota está é o
+  // GRUPO onde ela aparece — "A lançar" no topo, "Lançadas" embaixo. Uma tabela só para
+  // as colunas alinharem entre os dois grupos.
+  const colunas = ['Data', 'Fornecedor', 'CNPJ', 'NF', 'Tipo', 'Valor', 'Itens', '']
+  const gradeCss = '110px 1fr 160px 100px 90px 130px 80px 150px'
+  const linhaDaNota = (n) => ({ chave: n.numero, celulas: [
+    n.emissao, { texto: n.fornecedor, forte: true, cor: '#111' }, n.cnpj || '—',
+    { texto: n.numero, forte: true, cor: '#111' },
+    TIPO_DOC[n.tipoDocumento || 'nfe'] || 'NF-e',
+    { texto: brl(n.valor), forte: true, cor: '#111' },
+    String((n.itens || []).length || n.qtdItens || 0),
+    // Nota já lançada ganha "Ajustar": reabrir ESTORNA do estoque o que ela deu de
+    // entrada e devolve a nota para "A lançar", para ser lançada de novo, corrigida.
+    { html: n.situacao === 'pendente'
+      ? botaoEstoque('entrada:abrir:' + n.numero, 'Lançar NF', true, true)
+      : botaoEstoque('entrada:ajustar-nota:' + n.numero, 'Ajustar', false, true)
+        + (n.lancadaPor
+          ? '<span title="lançada por ' + esc(n.lancadaPor) + (n.lancadaEm ? ' em ' + esc(n.lancadaEm) : '')
+            + '" style="margin-left:6px;font-size:11.5px;color:#9ca3af;font-weight:700;cursor:help">ⓘ</span>'
+          : '') },
+  ] })
+  const aLancar = notas.filter((n) => n.situacao === 'pendente')
+  const lancadas = notas.filter((n) => n.situacao !== 'pendente')
+  const grupo = (titulo, lista, sub) => lista.length
+    ? '<div style="font-size:12.5px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;'
+      + 'margin:14px 0 8px">' + esc(titulo) + ' (' + lista.length + ')'
+      + (sub ? '<span style="text-transform:none;letter-spacing:0;font-weight:600;color:#9ca3af"> · '
+        + esc(sub) + '</span>' : '') + '</div>'
+      + grade(colunas, lista.map(linhaDaNota), gradeCss, [5, 6])
+    : ''
   const corpo = notas.length
-    ? grade(['Data', 'Fornecedor', 'CNPJ', 'NF', 'Tipo', 'Valor', 'Itens', 'Status', ''],
-      notas.map((n) => {
-        const st = STATUS_NOTA[n.situacao] || STATUS_NOTA.pendente
-        return { chave: n.numero, celulas: [
-          n.emissao, { texto: n.fornecedor, forte: true, cor: '#111' }, n.cnpj || '—',
-          { texto: n.numero, forte: true, cor: '#111' },
-          TIPO_DOC[n.tipoDocumento || 'nfe'] || 'NF-e',
-          { texto: brl(n.valor), forte: true, cor: '#111' },
-          String((n.itens || []).length || n.qtdItens || 0),
-          { texto: st.rotulo, etiqueta: st.etiqueta },
-          { html: botaoEstoque('entrada:abrir:' + n.numero, n.situacao === 'pendente' ? 'Conferir' : 'Ver', n.situacao === 'pendente', true) },
-        ] }
-      }), '110px 1fr 160px 100px 90px 130px 80px 120px 110px', [5, 6])
+    ? grupo('A lançar', aLancar, 'o estoque só muda quando você lançar')
+      + grupo('Lançadas', lancadas, 'já deram entrada no estoque')
     : '<div class="evazio">Nenhuma nota importada ainda. Use “Buscar da SEFAZ” (notas emitidas contra o CNPJ da loja) '
       + 'ou envie o XML que o fornecedor mandou.</div>'
 
@@ -670,6 +708,52 @@ function gestaoFornecedores(d) {
       : aviso('Nenhum fornecedor cadastrado. Eles entram sozinhos quando você importa uma nota de compra.'))
 }
 
+/** Formata CNPJ (14) e CPF (11); o que não tiver o tamanho certo sai como veio. */
+function docBr(c) {
+  const s = ('' + (c || '')).replace(/\D/g, '')
+  if (s.length === 14) return s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+  if (s.length === 11) return s.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  return c || '—'
+}
+
+/** Gestão › Prestadores de Serviço (painel, 08/09/2026).
+ *
+ *  Um modelo, um tipo: a NFS-e mostra o PRESTADOR, o CT-e mostra a TRANSPORTADORA. Os
+ *  dois saem da mesma sincronização da SEFAZ que o Portal Contábil já usa — ninguém
+ *  digita nada aqui. "Fora do cadastro" é quem emitiu nota para a loja e não existe
+ *  como fornecedor: é essa linha que faz a despesa entrar sem dono.
+ *
+ *  A marca do entregador fecha o ciclo da cobertura de folga: com o entregador vinculado
+ *  ao prestador, a NFS-e dele deixa de ser "uma nota qualquer" e vira a prestação de
+ *  serviço daquele entregador. */
+function gestaoPrestadores(d) {
+  const lista = d.prestadores || []
+  const secao = (titulo, modelo, linhas) => {
+    if (!linhas.length) {
+      return '<div class="ecard" style="padding:24px;margin-bottom:16px">'
+        + '<div style="font-size:12.5px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;'
+        + 'margin-bottom:10px">' + esc(titulo) + '</div>'
+        + '<div class="evazio">Nenhum documento ' + esc(modelo) + ' no período sincronizado.</div></div>'
+    }
+    return '<div class="ecard" style="padding:24px;margin-bottom:16px;animation:eloFadeUp .5s ease .05s both">'
+      + '<div style="font-size:12.5px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;'
+      + 'margin-bottom:12px">' + esc(titulo) + ' · ' + esc(modelo) + '</div>'
+      + grade(['Nome', 'CNPJ / CPF', 'Documentos', 'Valor', 'Último', 'Cadastro'],
+        linhas.map((l) => ({ chave: l.cnpj, celulas: [
+          { texto: l.nome, forte: true, cor: '#111', sub: l.entregador ? '🔗 entregador ' + l.entregador : '' },
+          docBr(l.cnpj), String(l.documentos || 0),
+          { texto: brl(l.valor), forte: true, cor: '#111' },
+          l.ultimo ? ('' + l.ultimo).split('-').reverse().join('/') : '—',
+          et(l.cadastrado ? 'Cadastrado' : 'Fora do cadastro'),
+        ] })),
+        '1fr 190px 130px 150px 130px 170px', [2, 3]) + '</div>'
+  }
+  return tituloDeAba('Prestadores de serviço',
+    lista.length ? 'quem emitiu nota de serviço para a loja' : 'Nada sincronizado ainda.', '')
+    + secao('Prestadores', 'NFS-e', lista.filter((l) => l.tipo !== 'transportadora'))
+    + secao('Transportadoras', 'CT-e', lista.filter((l) => l.tipo === 'transportadora'))
+}
+
 function gestao(d, aba, estado) {
   estado = estado || {}
   if (aba === 'produtos') return gestaoProdutos(d, estado)
@@ -678,6 +762,7 @@ function gestao(d, aba, estado) {
   if (aba === 'movimentacoes') return gestaoMovimentacoes(d, estado)
   if (aba === 'fichas') return gestaoFichas(d, estado)
   if (aba === 'fornecedores') return gestaoFornecedores(d)
+  if (aba === 'prestadores') return gestaoPrestadores(d)
   return aviso('Aba sem conteúdo.')
 }
 

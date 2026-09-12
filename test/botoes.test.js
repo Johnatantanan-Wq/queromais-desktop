@@ -22,6 +22,7 @@ const TelaCardapio = require('../renderer/elo/tela-cardapio')
 const TelaVG = require('../renderer/elo/tela-visao-geral')
 const TelaImpressao = require('../renderer/elo/tela-impressao')
 const Ficha = require('../renderer/elo/ficha')
+const TelaEntregadores = require('../renderer/elo/tela-entregadores')
 
 const listas = demo.listas(), apoio = demo.listasApoio(), oper = demo.operacao()
 const finais = demo.apoioFinal(), abas = demo.telasComAbas()
@@ -42,7 +43,9 @@ const TELAS = {
   '/admin/cozinha': () => Operacao.htmlKds(oper.cozinha, { ...e, departamento: 'cozinha' }),
   '/admin/bar': () => Operacao.htmlKds(oper.bar, { ...e, departamento: 'bar' }),
   '/admin/compras': () => Compras.htmlCompras(apoio.compras, e),
-  '/admin/motoboys': () => Catalogo.htmlDaRota('/admin/motoboys', listas.entregadores, e),
+  '/admin/motoboys#entregas': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...e, aba: 'entregas' }),
+  '/admin/motoboys#fechamentos': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...e, aba: 'fechamentos' }),
+  '/admin/motoboys#equipe': () => TelaEntregadores.htmlEntregadores(listas.entregadores, { ...e, aba: 'equipe' }),
   '/admin/relatorios': () => Finais.htmlRelatorios(finais.relatorios, e),
   '/admin/insights': () => Finais.htmlInsights(finais.insights, e),
   '/admin/configuracoes': () => Finais.htmlConfiguracoes(finais.configuracoes, e),

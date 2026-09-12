@@ -84,6 +84,14 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
   ipcMain.handle('cache-get', (e, chave) => cache.get(chave))
   ipcMain.handle('cache-set', (e, a) => cache.set(a && a.chave, { status: 200, body: a && a.valor }))
   ipcMain.handle('abrir-rota', (e, href) => abrirRota(href))
+  // Link que NÃO é do painel (o ponto do entregador no mapa) abre no navegador do
+  // sistema: mapa é da internet, e trazê-lo para dentro do app faria um app
+  // offline-first exibir um quadrado branco quando a rede cai.
+  ipcMain.handle('abrir-externo', (e, url) => {
+    if (!/^https:\/\//.test('' + url)) return { ok: false }
+    require('electron').shell.openExternal('' + url)
+    return { ok: true }
+  })
   // Telas nativas: cada uma tem sua chave no cache, sempre por loja — cache de uma
   // loja não pode vazar para outra quando o lojista troca de loja.
   // O Caixa junta três rotas: o resumo, as entregas (aba Delivery) e o salão (aba
@@ -96,6 +104,9 @@ function registrar({ ipcMain, cache, monitorRede, pedirAoPainel, pedirTela, abri
         resumoResp: '/api/admin/caixa/resumo',
         entregasResp: '/api/admin/atendimento/entregas',
         salaoResp: '/api/admin/atendimento/salao',
+        // Aba "NF pendentes" (painel, 09/09/2026): as vendas de hoje e de ontem sem
+        // nota. Rota própria e já no ar; `ativo` diz se ESTA loja emite NFC-e manual.
+        semNotaResp: '/api/admin/nf/sem-nota',
       },
       pedirTela,
     })),

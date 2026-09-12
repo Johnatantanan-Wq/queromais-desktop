@@ -13,6 +13,15 @@ async function mandar(enviar, log, d, canal) {
 }
 
 function registrar({ ipcMain, enviar, log }) {
+  // Só a conta: divide o total e devolve a grade para a tela mostrar ANTES de lançar.
+  // Nada sai daqui para o painel — é cálculo, não escrita.
+  ipcMain.handle('conta-parcelas', (e, args) => {
+    const a = args || {}
+    const d = A.nova({ ...a, direcao: 'pagar', descricao: a.descricao || 'x',
+      parcelas: Math.max(2, Math.floor(Number(a.parcelas) || 2)) })
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    return { ok: true, parcelas: d.parcelas || [] }
+  })
   ipcMain.handle('conta-baixar', async (e, args) => {
     const d = A.baixa(args && args.conta, args || {})
     return d.ok ? mandar(enviar, log, d, 'conta-baixar') : { ok: false, erro: d.motivo }
