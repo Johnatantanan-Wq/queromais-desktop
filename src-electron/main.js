@@ -761,6 +761,24 @@ async function createWindow() {
         const d = acoesEstoque.novoFornecedor(a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
         registroEstoque.fornecedor(d.corpo); return { ok: true, resumo: d.resumo, demo: true }
       })
+      // Gestão pelo app, em demonstração: as fichas gravam no registro local e a tela reflete.
+      const CANAIS_ESTOQUE = require('./estoque-envio').CANAIS
+      const EFEITO_ESTOQUE = {
+        'estoque-editar-insumo': (d, a) => registroEstoque.editarInsumo(a.item.id, d.corpo),
+        'estoque-ajuste': (d, a) => registroEstoque.ajuste(a.item.id, d.corpo),
+        'estoque-entrada-sem-nota': (d) => registroEstoque.entradaSemNota(d.corpo),
+        'estoque-entrada-manual': () => {},
+        'estoque-editar-fornecedor': (d, a) => registroEstoque.editarFornecedor(a.fornecedor.id, d.corpo),
+        'estoque-excluir-fornecedor': (d, a) => registroEstoque.excluirFornecedor(a.fornecedor.id),
+        'estoque-resolver-pendencia': (d, a) => registroEstoque.resolverPendencia(a.pendencia.id),
+        'estoque-ficha-tecnica': (d, a) => registroEstoque.fichaTecnica(a.produto.produtoId, d.corpo),
+      }
+      for (const canal of Object.keys(EFEITO_ESTOQUE)) {
+        ipcMain.handle(canal, (e, a) => {
+          const d = CANAIS_ESTOQUE[canal](a || {}); if (!d.ok) return { ok: false, erro: d.motivo }
+          EFEITO_ESTOQUE[canal](d, a || {}); return { ok: true, resumo: d.resumo, demo: true }
+        })
+      }
       const acoesContas = require('./contas-acoes')
       ipcMain.handle('conta-baixar', (e, a) => {
         const d = acoesContas.baixa(a && a.conta, a || {}); if (!d.ok) return { ok: false, erro: d.motivo }

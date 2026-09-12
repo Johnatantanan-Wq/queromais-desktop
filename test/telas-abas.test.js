@@ -175,3 +175,29 @@ test('Pedidos no modo lista não repete a faixa de KPIs', () => {
   const vezes = (h.match(/aguardando aceite/g) || []).length
   assert.strictEqual(vezes, 1, 'o KPI "Novos / aguardando aceite" apareceu ' + vezes + ' vezes')
 })
+
+// ── Gestão pelo app: os botões que abrem as fichas ─────────────────────────
+const estoqueComIds = require('../src-electron/demo-dados').telasComAbas().estoque
+
+test('Gestão › Produtos: o "⋯" do item leva o id — é a ficha do item que abre', () => {
+  const h = T.htmlComAbas('/admin/estoque', estoqueComIds, { aba: 'produtos' })
+  const it = estoqueComIds.categorias[0].subcategorias[0].itens[0]
+  assert.ok(h.includes('data-acao="estoque:menu:' + it.id + '"'))
+})
+
+test('Gestão › NF entrada: a pendência aberta tem Resolver com o id', () => {
+  const h = T.htmlComAbas('/admin/estoque', estoqueComIds, { aba: 'entrada', subGestao: 'pendencias' })
+  const p = estoqueComIds.nfEntrada.pendencias.find((x) => !x.resolvida)
+  assert.ok(h.includes('data-acao="entrada:resolver:' + p.id + '"'))
+})
+
+test('Gestão › Fornecedores: cada linha tem Editar', () => {
+  const h = T.htmlComAbas('/admin/estoque', estoqueComIds, { aba: 'fornecedores' })
+  assert.ok(h.includes('data-acao="estoque:fornecedor:' + estoqueComIds.fornecedores[0].id + '"'))
+})
+
+test('Gestão › Fichas técnicas: o produto escolhido tem "Editar ficha"', () => {
+  const f = estoqueComIds.fichas.itens[0]
+  const h = T.htmlComAbas('/admin/estoque', estoqueComIds, { aba: 'fichas', fichaAberta: f.produto })
+  assert.ok(h.includes('data-acao="estoque:ficha:' + f.produtoId + '"'))
+})

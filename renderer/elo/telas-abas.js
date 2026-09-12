@@ -169,7 +169,7 @@ function linhaItemEstoque(i) {
     + esc(brl(i.custo)) + '</span>'
     + '<span><span style="font-size:10.5px;font-weight:800;color:' + s.cor + ';background:' + s.bg
     + ';border-radius:6px;padding:2px 7px;white-space:nowrap">' + esc(s.texto) + '</span></span>'
-    + '<button type="button" data-acao="estoque:menu:' + esc(i.nome) + '" title="Lançar, editar, histórico"'
+    + '<button type="button" data-acao="estoque:menu:' + esc(i.id || i.nome) + '" title="Editar o item, movimentar o estoque"'
     + ' style="border:none;background:none;color:#9ca3af;font-size:17px;line-height:1;cursor:pointer;font-family:inherit">⋯</button>'
     + '</div>'
 }
@@ -422,7 +422,7 @@ function gestaoEntrada(d, estado) {
             p.registrada,
             { html: p.resolvida
               ? '<span style="font-size:11.5px;color:#9ca3af;font-weight:700">resolvida</span>'
-              : botaoEstoque('entrada:resolver:' + p.produto, 'Resolver', true, true) }] })),
+              : botaoEstoque('entrada:resolver:' + (p.id || p.produto), 'Resolver', true, true) }] })),
           '120px 1fr 90px 110px 190px 120px 120px', [2, 3]))
       : aviso('Nenhuma pendência em aberto. Falta, avaria e vencimento são apontados na conferência da nota, '
         + 'no botão Ajustar de cada item.'))
@@ -669,7 +669,10 @@ function gestaoFichas(d, estado) {
 
   const detalhe = escolhido
     ? '<div class="ecard" style="padding:24px">'
-      + '<div style="font-size:15px;font-weight:800;color:#111;margin-bottom:4px">' + esc(escolhido.produto) + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">'
+      + '<div style="font-size:15px;font-weight:800;color:#111">' + esc(escolhido.produto) + '</div>'
+      // A ficha técnica é editada AQUI: quanto de cada insumo sai por unidade vendida.
+      + (escolhido.produtoId ? botaoEstoque('estoque:ficha:' + escolhido.produtoId, '✎ Editar ficha', true, true) : '') + '</div>'
       + '<div style="font-size:12.5px;color:#9ca3af;font-weight:500;margin-bottom:18px">'
       + esc(escolhido.categoria || '—') + ' · vende por ' + esc(brl(escolhido.preco)) + '</div>'
       + ((escolhido.insumos || []).length
@@ -701,10 +704,12 @@ function gestaoFornecedores(d) {
     botao('estoque:novo-fornecedor', '+ Adicionar fornecedor', true))
     + (lista.length
       ? '<div class="ecard" style="padding:24px;animation:eloFadeUp .5s ease .05s both">'
-        + grade(['Fornecedor', 'CNPJ / CPF', 'Telefone', 'Última compra', 'Compras no mês'],
-          lista.map((f) => ({ chave: f.nome, celulas: [{ texto: f.nome, forte: true, cor: '#111' },
-            f.cnpj || '—', f.telefone, f.ultima, { texto: brl(f.mes), forte: true, cor: '#111' }] })),
-          '1fr 180px 160px 150px 170px', [4]) + '</div>'
+        + grade(['Fornecedor', 'CNPJ / CPF', 'Telefone', 'Última compra', 'Compras no mês', ''],
+          lista.map((f) => ({ chave: f.id || f.nome, celulas: [{ texto: f.nome, forte: true, cor: '#111' },
+            f.cnpj || '—', f.telefone, f.ultima, { texto: brl(f.mes), forte: true, cor: '#111' },
+            // Editar (e excluir) é ficha do app; sem id (dado antigo) não há o que editar.
+            { html: f.id ? botaoEstoque('estoque:fornecedor:' + f.id, 'Editar', false, true) : '' }] })),
+          '1fr 180px 160px 150px 170px 90px', [4]) + '</div>'
       : aviso('Nenhum fornecedor cadastrado. Eles entram sozinhos quando você importa uma nota de compra.'))
 }
 

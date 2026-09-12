@@ -933,6 +933,121 @@ function fichaContaCancelar(conta) {
     + '</div>'
 }
 
+
+// ── GESTÃO: item, ajuste de saldo, entradas à mão, fornecedor, pendência, ficha técnica ──
+const EA = require('../../src-electron/estoque-acoes')
+const selOpcoes = (lista, rotulos) => lista.map((v) => ({ v, r: (rotulos && rotulos[v]) || v }))
+const NOME_TIPO_ITEM = { ingrediente: 'Ingrediente', bebida: 'Bebida', embalagem: 'Embalagem', produto_pronto: 'Produto pronto', revenda: 'Revenda', uso_consumo: 'Uso e consumo' }
+const NOME_GRUPO_ITEM = { producao: 'Produção própria', revenda: 'Revenda', insumo: 'Insumos', uso_consumo: 'Uso e consumo' }
+const qtdBR = (v) => (v == null || v === '' ? '' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 3, useGrouping: false }))
+
+function fichaInsumo(item) {
+  const i = item || {}
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<div style="font-size:13px;color:#6b7280;font-weight:600">Saldo agora: <b style="color:#111">' + esc(qtdBR(i.saldo) + ' ' + (i.unidade || 'un')) + '</b>'
+    + (i.codigo && i.codigo !== '—' ? ' · código ' + esc(i.codigo) : '') + '</div>'
+    + botaoFicha('estoque:ajuste:' + i.id, '↕ Movimentar estoque', false) + '</div>'
+    + campo('Nome', 'nome', i.nome)
+    + colunas([campoSelecao('Unidade', 'unidade', selOpcoes(EA.UNIDADES), i.unidade || 'un'), campo('Estoque mínimo', 'minimo', qtdBR(i.minimo)), campo('Custo unitário (R$)', 'custo', numBR(i.custo))], 3)
+    + colunas([campoSelecao('Tipo', 'tipo', selOpcoes(EA.TIPOS_ITEM, NOME_TIPO_ITEM), i.tipo || 'ingrediente'), campoSelecao('Grupo', 'grupo', selOpcoes(EA.GRUPOS_ITEM, NOME_GRUPO_ITEM), i.grupo || 'producao')])
+    + colunas([campoMarcar('Ativo', 'ativo', i.ativo !== false, 'inativo some das listas, o histórico fica'),
+      campoMarcar('Permite estoque negativo', 'permiteNegativo', !!i.permiteNegativo, 'a venda não trava quando o saldo zera')])
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-bottom:10px">Classificação fiscal (NCM, CFOP, CST) e vínculo com o cardápio continuam pelo painel.</div>'
+    + rodapeFicha('config:cancelar', 'estoque:item:confirmar:' + i.id, 'Salvar item')
+}
+
+function fichaAjusteEstoque(item) {
+  const i = item || {}
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5"><b style="color:#111">' + esc(i.nome || '') + '</b> — saldo agora '
+    + '<b style="color:#111">' + esc(qtdBR(i.saldo) + ' ' + (i.unidade || 'un')) + '</b>. Entrada soma; saída, perda e consumo tiram; '
+    + '<b>acerto de saldo</b> fixa o saldo no que foi contado. Cada movimento fica no histórico.</div>'
+    + colunas([campoSelecao('Movimento', 'acao', Object.keys(EA.ACOES_MOV).map((v) => ({ v, r: EA.ACOES_MOV[v] })), 'entrada'),
+      campo('Quantidade (' + (i.unidade || 'un') + ')', 'qtd', '', 'no acerto, o saldo contado')])
+    + colunas([campo('Custo unitário (só entrada)', 'custo', '', 'atualiza o custo médio'), campo('Motivo', 'motivo', '', 'ex.: compra avulsa, venceu, contagem')])
+    + campoArea('Observação', 'observacao', '')
+    + rodapeFicha('config:cancelar', 'estoque:ajuste:confirmar:' + i.id, 'Lançar movimento')
+}
+
+function seletorFornecedor(fornecedores) {
+  return campoSelecao('Fornecedor cadastrado', 'fornecedorId', [{ v: '', r: '— não cadastrado / informar o nome —' }]
+    .concat((fornecedores || []).map((f) => ({ v: f.id, r: f.nome }))), '')
+}
+
+function fichaEntradaSemNota(insumos, fornecedores, hojeBR) {
+  const opcoes = [{ v: '', r: '—' }].concat((insumos || []).map((i) => ({ v: i.id, r: i.nome + ' (' + (i.unidade || 'un') + ')' })))
+  const linhas = [0, 1, 2, 3, 4].map((n) =>
+    '<div style="display:grid;grid-template-columns:1fr 110px 130px;gap:10px;align-items:center;margin-bottom:8px">'
+    + '<select data-campo="linha-insumo:' + n + '" style="' + ESTILO_CAMPO + ';padding:0 10px">' + opcoes.map((o) => '<option value="' + esc(o.v) + '">' + esc(o.r) + '</option>').join('') + '</select>'
+    + '<input data-campo="linha-qtd:' + n + '" placeholder="qtd" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<input data-campo="linha-custo:' + n + '" placeholder="custo unit." autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '</div>').join('')
+  return avisoFicha('Entra no estoque marcada como sem comprovante fiscal — compra no mercado, no vizinho, sem nota. Com nota, use "Lançar manualmente — com nota fiscal".')
+    + colunas([seletorFornecedor(fornecedores), campo('Ou o nome de quem vendeu', 'fornecedorNome', '')])
+    + colunas([campo('Documento (recibo, opcional)', 'documento', ''), campo('Data', 'data', hojeBR || '', 'dd/mm/aaaa'), campo('Motivo (opcional)', 'motivo', '')], 3)
+    + tituloSecao('Itens')
+    + '<div style="display:grid;grid-template-columns:1fr 110px 130px;gap:10px;margin-bottom:6px;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em"><span>Item do estoque</span><span>Qtd</span><span>Custo unit.</span></div>'
+    + linhas
+    + rodapeFicha('config:cancelar', 'entrada:sem-nota:confirmar', 'Dar entrada')
+}
+
+function fichaEntradaManual(fornecedores, hojeBR) {
+  const linhas = [0, 1, 2, 3, 4, 5].map((n) =>
+    '<div style="display:grid;grid-template-columns:1fr 80px 90px 120px;gap:10px;align-items:center;margin-bottom:8px">'
+    + '<input data-campo="linha-descricao:' + n + '" placeholder="descrição do item na nota" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<input data-campo="linha-unidade:' + n + '" placeholder="UN" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<input data-campo="linha-quantidade:' + n + '" placeholder="qtd" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<input data-campo="linha-valor:' + n + '" placeholder="valor unit." autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '</div>').join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">A nota entra em <b style="color:#111">"A lançar"</b> e vai para a conferência normal: '
+    + 'lá cada item é vinculado ao estoque (ou criado) antes de mexer no saldo. Digite como está no papel.</div>'
+    + colunas([seletorFornecedor(fornecedores), campo('Nome do fornecedor', 'fornecedorNome', '', 'como está na nota'), campo('CNPJ', 'fornecedorCnpj', '')], 3)
+    + colunas([campo('Número da nota', 'numero', ''), campo('Série', 'serie', ''), campo('Emissão', 'dataEmissao', hojeBR || '', 'dd/mm/aaaa')], 3)
+    + tituloSecao('Itens da nota')
+    + '<div style="display:grid;grid-template-columns:1fr 80px 90px 120px;gap:10px;margin-bottom:6px;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em"><span>Descrição</span><span>Un.</span><span>Qtd</span><span>Valor unit.</span></div>'
+    + linhas
+    + rodapeFicha('config:cancelar', 'entrada:manual:confirmar', 'Lançar nota')
+}
+
+function fichaFornecedorEditar(f) {
+  const x = f || {}
+  return campo('Nome', 'nome', x.nome)
+    + colunas([campo('CNPJ / CPF', 'cnpj', x.cnpj && x.cnpj !== '—' ? x.cnpj : ''), campo('Telefone', 'telefone', x.telefone && x.telefone !== '—' ? x.telefone : ''), campo('E-mail', 'email', x.email || '')], 3)
+    + colunas([campo('Endereço', 'endereco', x.endereco || ''), campo('Inscrição estadual', 'inscricao', x.inscricao || '')])
+    + campoSelecao('Tipo', 'tipo', [{ v: 'fornecedor', r: 'Fornecedor' }, { v: 'prestador', r: 'Prestador de serviço' }, { v: 'transportadora', r: 'Transportadora' }], x.tipo || 'fornecedor')
+    + campoArea('Observações', 'observacoes', x.observacoes || '')
+    + campoMarcar('Ativo', 'ativo', x.ativo !== false, 'inativo some das escolhas; as notas antigas ficam')
+    + rodapeFicha('config:cancelar', 'estoque:fornecedor:confirmar:' + x.id, 'Salvar fornecedor', botaoFicha('estoque:fornecedor:excluir:' + x.id, 'Excluir', false))
+}
+
+function fichaPendencia(p) {
+  const x = p || {}
+  return '<div style="background:#f7f8fa;border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div style="font-size:13.5px;font-weight:800;color:#111">' + esc(x.problema || 'Pendência') + ' — ' + esc(x.produto || '') + '</div>'
+    + '<div style="font-size:12.5px;color:#6b7280;font-weight:600;margin-top:4px">' + esc(qtdBR(x.qtd)) + (x.unidade ? ' ' + esc(x.unidade) : '') + (x.valor ? ' · ' + brl(x.valor) : '')
+    + (x.nota ? ' · ' + esc(x.nota) : '') + (x.fornecedor ? ' · ' + esc(x.fornecedor) : '') + (x.registrada ? ' · registrada em ' + esc(x.registrada) : '') + '</div></div>'
+    + campoArea('Como foi resolvida', 'resolucao', '', 'ex.: o fornecedor repôs os 6 no dia seguinte · foi abatido da nota · perda assumida')
+    + rodapeFicha('config:cancelar', 'entrada:resolver:confirmar:' + x.id, 'Marcar como resolvida')
+}
+
+function fichaTecnicaEditar(ficha, insumos) {
+  const f = ficha || {}
+  const opcoes = [{ v: '', r: '—' }].concat((insumos || []).map((i) => ({ v: i.id, r: i.nome + ' (' + (i.unidade || 'un') + ')' })))
+  const atuais = (f.insumos || []).map((x) => ({ id: x.id, qtd: x.qtdNum }))
+  for (let i = 0; i < 3; i++) atuais.push({ id: '', qtd: '' })
+  const linhas = atuais.map((l, n) =>
+    '<div style="display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:center;margin-bottom:8px">'
+    + '<select data-campo="ficha-insumo:' + n + '" style="' + ESTILO_CAMPO + ';padding:0 10px">' + opcoes.map((o) => '<option value="' + esc(o.v) + '"' + (o.v && o.v === l.id ? ' selected' : '') + '>' + esc(o.r) + '</option>').join('') + '</select>'
+    + '<input data-campo="ficha-qtd:' + n + '" value="' + esc(qtdBR(l.qtd)) + '" placeholder="qtd por unidade" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '</div>').join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5"><b style="color:#111">' + esc(f.produto || '') + '</b>'
+    + (f.categoria ? ' · ' + esc(f.categoria) : '') + (f.preco ? ' · vende por ' + brl(f.preco) : '') + '. Quanto de cada insumo sai do estoque por unidade vendida. '
+    + 'Para tirar um insumo, escolha "—" na linha. Salvar sem linhas deixa o produto sem ficha.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 140px;gap:10px;margin-bottom:6px;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em"><span>Insumo</span><span>Quantidade</span></div>'
+    + linhas
+    + rodapeFicha('config:cancelar', 'estoque:ficha:confirmar:' + f.produtoId, 'Salvar ficha')
+}
+
 module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila,
   fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda, fichaConfirmar, fichaLancamento, fichaContaEditar, fichaContaCancelar,
+  fichaInsumo, fichaAjusteEstoque, fichaEntradaSemNota, fichaEntradaManual, fichaFornecedorEditar, fichaPendencia, fichaTecnicaEditar,
   campo, campoSelecao, campoMarcar, campoArea, colunas, tituloSecao, avisoFicha, botaoFicha, brl }

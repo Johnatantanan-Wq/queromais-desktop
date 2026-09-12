@@ -1160,6 +1160,109 @@ if (typeof document !== 'undefined') {
         const c = document.querySelector('#eloFicha [data-campo="nome"]'); if (c) c.focus()
         return
       }
+      // ── GESTÃO pelo app: item, ajuste de saldo, entradas à mão, fornecedor, pendência, ficha técnica ──
+      const itemDaGestao = (chave) => {
+        for (const c of ((DADOS_TELA && DADOS_TELA.categorias) || [])) {
+          for (const sc of (c.subcategorias || [])) {
+            const i = (sc.itens || []).find((x) => x.id === chave || x.nome === chave)
+            if (i) return i
+          }
+        }
+        return null
+      }
+      const fornecedorDaGestao = (id) => ((DADOS_TELA && DADOS_TELA.fornecedores) || []).find((f) => f.id === id) || null
+      const pendenciaDaGestao = (chave) => (((DADOS_TELA && DADOS_TELA.nfEntrada) || {}).pendencias || []).find((p) => p.id === chave || p.produto === chave) || null
+      const fichaDaGestao = (produtoId) => (((DADOS_TELA && DADOS_TELA.fichas) || {}).itens || []).find((f) => f.produtoId === produtoId) || null
+      const insumosDaGestao = () => (DADOS_TELA && DADOS_TELA.insumos) || []
+      const linhasDaFicha = (prefixoSel, prefixoQtd, chaveSel, chaveQtd) => {
+        const sel = camposDaFicha(prefixoSel), qtd = camposDaFicha(prefixoQtd)
+        return Object.keys(sel).map((n) => ({ [chaveSel]: sel[n], [chaveQtd]: qtd[n] }))
+      }
+      if (acao.indexOf('estoque:menu:') === 0) {
+        const item = itemDaGestao(acao.slice('estoque:menu:'.length))
+        if (!item) { avisar('Não achei esse item na tela — recarregue.', 'erro'); return }
+        if (!item.id) { avisar('Este item veio sem identificação — recarregue a tela.', 'aviso'); return }
+        abrirPopup(item.nome, Ficha.fichaInsumo(item), 640); return
+      }
+      if (acao.indexOf('estoque:item:confirmar:') === 0) {
+        const item = itemDaGestao(acao.slice('estoque:item:confirmar:'.length))
+        if (!item) { avisar('Não achei esse item — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-editar-insumo', { item, nome: campoDaFicha('nome'), unidade: campoDaFicha('unidade'), minimo: campoDaFicha('minimo'),
+          custo: campoDaFicha('custo'), tipo: campoDaFicha('tipo'), grupo: campoDaFicha('grupo'), ativo: marcadoNaFicha('ativo'), permiteNegativo: marcadoNaFicha('permiteNegativo') })
+        return
+      }
+      if (acao.indexOf('estoque:ajuste:confirmar:') === 0) {
+        const item = itemDaGestao(acao.slice('estoque:ajuste:confirmar:'.length))
+        if (!item) { avisar('Não achei esse item — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-ajuste', { item, acao: campoDaFicha('acao'), qtd: campoDaFicha('qtd'), custo: campoDaFicha('custo'), motivo: campoDaFicha('motivo'), observacao: campoDaFicha('observacao') })
+        return
+      }
+      if (acao.indexOf('estoque:ajuste:') === 0) {
+        const item = itemDaGestao(acao.slice('estoque:ajuste:'.length))
+        if (!item) { avisar('Não achei esse item — recarregue.', 'erro'); return }
+        abrirPopup('Movimentar estoque', Ficha.fichaAjusteEstoque(item), 560); return
+      }
+      if (acao === 'entrada:sem-nota') { MENU_ENTRADA = false; abrirPopup('Entrada sem nota fiscal', Ficha.fichaEntradaSemNota(insumosDaGestao(), (DADOS_TELA && DADOS_TELA.fornecedores) || [], hojeBR()), 720); return }
+      if (acao === 'entrada:manual') { MENU_ENTRADA = false; abrirPopup('Lançar nota manualmente', Ficha.fichaEntradaManual((DADOS_TELA && DADOS_TELA.fornecedores) || [], hojeBR()), 760); return }
+      if (acao === 'entrada:sem-nota:confirmar') {
+        const custos = camposDaFicha('linha-custo:')
+        const itens = linhasDaFicha('linha-insumo:', 'linha-qtd:', 'ingredienteId', 'qtd').map((l, n) => ({ ...l, custo: custos[String(n)] }))
+        mandarConfig(btAcao, 'estoque-entrada-sem-nota', { fornecedorId: campoDaFicha('fornecedorId'), fornecedorNome: campoDaFicha('fornecedorNome'),
+          documento: campoDaFicha('documento'), data: campoDaFicha('data'), motivo: campoDaFicha('motivo'), itens })
+        return
+      }
+      if (acao === 'entrada:manual:confirmar') {
+        const d = camposDaFicha('linha-descricao:'), u = camposDaFicha('linha-unidade:'), q = camposDaFicha('linha-quantidade:'), v = camposDaFicha('linha-valor:')
+        const itens = Object.keys(d).map((n) => ({ descricao: d[n], unidade: u[n], quantidade: q[n], valorUnitario: v[n] }))
+        mandarConfig(btAcao, 'estoque-entrada-manual', { fornecedorId: campoDaFicha('fornecedorId'), fornecedorNome: campoDaFicha('fornecedorNome'), fornecedorCnpj: campoDaFicha('fornecedorCnpj'),
+          numero: campoDaFicha('numero'), serie: campoDaFicha('serie'), dataEmissao: campoDaFicha('dataEmissao'), itens })
+        return
+      }
+      if (acao.indexOf('estoque:fornecedor:confirmar:') === 0) {
+        const fornecedor = fornecedorDaGestao(acao.slice('estoque:fornecedor:confirmar:'.length))
+        if (!fornecedor) { avisar('Não achei esse fornecedor — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-editar-fornecedor', { fornecedor, nome: campoDaFicha('nome'), cnpj: campoDaFicha('cnpj'), telefone: campoDaFicha('telefone'), email: campoDaFicha('email'),
+          endereco: campoDaFicha('endereco'), inscricao: campoDaFicha('inscricao'), tipo: campoDaFicha('tipo'), observacoes: campoDaFicha('observacoes'), ativo: marcadoNaFicha('ativo') })
+        return
+      }
+      if (acao.indexOf('estoque:fornecedor:excluir-sim:') === 0) {
+        const fornecedor = fornecedorDaGestao(acao.slice('estoque:fornecedor:excluir-sim:'.length))
+        if (!fornecedor) { avisar('Não achei esse fornecedor — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-excluir-fornecedor', { fornecedor }); return
+      }
+      if (acao.indexOf('estoque:fornecedor:excluir:') === 0) {
+        const fornecedor = fornecedorDaGestao(acao.slice('estoque:fornecedor:excluir:'.length))
+        if (!fornecedor) { avisar('Não achei esse fornecedor — recarregue.', 'erro'); return }
+        abrirPopup('Excluir fornecedor', Ficha.fichaConfirmar('Excluir o fornecedor "' + fornecedor.nome + '"? As notas dele ficam no histórico; ele some das escolhas.', 'estoque:fornecedor:excluir-sim:' + fornecedor.id, 'Excluir'), 460)
+        return
+      }
+      // 'estoque:fornecedor:confirmar' (sem id) é o cadastro NOVO, tratado mais abaixo.
+      if (acao.indexOf('estoque:fornecedor:') === 0 && acao !== 'estoque:fornecedor:confirmar') {
+        const fornecedor = fornecedorDaGestao(acao.slice('estoque:fornecedor:'.length))
+        if (!fornecedor) { avisar('Não achei esse fornecedor na tela — recarregue.', 'erro'); return }
+        abrirPopup('Fornecedor', Ficha.fichaFornecedorEditar(fornecedor), 640); return
+      }
+      if (acao.indexOf('entrada:resolver:confirmar:') === 0) {
+        const pendencia = pendenciaDaGestao(acao.slice('entrada:resolver:confirmar:'.length))
+        if (!pendencia) { avisar('Não achei essa pendência — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-resolver-pendencia', { pendencia, resolucao: campoDaFicha('resolucao') }); return
+      }
+      if (acao.indexOf('entrada:resolver:') === 0) {
+        const pendencia = pendenciaDaGestao(acao.slice('entrada:resolver:'.length))
+        if (!pendencia) { avisar('Não achei essa pendência na tela — recarregue.', 'erro'); return }
+        if (!pendencia.id) { avisar('Esta pendência veio sem identificação — recarregue a tela.', 'aviso'); return }
+        abrirPopup('Resolver pendência', Ficha.fichaPendencia(pendencia), 520); return
+      }
+      if (acao.indexOf('estoque:ficha:confirmar:') === 0) {
+        const ficha = fichaDaGestao(acao.slice('estoque:ficha:confirmar:'.length))
+        if (!ficha) { avisar('Não achei esse produto — recarregue.', 'erro'); return }
+        mandarConfig(btAcao, 'estoque-ficha-tecnica', { produto: ficha, linhas: linhasDaFicha('ficha-insumo:', 'ficha-qtd:', 'ingredienteId', 'qtd') }); return
+      }
+      if (acao.indexOf('estoque:ficha:') === 0) {
+        const ficha = fichaDaGestao(acao.slice('estoque:ficha:'.length))
+        if (!ficha) { avisar('Não achei esse produto na tela — recarregue.', 'erro'); return }
+        abrirPopup('Ficha técnica', Ficha.fichaTecnicaEditar(ficha, insumosDaGestao()), 620); return
+      }
       if (acao === 'estoque:nova-categoria') { abrirPopup('Nova categoria', Ficha.fichaNovaCategoriaEstoque(), 440); return }
       if (acao === 'estoque:novo-fornecedor') { abrirPopup('Novo fornecedor', Ficha.fichaNovoFornecedor(), 520); return }
       if (acao === 'estoque:cadastro:cancelar') { fecharFicha(); return }

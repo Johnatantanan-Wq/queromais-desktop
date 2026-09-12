@@ -274,8 +274,9 @@ function fichaTecnica(produto, linhas) {
   const vistos = new Set()
   const saida = []
   for (const l of (Array.isArray(linhas) ? linhas : [])) {
-    if (!l || (!t(l.ingredienteId) && t(l.qtd) === '')) continue
-    if (!t(l.ingredienteId)) return { ok: false, motivo: 'Escolha o insumo em cada linha preenchida.' }
+    // Linha sem insumo escolhido ("—") é linha tirada da ficha, mesmo que a quantidade
+    // tenha ficado escrita — é assim que a ficha diz para remover um insumo.
+    if (!l || !t(l.ingredienteId)) continue
     if (vistos.has(t(l.ingredienteId))) return { ok: false, motivo: 'Insumo repetido na ficha — some as quantidades numa linha só.' }
     const q = num(l.qtd)
     if (!(q > 0)) return { ok: false, motivo: 'Quantidade maior que zero em cada insumo.' }

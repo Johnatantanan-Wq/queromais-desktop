@@ -234,3 +234,76 @@ test('ficha de cancelar conta: pergunta, e a parcelada oferece cancelar a série
   assert.ok(serie.includes('data-acao="conta:cancelar:sim:c4"') && serie.includes('data-acao="conta:cancelar:serie:c4"'))
   assert.ok(/série/.test(serie))
 })
+
+// ── Fichas da GESTÃO: item, ajuste de saldo, entradas à mão, fornecedor, pendência, ficha técnica ──
+const estoqueDemo = require('../src-electron/demo-dados').telasComAbas().estoque
+const itemDemo = estoqueDemo.categorias[0].subcategorias[0].itens[1]
+
+test('ficha do item: cadastro preenchido, saldo à vista, e o caminho para movimentar', () => {
+  const h = F.fichaInsumo(itemDemo)
+  assert.strictEqual(valorDe(h, 'nome'), itemDemo.nome)
+  assert.ok(/data-campo="unidade"/.test(h) && new RegExp('value="' + itemDemo.unidade + '" selected').test(h))
+  assert.strictEqual(valorDe(h, 'minimo'), String(itemDemo.minimo))
+  assert.ok(temCampo(h, 'custo') && temCampo(h, 'tipo') && temCampo(h, 'grupo') && temCampo(h, 'ativo') && temCampo(h, 'permiteNegativo'))
+  assert.ok(/data-campo="ativo" checked/.test(h))
+  assert.ok(h.includes('data-acao="estoque:item:confirmar:' + itemDemo.id + '"'))
+  assert.ok(h.includes('data-acao="estoque:ajuste:' + itemDemo.id + '"'), 'movimentar o estoque é outra ficha')
+  assert.ok(new RegExp(String(itemDemo.saldo)).test(h), 'mostra o saldo')
+})
+
+test('ficha de ajuste: o tipo de movimento, a quantidade, o custo (entrada) e o motivo', () => {
+  const h = F.fichaAjusteEstoque(itemDemo)
+  assert.ok(/data-campo="acao"/.test(h) && /value="entrada"/.test(h) && /value="perda"/.test(h) && /value="ajuste"/.test(h))
+  assert.ok(temCampo(h, 'qtd') && temCampo(h, 'custo') && temCampo(h, 'motivo') && temCampo(h, 'observacao'))
+  assert.ok(h.includes('data-acao="estoque:ajuste:confirmar:' + itemDemo.id + '"'))
+  assert.ok(/acerto/i.test(h) && /contad/i.test(h), 'explica que o acerto fixa o saldo contado')
+})
+
+test('ficha de entrada sem nota: fornecedor, documento, data e linhas de item', () => {
+  const h = F.fichaEntradaSemNota(estoqueDemo.insumos, estoqueDemo.fornecedores, '12/09/2026')
+  assert.ok(/data-campo="fornecedorId"/.test(h) && /Laticínios Vale Verde/.test(h))
+  assert.ok(temCampo(h, 'fornecedorNome') && temCampo(h, 'documento') && temCampo(h, 'motivo'))
+  assert.strictEqual(valorDe(h, 'data'), '12/09/2026')
+  assert.ok(/data-campo="linha-insumo:0"/.test(h) && /data-campo="linha-insumo:4"/.test(h), 'cinco linhas')
+  assert.ok(temCampo(h, 'linha-qtd:0') && temCampo(h, 'linha-custo:0'))
+  assert.ok(/Muçarela/.test(h), 'os insumos estão no select')
+  assert.ok(h.includes('data-acao="entrada:sem-nota:confirmar"'))
+  assert.ok(/sem comprovante/i.test(h))
+})
+
+test('ficha de entrada manual com nota: fornecedor, número, série, data e itens por descrição', () => {
+  const h = F.fichaEntradaManual(estoqueDemo.fornecedores, '12/09/2026')
+  assert.ok(temCampo(h, 'fornecedorId') && temCampo(h, 'fornecedorNome') && temCampo(h, 'fornecedorCnpj'))
+  assert.ok(temCampo(h, 'numero') && temCampo(h, 'serie') && temCampo(h, 'dataEmissao'))
+  assert.ok(temCampo(h, 'linha-descricao:0') && temCampo(h, 'linha-unidade:0') && temCampo(h, 'linha-quantidade:0') && temCampo(h, 'linha-valor:0'))
+  assert.ok(temCampo(h, 'linha-descricao:5'), 'seis linhas')
+  assert.ok(h.includes('data-acao="entrada:manual:confirmar"'))
+  assert.ok(/confer/i.test(h), 'diz que vai para a conferência')
+})
+
+test('ficha do fornecedor: editar preenchida, com excluir', () => {
+  const f = estoqueDemo.fornecedores[0]
+  const h = F.fichaFornecedorEditar(f)
+  assert.strictEqual(valorDe(h, 'nome'), f.nome)
+  assert.strictEqual(valorDe(h, 'telefone'), f.telefone)
+  assert.ok(temCampo(h, 'cnpj') && temCampo(h, 'email') && temCampo(h, 'endereco') && temCampo(h, 'inscricao') && temCampo(h, 'tipo') && temCampo(h, 'observacoes') && temCampo(h, 'ativo'))
+  assert.ok(h.includes('data-acao="estoque:fornecedor:confirmar:' + f.id + '"') && h.includes('data-acao="estoque:fornecedor:excluir:' + f.id + '"'))
+})
+
+test('ficha da pendência: o problema à vista e o campo de como foi resolvida', () => {
+  const p = estoqueDemo.nfEntrada.pendencias[0]
+  const h = F.fichaPendencia(p)
+  assert.ok(h.includes(p.produto) && h.includes(p.problema))
+  assert.ok(temCampo(h, 'resolucao'))
+  assert.ok(h.includes('data-acao="entrada:resolver:confirmar:' + p.id + '"'))
+})
+
+test('ficha técnica: as linhas atuais preenchidas, três em branco, e os insumos no select', () => {
+  const f = estoqueDemo.fichas.itens[0]
+  const h = F.fichaTecnicaEditar(f, estoqueDemo.insumos)
+  assert.ok(new RegExp('data-campo="ficha-insumo:0"[\\s\\S]{0,2000}value="' + f.insumos[0].id + '" selected').test(h))
+  assert.strictEqual(valorDe(h, 'ficha-qtd:0'), String(f.insumos[0].qtdNum).replace('.', ','))
+  assert.ok(temCampo(h, 'ficha-insumo:' + (f.insumos.length + 2)), 'três linhas em branco depois das existentes')
+  assert.ok(h.includes('data-acao="estoque:ficha:confirmar:' + f.produtoId + '"'))
+  assert.ok(h.includes(f.produto))
+})

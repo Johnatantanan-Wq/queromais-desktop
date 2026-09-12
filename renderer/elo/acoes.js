@@ -56,14 +56,20 @@ const DESTINOS = {
 
   // ── Gestão / estoque ──
   'estoque:sincronizar-massas': { rota: '/admin/estoque', o: 'sincronizar as massas' },
-  'estoque:menu': { rota: '/admin/estoque', o: 'abrir as ações do produto' },
+  // Editar o item, movimentar o estoque, fornecedor e ficha técnica: o app FAZ (shell.js → estoque-*).
+  'estoque:menu': { app: 'estoque-item' },
+  'estoque:item': { app: 'estoque-item' },
+  'estoque:ajuste': { app: 'estoque-ajuste' },
+  'estoque:fornecedor': { app: 'estoque-fornecedor' },
+  'estoque:ficha': { app: 'estoque-ficha' },
   'entrada:nova': { app: 'entrada-menu' },
   'entrada:abrir': { app: 'entrada-abrir' },
   'entrada:fechar': { app: 'entrada-fechar' },
   'entrada:sefaz': { rota: '/admin/estoque', o: 'buscar as notas na SEFAZ' },
   'entrada:xml': { rota: '/admin/estoque', o: 'importar o XML' },
-  'entrada:manual': { rota: '/admin/estoque', o: 'lançar a nota à mão' },
-  'entrada:sem-nota': { rota: '/admin/estoque', o: 'lançar a entrada sem nota' },
+  // Lançar à mão (com ou sem nota) é ficha do app; SEFAZ e XML continuam pelo painel.
+  'entrada:manual': { app: 'entrada-manual' },
+  'entrada:sem-nota': { app: 'entrada-sem-nota' },
   'entrada:confirmar': { rota: '/admin/estoque', o: 'confirmar as entradas' },
   'entrada:ajustar': { rota: '/admin/estoque', o: 'ajustar o item da nota' },
   // "Ajustar" da nota JÁ LANÇADA: o app faz — abre a nota e oferece reabrir, que estorna
@@ -71,7 +77,7 @@ const DESTINOS = {
   'entrada:ajustar-nota': { app: 'entrada-ajustar' },
   'entrada:danfe': { app: 'entrada-danfe' },
   'entrada:reabrir': { app: 'entrada-reabrir' },
-  'entrada:resolver': { rota: '/admin/estoque', o: 'resolver a pendência' },
+  'entrada:resolver': { app: 'entrada-resolver' },
   'entrada:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas no período' },
   'estoque:nova-entrada': { rota: '/admin/estoque', o: 'lançar entrada' },
   'estoque:buscar-notas': { rota: '/admin/estoque', o: 'buscar notas' },

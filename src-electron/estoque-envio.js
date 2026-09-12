@@ -5,6 +5,15 @@ const CANAIS = {
   'estoque-nova-categoria': (a) => A.novaCategoria(a || {}),
   'estoque-novo-fornecedor': (a) => A.novoFornecedor(a || {}),
   'estoque-novo-insumo': (a) => A.novoInsumo(a || {}),
+  // Gestão pelo app: editar item, ajuste de saldo, entradas à mão, fornecedor, pendência, ficha.
+  'estoque-editar-insumo': (a) => A.editarInsumo((a || {}).item, a || {}),
+  'estoque-ajuste': (a) => A.ajusteEstoque((a || {}).item, a || {}),
+  'estoque-entrada-sem-nota': (a) => A.entradaSemNota(a || {}),
+  'estoque-entrada-manual': (a) => A.entradaManual(a || {}),
+  'estoque-editar-fornecedor': (a) => A.editarFornecedor((a || {}).fornecedor, a || {}),
+  'estoque-excluir-fornecedor': (a) => A.excluirFornecedor((a || {}).fornecedor),
+  'estoque-resolver-pendencia': (a) => A.resolverPendencia((a || {}).pendencia, a || {}),
+  'estoque-ficha-tecnica': (a) => A.fichaTecnica((a || {}).produto, (a || {}).linhas),
 }
 function registrar({ ipcMain, enviar, log }) {
   // Reabrir a nota lançada (o "Ajustar" da lista). Confirmação vem da tela: o estorno
@@ -26,7 +35,8 @@ function registrar({ ipcMain, enviar, log }) {
       const d = CANAIS[canal](args)
       if (!d.ok) return { ok: false, erro: d.motivo }
       let r = null
-      try { r = await enviar(d.caminho, d.corpo) } catch (err) {
+      // O método é o da decisão (PATCH por id, PUT da ficha, DELETE); sem ele, POST.
+      try { r = await enviar(d.caminho, d.corpo, d.metodo) } catch (err) {
         if (log) log.warn('[ESTOQUE] ' + canal + ' falhou:', err && err.message)
         return { ok: false, erro: 'Não deu para falar com o painel agora. Nada foi gravado.' }
       }

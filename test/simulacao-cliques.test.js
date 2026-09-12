@@ -157,6 +157,19 @@ function responder(canal, args) {
     return { ok: true, resumo: d.resumo, demo: true }
   }
   if (canal === 'financeiro-abas-carregar') return ok(configDoTeste.aplicarBancos(contasDoTeste.aplicar(demo.telasComAbas().financeiro)))
+  if (canal.indexOf('estoque-') === 0 && ['estoque-editar-insumo', 'estoque-ajuste', 'estoque-entrada-sem-nota', 'estoque-entrada-manual', 'estoque-editar-fornecedor', 'estoque-excluir-fornecedor', 'estoque-resolver-pendencia', 'estoque-ficha-tecnica'].indexOf(canal) >= 0) {
+    const d = require('../src-electron/estoque-envio').CANAIS[canal](args || {})
+    if (!d.ok) return { ok: false, erro: d.motivo }
+    const a = args || {}
+    if (canal === 'estoque-editar-insumo') estoqueDoTeste.editarInsumo(a.item.id, d.corpo)
+    if (canal === 'estoque-ajuste') estoqueDoTeste.ajuste(a.item.id, d.corpo)
+    if (canal === 'estoque-entrada-sem-nota') estoqueDoTeste.entradaSemNota(d.corpo)
+    if (canal === 'estoque-editar-fornecedor') estoqueDoTeste.editarFornecedor(a.fornecedor.id, d.corpo)
+    if (canal === 'estoque-excluir-fornecedor') estoqueDoTeste.excluirFornecedor(a.fornecedor.id)
+    if (canal === 'estoque-resolver-pendencia') estoqueDoTeste.resolverPendencia(a.pendencia.id)
+    if (canal === 'estoque-ficha-tecnica') estoqueDoTeste.fichaTecnica(a.produto.produtoId, d.corpo)
+    return { ok: true, resumo: d.resumo }
+  }
   if (canal === 'lancamento-novo') {
     const d = require('../src-electron/contas-acoes').lancamento(args || {})
     if (!d.ok) return { ok: false, erro: d.motivo }
@@ -2003,4 +2016,105 @@ test('Financeiro › Contas bancárias: criar uma conta pela mesma ficha de Conf
   clicar($('[data-acao="config:conta:b1"]'))
   await esperar(40)
   assert.strictEqual(campoFicha('nome').value, 'Banco do Brasil — corrente', 'editar abre com a conta certa, mesmo fora de Configurações')
+})
+
+// ── GESTÃO pelo app: item, ajuste, entrada sem nota, fornecedor, pendência, ficha técnica ──
+async function irParaGestao(aba) {
+  await irPara('/admin/estoque')
+  if (aba) { clicar($('[data-aba="' + aba + '"]')); await esperar(60) }
+}
+const estoqueIds = () => require('../src-electron/demo-dados').telasComAbas().estoque
+
+test('Gestão › Produtos: o "⋯" abre a ficha do item; salvar o mínimo e movimentar o estoque refletem na lista', async () => {
+  await abrirApp()
+  await irParaGestao('produtos')
+  const it = estoqueIds().categorias[0].subcategorias[0].itens[1]
+  clicar($('[data-acao="estoque:menu:' + it.id + '"]'))
+  await esperar(40)
+  assert.strictEqual(campoFicha('nome').value, it.nome, 'a ficha do item abriu preenchida')
+  digitarNaFicha('minimo', '9')
+  clicar($('[data-acao="estoque:item:confirmar:' + it.id + '"]'))
+  await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'estoque-editar-insumo' && x.args.minimo === '9'))
+  assert.ok(/salvo/.test(aviso().textContent))
+  clicar($('[data-acao="estoque:menu:' + it.id + '"]')); await esperar(40)
+  clicar($('[data-acao="estoque:ajuste:' + it.id + '"]')); await esperar(40)
+  campoFicha('acao').value = 'entrada'
+  digitarNaFicha('qtd', '3'); digitarNaFicha('custo', '20')
+  clicar($('[data-acao="estoque:ajuste:confirmar:' + it.id + '"]'))
+  await esperar(120)
+  const c = chamadas.find((x) => x.canal === 'estoque-ajuste')
+  assert.strictEqual(c.args.acao, 'entrada'); assert.strictEqual(c.args.qtd, '3')
+  assert.ok(/\+3/.test(aviso().textContent), aviso().textContent)
+  const linha = conteudo().split('data-linha="' + it.nome + '"')[1].slice(0, 900)
+  assert.ok(new RegExp(String((Number(it.saldo) || 0) + 3) + ' ' + it.unidade).test(linha), 'o saldo na lista subiu 3')
+})
+
+test('Gestão › NF entrada: "sem nota fiscal" abre a ficha do app, e a entrada soma no estoque', async () => {
+  await abrirApp()
+  await irParaGestao('entrada')
+  clicar($('[data-acao="entrada:nova"]')); await esperar(40)
+  clicar($('[data-acao="entrada:sem-nota"]')); await esperar(40)
+  assert.ok(campoFicha('linha-insumo:0'), 'a ficha de entrada sem nota abriu')
+  const ins = estoqueIds().insumos.find((i) => i.nome === 'Pizza Calabresa G') || estoqueIds().insumos[1]
+  campoFicha('linha-insumo:0').value = ins.id
+  digitarNaFicha('linha-qtd:0', '5'); digitarNaFicha('fornecedorNome', 'Mercado da esquina')
+  clicar($('[data-acao="entrada:sem-nota:confirmar"]'))
+  await esperar(120)
+  const c = chamadas.find((x) => x.canal === 'estoque-entrada-sem-nota')
+  assert.strictEqual(c.args.itens[0].ingredienteId, ins.id)
+  assert.strictEqual(c.args.fornecedorNome, 'Mercado da esquina')
+  assert.ok(/Entrada sem nota lançada/.test(aviso().textContent), aviso().textContent)
+})
+
+test('Gestão › NF entrada: resolver a pendência pede o que foi feito e a marca resolvida', async () => {
+  await abrirApp()
+  await irParaGestao('entrada')
+  clicar($('[data-subgestao="entrada:pendencias"]')); await esperar(60)
+  const p = estoqueIds().nfEntrada.pendencias.find((x) => !x.resolvida)
+  clicar($('[data-acao="entrada:resolver:' + p.id + '"]')); await esperar(40)
+  digitarNaFicha('resolucao', 'o fornecedor repôs')
+  clicar($('[data-acao="entrada:resolver:confirmar:' + p.id + '"]'))
+  await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'estoque-resolver-pendencia' && x.args.resolucao === 'o fornecedor repôs'))
+  assert.ok(!$('[data-acao="entrada:resolver:' + p.id + '"]'), 'não há mais o que resolver nela')
+})
+
+test('Gestão › Fornecedores: editar o telefone e excluir com confirmação', async () => {
+  await abrirApp()
+  await irParaGestao('fornecedores')
+  const f = estoqueIds().fornecedores[0]
+  clicar($('[data-acao="estoque:fornecedor:' + f.id + '"]')); await esperar(40)
+  assert.strictEqual(campoFicha('nome').value, f.nome)
+  digitarNaFicha('telefone', '(75) 90000-0000')
+  clicar($('[data-acao="estoque:fornecedor:confirmar:' + f.id + '"]'))
+  await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'estoque-editar-fornecedor' && x.args.telefone === '(75) 90000-0000'))
+  assert.ok(conteudo().includes('(75) 90000-0000'))
+  const g = estoqueIds().fornecedores[1]
+  clicar($('[data-acao="estoque:fornecedor:' + g.id + '"]')); await esperar(40)
+  clicar($('[data-acao="estoque:fornecedor:excluir:' + g.id + '"]')); await esperar(40)
+  assert.ok(!chamadas.some((x) => x.canal === 'estoque-excluir-fornecedor'), 'pediu confirmação')
+  clicar($('[data-acao="estoque:fornecedor:excluir-sim:' + g.id + '"]')); await esperar(120)
+  assert.ok(chamadas.some((x) => x.canal === 'estoque-excluir-fornecedor'))
+  assert.ok(!conteudo().includes(g.nome), 'sumiu da lista')
+})
+
+test('Gestão › Fichas técnicas: editar a ficha do produto escolhido', async () => {
+  await abrirApp()
+  await irParaGestao('fichas')
+  const f = estoqueIds().fichas.itens[0]
+  clicar($('[data-ficha="' + f.produto + '"]')); await esperar(60)
+  clicar($('[data-acao="estoque:ficha:' + f.produtoId + '"]')); await esperar(40)
+  assert.ok(campoFicha('ficha-insumo:0'), 'a ficha técnica abriu')
+  // tira o segundo insumo e muda a quantidade do primeiro
+  campoFicha('ficha-insumo:1').value = ''
+  digitarNaFicha('ficha-qtd:0', '300')
+  clicar($('[data-acao="estoque:ficha:confirmar:' + f.produtoId + '"]'))
+  await esperar(120)
+  const c = chamadas.find((x) => x.canal === 'estoque-ficha-tecnica')
+  assert.strictEqual(c.args.produto.produtoId, f.produtoId)
+  assert.strictEqual(c.args.linhas.filter((l) => l.ingredienteId).length, f.insumos.length - 1)
+  assert.strictEqual(c.args.linhas[0].qtd, '300')
+  assert.ok(/Ficha de .* salva/.test(aviso().textContent), aviso().textContent)
 })
