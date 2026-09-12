@@ -705,5 +705,176 @@ function fichaFila(estado) {
     + '</div>'
 }
 
+
+// ── CONFIGURAÇÕES: as fichas de edição (os formulários do painel, no app) ──────
+// Cada uma vem preenchida com o `bruto` do adaptador e manda pelos botões
+// `config:*:confirmar`. Campo em branco NÃO altera nada (o PATCH do painel é parcial).
+const C = require('../../src-electron/config-acoes')
+const numBR = (v) => (v == null || v === '' ? '' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2, useGrouping: false }))
+const rodapeFicha = (cancelar, confirmar, rotulo, extra) =>
+  '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' + (extra || '')
+  + botaoFicha(cancelar, 'Cancelar', false) + botaoFicha(confirmar, rotulo, true) + '</div>'
+const AVISO_BRANCO = 'Campo em branco não altera o que está gravado — preencha só o que quer mudar.'
+
+function fichaLoja(loja) {
+  const l = loja || {}
+  const e = l.endereco || {}
+  const t = l.tempos || {}
+  const mods = l.modalidades || []
+  return avisoFicha(AVISO_BRANCO)
+    + colunas([campo('Nome da loja', 'nome', l.nome), campo('Telefone / WhatsApp', 'telefone', l.telefone)])
+    + tituloSecao('Endereço')
+    + colunas([campo('Rua / avenida', 'rua', e.rua), campo('Número', 'numero', e.numero), campo('Complemento', 'complemento', e.complemento)], 3)
+    + colunas([campo('Bairro', 'bairro', e.bairro), campo('Cidade', 'cidade', e.cidade), campo('UF', 'uf', e.uf), campo('CEP', 'cep', e.cep)], 4)
+    + campo('Link do Google Maps', 'mapsUrl', l.mapsUrl, 'começa com https://')
+    + tituloSecao('Como o cliente pode receber o pedido')
+    + colunas([
+      campoMarcar('Entrega', 'mod:entrega', mods.indexOf('entrega') >= 0),
+      campoMarcar('Retirada na loja', 'mod:retirada', mods.indexOf('retirada') >= 0),
+      campoMarcar('Consumir no local', 'mod:consumo_local', mods.indexOf('consumo_local') >= 0)], 3)
+    + tituloSecao('Tempos estimados (minutos)')
+    + colunas([campo('Retirada', 'balcao', t.balcao || ''), campo('Delivery', 'delivery', t.delivery || ''), campo('Consumo local', 'local', t.local || '')], 3)
+    + tituloSecao('Pix, numeração e horário')
+    + campo('Chave Pix', 'pixChave', l.pixChave, 'a chave que aparece para o cliente pagar')
+    + colunas([
+      campoSelecao('Numeração dos pedidos', 'numeracaoDiaria', [{ v: 'true', r: 'Reinicia todo dia (#1, #2, #3…)' }, { v: 'false', r: 'Sequencial, sem reiniciar' }], l.numeracaoDiaria ? 'true' : 'false'),
+      campoSelecao('Abrir e fechar', 'modoHorario', [{ v: 'manual', r: 'Manual (eu abro e fecho)' }, { v: 'automatico', r: 'Automático (pelos horários)' }], l.modoHorario || 'manual')])
+    + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-bottom:10px">Logo, capa e dados fiscais continuam pelo painel.</div>'
+    + rodapeFicha('config:cancelar', 'config:loja:confirmar', 'Salvar dados da loja')
+}
+
+function fichaHorarios(horarios, timezone, modoHorario) {
+  const h = horarios || {}
+  const linhas = C.DIAS.map(([chave, nome]) => {
+    const d = h[chave] || {}
+    return '<div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:10px;align-items:center;margin-bottom:8px">'
+      + '<span style="font-size:13px;font-weight:800;color:#111;text-transform:capitalize">' + esc(nome) + '</span>'
+      + '<input data-campo="abre:' + chave + '" value="' + esc(d.abre || '') + '" placeholder="fechado" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+      + '<input data-campo="fecha:' + chave + '" value="' + esc(d.fecha || '') + '" placeholder="fechado" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+      + '</div>'
+  }).join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Hora no formato HH:MM. '
+    + 'Deixe os dois em branco para o dia ficar fechado. Passar da meia-noite é normal (ex.: 18:00 às 00:30).</div>'
+    + '<div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:10px;margin-bottom:6px;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em"><span></span><span>Abre</span><span>Fecha</span></div>'
+    + linhas
+    + colunas([
+      campo('Fuso da loja', 'timezone', timezone || '', 'ex.: America/Bahia'),
+      campoSelecao('Abrir e fechar', 'modoHorario', [{ v: 'manual', r: 'Manual (eu abro e fecho)' }, { v: 'automatico', r: 'Automático (pelos horários)' }], modoHorario || 'manual')])
+    + rodapeFicha('config:cancelar', 'config:horarios:confirmar', 'Salvar horários')
+}
+
+function fichaBairros(bairros) {
+  const b = bairros || {}
+  const lista = (b.bairros || []).map((nome) => ({ nome, ...(b.taxas && b.taxas[nome] ? b.taxas[nome] : { taxa: '', ativo: true }) }))
+  for (let i = 0; i < 3; i++) lista.push({ nome: '', taxa: '', ativo: true, nova: true })
+  const linhas = lista.map((x, i) =>
+    '<div style="display:grid;grid-template-columns:1fr 120px 90px;gap:10px;align-items:center;margin-bottom:8px">'
+    + '<input data-campo="bairro-nome:' + i + '" value="' + esc(x.nome) + '" placeholder="' + (x.nova ? 'novo bairro' : '') + '" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<input data-campo="bairro-taxa:' + i + '" value="' + esc(numBR(x.taxa)) + '" placeholder="taxa" autocomplete="off" style="' + ESTILO_CAMPO + '">'
+    + '<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#111;cursor:pointer">'
+    + '<input type="checkbox" data-campo="bairro-ativo:' + i + '"' + (x.ativo !== false ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:var(--acento)">cobra</label>'
+    + '</div>').join('')
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Os bairros que a loja entrega e a taxa de cada um. '
+    + 'Para remover um bairro, apague o nome. "Cobra" desligado = entrega sem taxa naquele bairro.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 120px 90px;gap:10px;margin-bottom:6px;font-size:10.5px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em"><span>Bairro</span><span>Taxa (R$)</span><span></span></div>'
+    + linhas
+    + campo('Entrega grátis acima de (R$)', 'entregaGratisAcima', numBR(b.entregaGratisAcima), 'em branco = não usa')
+    + rodapeFicha('config:cancelar', 'config:bairros:confirmar', 'Salvar bairros')
+}
+
+const TIPOS_FORMA_ROTULO = [['delivery', 'Delivery'], ['retirada', 'Retirada'], ['balcao', 'Balcão'], ['consumo_local', 'Consumo local']]
+function fichaForma(forma, contas) {
+  const f = forma || null
+  const tipos = f ? (f.tipos || []) : ['delivery', 'retirada', 'balcao', 'consumo_local']
+  const opcoesConta = [{ v: '', r: '— sem conta de destino —' }].concat((contas || []).map((c) => ({ v: c.id, r: c.nome })))
+  const cabecalho = f
+    ? '<div style="font-size:15px;font-weight:800;color:#111;margin-bottom:12px">' + esc(C.NOME_METODO[f.metodo] || f.metodo) + '</div>'
+      + campoMarcar('Ligada no cardápio', 'habilitado', f.habilitado !== false, 'desligada não some da lista: aparece como desligada')
+    : campo('Nome da forma', 'metodo', '', 'ex.: Vale-refeição, Cheque')
+  return cabecalho
+    + tituloSecao('Onde vale')
+    + colunas(TIPOS_FORMA_ROTULO.map(([v, r]) => campoMarcar(r, 'tipo:' + v, tipos.indexOf(v) >= 0)), 4)
+    + tituloSecao('Cobrança e recebimento')
+    + colunas([campo('Taxa extra cobrada do cliente', 'taxaExtra', f ? numBR(f.taxa_extra) : ''),
+      campoSelecao('Tipo da taxa extra', 'taxaExtraTipo', [{ v: 'percentual', r: '% do pedido' }, { v: 'fixo', r: 'valor fixo' }], f ? (f.taxa_extra_tipo || 'percentual') : 'percentual')])
+    + colunas([campoMarcar('Recebimento imediato', 'recebimentoImediato', f ? f.recebimento_imediato !== false : true, 'o dinheiro entra na hora'),
+      campoMarcar('Gera conta a receber', 'geraReceber', f ? !!f.gera_receber : false, 'a operadora deposita depois')])
+    + colunas([campo('Parcelas', 'parcelas', f && f.parcelas != null ? String(f.parcelas) : ''),
+      campo('Dias para receber', 'diasRecebimento', f && f.dias_recebimento != null ? String(f.dias_recebimento) : ''),
+      campoSelecao('Contagem', 'tipoVencimento', [{ v: 'dias_uteis', r: 'dias úteis' }, { v: 'dias_corridos', r: 'dias corridos' }], f ? (f.tipo_vencimento || 'dias_uteis') : 'dias_uteis')], 3)
+    + campoSelecao('Conta de destino', 'contaFinanceiraId', opcoesConta, f ? (f.conta_financeira_id || '') : '')
+    + colunas([campo('Taxa da operadora (%)', 'taxaOperadoraPct', f ? numBR(f.taxa_operadora_pct) : ''),
+      campo('Taxa fixa da operadora (R$)', 'taxaOperadoraFixa', f ? numBR(f.taxa_operadora_fixa) : '')])
+    + colunas([campo('Bandeiras (opcional)', 'bandeiras', f ? (f.bandeiras || '') : ''), campo('Observação (opcional)', 'observacao', f ? (f.observacao || '') : '')])
+    + rodapeFicha('config:cancelar', f ? 'config:forma:confirmar:' + f.id : 'config:forma-nova:confirmar', f ? 'Salvar forma' : 'Criar forma')
+}
+
+function fichaContaFinanceira(conta) {
+  const c = conta || null
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Onde o dinheiro cai (banco, carteira, gateway) ou de onde sai (cartão de crédito da loja).</div>'
+    + campo('Nome', 'nome', c ? c.nome : '', 'ex.: Banco do Brasil — corrente')
+    + campoSelecao('Tipo', 'tipo', C.TIPOS_CONTA.map(([v, r]) => ({ v, r })), c ? c.tipo : 'banco')
+    + colunas([campo('Dia de fechamento (cartão)', 'diaFechamento', c && c.diaFechamento != null ? String(c.diaFechamento) : ''),
+      campo('Dia de vencimento (cartão)', 'diaVencimento', c && c.diaVencimento != null ? String(c.diaVencimento) : '')])
+    + (c ? campoMarcar('Ativa', 'ativo', c.ativo !== false, 'desativada some das escolhas, mas o histórico fica') : '')
+    + rodapeFicha('config:cancelar', 'config:conta:confirmar:' + (c ? c.id : 'nova'), c ? 'Salvar conta' : 'Criar conta',
+      c ? botaoFicha('config:conta:excluir:' + c.id, 'Excluir', false) : '')
+}
+
+function fichaMesasCriar(proximoNumero) {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Cria várias de uma vez, numeradas em sequência. O QR de cada mesa é impresso pelo painel.</div>'
+    + colunas([campoSelecao('Tipo', 'tipo', [{ v: 'mesa', r: 'Mesa' }, { v: 'comanda', r: 'Comanda' }], 'mesa'), campo('Quantas', 'quantidade', '1')])
+    + colunas([campo('Primeiro número', 'numeroInicio', String(proximoNumero || 1)), campo('Lugares por mesa', 'capacidade', '4')])
+    + rodapeFicha('config:cancelar', 'config:mesas-criar:confirmar', 'Criar')
+}
+
+function fichaMesa(mesa) {
+  const m = mesa || {}
+  return colunas([campo('Número / nome', 'numero', m.numero), campo('Lugares', 'capacidade', m.capacidade != null ? String(m.capacidade) : '')])
+    + campoMarcar('Reservada', 'reservada', !!m.reservada, 'fica marcada no salão como reservada')
+    + rodapeFicha('config:cancelar', 'config:mesa:confirmar:' + m.id, 'Salvar mesa', botaoFicha('config:mesa:excluir:' + m.id, 'Excluir', false))
+}
+
+function fichaColaboradorNovo() {
+  return '<div style="font-size:13px;color:#6b7280;font-weight:500;margin-bottom:14px;line-height:1.5">Quem entra por <b style="color:#111">CPF e senha</b> no painel e nos apps (caixa, garçom, cozinha, entregador). '
+    + 'Administrador e Contador entram por e-mail e são cadastrados pelo painel.</div>'
+    + campo('Nome', 'nome', '')
+    + colunas([campo('CPF', 'cpf', '', 'só os 11 números'), campo('Senha', 'senha', '', 'pelo menos 6 caracteres')])
+    + campoSelecao('Função', 'funcao', C.PAPEIS_COLABORADOR, 'garcom')
+    + campoMarcar('Pode unir mesas', 'podeUnirMesas', false, 'no app do garçom')
+    + rodapeFicha('config:cancelar', 'config:colaborador:confirmar', 'Cadastrar')
+}
+
+const MOSTRAR_ROTULO = {
+  mostrar_logo: 'Logo', mostrar_nome_loja: 'Nome da loja', mostrar_telefone_loja: 'Telefone da loja', mostrar_endereco_loja: 'Endereço da loja',
+  mostrar_nome_cliente: 'Nome do cliente', mostrar_telefone_cliente: 'Telefone do cliente', mostrar_endereco_cliente: 'Endereço do cliente',
+  mostrar_pagamento: 'Pagamento', mostrar_observacoes: 'Observações', mostrar_itens: 'Itens', mostrar_subtotal: 'Subtotal',
+  mostrar_taxa: 'Taxa de entrega', mostrar_desconto: 'Desconto', mostrar_cupom: 'Cupom',
+}
+function fichaComanda(cfg) {
+  if (!cfg || !cfg.modelo) {
+    return avisoFicha('Sem a configuração atual da comanda: o painel grava o modelo inteiro, então esta ficha só abre com internet. Tente de novo conectado.', 'erro')
+      + '<div style="display:flex;justify-content:flex-end">' + botaoFicha('config:cancelar', 'Fechar', false) + '</div>'
+  }
+  const sel = (lista) => lista.map(([v, r]) => ({ v, r }))
+  return tituloSecao('Modelo e fonte')
+    + colunas([campoSelecao('Modelo', 'modelo', sel(C.MODELOS_COMANDA), cfg.modelo), campoSelecao('Fonte', 'fonte_familia', sel(C.FONTES_COMANDA), cfg.fonte_familia)])
+    + colunas([campo('Tamanho da fonte (%)', 'fonte_escala', String(cfg.fonte_escala || 100), '80 a 140'),
+      campoSelecao('Peso', 'fonte_peso', sel(C.PESOS_COMANDA), cfg.fonte_peso),
+      campo('Espaçamento', 'espacamento_linhas', numBR(cfg.espacamento_linhas), '1,0 a 1,8')], 3)
+    + tituloSecao('O que aparece na comanda')
+    + colunas(C.MOSTRAR_COMANDA.map((k) => campoMarcar(MOSTRAR_ROTULO[k] || k, k, cfg[k] !== false)), 3)
+    + colunas([campoMarcar('Adicional em destaque', 'adicional_destaque', !!cfg.adicional_destaque, 'negrito e sublinhado no nome'),
+      campoMarcar('Divulgar o cardápio próprio', 'promo_cardapio_proprio', !!cfg.promo_cardapio_proprio)])
+    + colunas([campo('Texto do rodapé', 'texto_rodape', cfg.texto_rodape || ''), campo('Mensagem final', 'mensagem_final', cfg.mensagem_final || '')])
+    + tituloSecao('Via extra (agradecimento, promoção)')
+    + colunas([campoMarcar('Imprimir via extra', 'extra_ativa', !!cfg.extra_ativa), campoMarcar('Automática a cada pedido', 'extra_imprimir_auto', !!cfg.extra_imprimir_auto), campo('Cópias', 'extra_copias', String(cfg.extra_copias || 1))], 3)
+    + colunas([campo('Título', 'extra_titulo', cfg.extra_titulo || ''), campoSelecao('QR na via', 'extra_qr_tipo', sel(C.QR_COMANDA), cfg.extra_qr_tipo || 'nenhum')])
+    + campoArea('Mensagem', 'extra_mensagem', cfg.extra_mensagem || '')
+    + colunas([campo('Link do QR (quando "outro")', 'extra_qr_url', cfg.extra_qr_url || ''), campo('Cupom na via', 'extra_cupom', cfg.extra_cupom || '')])
+    + rodapeFicha('config:cancelar', 'config:comanda:confirmar', 'Salvar comanda')
+}
+
 module.exports = { painel, popup, fichaMovimentacao, fichaFechamento, fichaAbertura, fichaPreco, fichaRecebimento, fichaBaixa, fichaNovaConta, fichaEntrega, fichaFecharMesa, fichaNovoInsumo, fichaNovaCategoriaEstoque, fichaNovoFornecedor, fichaTempos, fichaPausar, fichaUsuario, fichaNovoEntregador, fichaFecharRota, fichaNovoCliente, fichaPedido, fichaCliente, fichaProduto, fichaAcessoTv, fichaConferencia, fichaFila,
+  fichaLoja, fichaHorarios, fichaBairros, fichaForma, fichaContaFinanceira, fichaMesasCriar, fichaMesa, fichaColaboradorNovo, fichaComanda,
   campo, campoSelecao, campoMarcar, campoArea, colunas, tituloSecao, avisoFicha, botaoFicha, brl }

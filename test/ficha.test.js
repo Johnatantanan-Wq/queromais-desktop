@@ -101,3 +101,100 @@ test('campoArea é um texto de várias linhas com o valor atual', () => {
   const h = F.campoArea('Observações', 'obs', 'linha 1')
   assert.ok(/<textarea data-campo="obs"/.test(h) && h.includes('linha 1'))
 })
+
+// ── Fichas de CONFIGURAÇÕES: vêm preenchidas com o bruto e mandam pelos botões ──
+const bruto = require('../src-electron/demo-dados').apoioFinal().configuracoes.bruto
+const temCampo = (h, nome) => new RegExp('data-campo="' + nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"').test(h)
+const valorDe = (h, nome) => { const m = h.match(new RegExp('data-campo="' + nome + '" value="([^"]*)"')); return m ? m[1] : null }
+
+test('ficha da loja: vem preenchida, avisa que branco não altera, e não tem taxa de serviço nem de entrega', () => {
+  const h = F.fichaLoja(bruto.loja)
+  for (const c of ['nome', 'telefone', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep', 'mapsUrl', 'balcao', 'delivery', 'local', 'pixChave', 'numeracaoDiaria', 'modoHorario']) assert.ok(temCampo(h, c), 'campo ' + c)
+  assert.strictEqual(valorDe(h, 'nome'), 'Pizzaria Demonstração')
+  assert.strictEqual(valorDe(h, 'rua'), 'Avenida Beira Mar')
+  assert.strictEqual(valorDe(h, 'delivery'), '45')
+  assert.ok(/data-campo="mod:entrega" checked/.test(h) && /data-campo="mod:consumo_local" checked/.test(h))
+  assert.ok(/em branco/i.test(h), 'avisa que campo em branco não altera')
+  assert.ok(!/taxa de serviço/i.test(h) && !/taxa de entrega/i.test(h))
+  assert.ok(h.includes('data-acao="config:loja:confirmar"') && h.includes('data-acao="config:cancelar"'))
+})
+
+test('ficha de horários: os sete dias com abre/fecha, o fuso e o modo', () => {
+  const h = F.fichaHorarios(bruto.horarios, bruto.timezone, bruto.loja.modoHorario)
+  for (const d of ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab']) assert.ok(temCampo(h, 'abre:' + d) && temCampo(h, 'fecha:' + d), d)
+  assert.strictEqual(valorDe(h, 'abre:seg'), '10:00')
+  assert.strictEqual(valorDe(h, 'fecha:sab'), '00:30')
+  assert.strictEqual(valorDe(h, 'timezone'), 'America/Bahia')
+  assert.ok(temCampo(h, 'modoHorario'))
+  assert.ok(h.includes('data-acao="config:horarios:confirmar"'))
+})
+
+test('ficha de bairros: uma linha por bairro com taxa e ligado, mais linhas em branco para novos', () => {
+  const h = F.fichaBairros(bruto.bairros)
+  assert.strictEqual(valorDe(h, 'bairro-nome:0'), 'Praia de Guaibim')
+  assert.strictEqual(valorDe(h, 'bairro-taxa:0'), '5')
+  assert.ok(/data-campo="bairro-ativo:0" checked/.test(h))
+  assert.ok(temCampo(h, 'bairro-nome:4') && temCampo(h, 'bairro-nome:6'), 'três linhas em branco para novos')
+  assert.strictEqual(valorDe(h, 'entregaGratisAcima'), '120')
+  assert.ok(/apague o nome/i.test(h), 'diz como remover um bairro')
+  assert.ok(h.includes('data-acao="config:bairros:confirmar"'))
+})
+
+test('ficha da forma de pagamento: editar vem com tudo preenchido; nova pede o nome', () => {
+  const credito = bruto.formas.find((f) => f.metodo === 'credito')
+  const h = F.fichaForma(credito, bruto.contasFinanceiras)
+  assert.ok(/Cartão de crédito/.test(h))
+  assert.ok(/data-campo="habilitado" checked/.test(h))
+  assert.ok(/data-campo="tipo:retirada" checked/.test(h) && !/data-campo="tipo:delivery" checked/.test(h))
+  assert.strictEqual(valorDe(h, 'diasRecebimento'), '30')
+  assert.strictEqual(valorDe(h, 'taxaOperadoraPct'), '3,2')
+  assert.ok(/data-campo="contaFinanceiraId"/.test(h) && /value="b1" selected/.test(h))
+  assert.ok(/data-campo="geraReceber" checked/.test(h))
+  assert.ok(h.includes('data-acao="config:forma:confirmar:f-credito"'))
+  const nova = F.fichaForma(null, bruto.contasFinanceiras)
+  assert.ok(temCampo(nova, 'metodo'))
+  assert.ok(!temCampo(nova, 'habilitado'), 'nova nasce ligada — sem a caixa')
+  assert.ok(nova.includes('data-acao="config:forma-nova:confirmar"'))
+})
+
+test('ficha da conta financeira: nova e editar; cartão mostra o ciclo', () => {
+  const h = F.fichaContaFinanceira(bruto.contasFinanceiras[2])
+  assert.strictEqual(valorDe(h, 'nome'), 'Cartão Itaú Empresas')
+  assert.ok(/value="cartao_credito" selected/.test(h))
+  assert.strictEqual(valorDe(h, 'diaFechamento'), '28')
+  assert.ok(/data-campo="ativo" checked/.test(h))
+  assert.ok(h.includes('data-acao="config:conta:confirmar:b3"') && h.includes('data-acao="config:conta:excluir:b3"'))
+  const nova = F.fichaContaFinanceira(null)
+  assert.ok(nova.includes('data-acao="config:conta:confirmar:nova"') && !nova.includes('excluir'))
+})
+
+test('fichas de mesas: criar em lote (com o próximo número sugerido) e editar uma', () => {
+  const lote = F.fichaMesasCriar(11)
+  assert.strictEqual(valorDe(lote, 'numeroInicio'), '11')
+  assert.ok(temCampo(lote, 'quantidade') && temCampo(lote, 'capacidade') && temCampo(lote, 'tipo'))
+  assert.ok(lote.includes('data-acao="config:mesas-criar:confirmar"'))
+  const uma = F.fichaMesa(bruto.mesas[6])
+  assert.strictEqual(valorDe(uma, 'numero'), '7')
+  assert.strictEqual(valorDe(uma, 'capacidade'), '6')
+  assert.ok(temCampo(uma, 'reservada'))
+  assert.ok(uma.includes('data-acao="config:mesa:confirmar:m7"') && uma.includes('data-acao="config:mesa:excluir:m7"'))
+})
+
+test('ficha do colaborador novo: nome, CPF, senha e a função do painel', () => {
+  const h = F.fichaColaboradorNovo()
+  for (const c of ['nome', 'cpf', 'senha', 'funcao', 'podeUnirMesas']) assert.ok(temCampo(h, c), c)
+  assert.ok(/value="caixa_operador"/.test(h) && /Garçom/.test(h))
+  assert.ok(/CPF e senha/.test(h), 'diz como essa pessoa vai entrar')
+  assert.ok(h.includes('data-acao="config:colaborador:confirmar"'))
+})
+
+test('ficha da comanda: modelo, fonte, o que mostrar e os textos — e sem a configuração atual, avisa', () => {
+  const h = F.fichaComanda(bruto.comanda)
+  assert.ok(/data-campo="modelo"/.test(h) && /value="atual" selected/.test(h))
+  assert.strictEqual(valorDe(h, 'fonte_escala'), '100')
+  assert.ok(/data-campo="mostrar_logo" checked/.test(h) && !/data-campo="mostrar_endereco_loja" checked/.test(h))
+  assert.ok(temCampo(h, 'texto_rodape') && temCampo(h, 'mensagem_final') && temCampo(h, 'extra_ativa') && temCampo(h, 'extra_qr_tipo'))
+  assert.ok(h.includes('data-acao="config:comanda:confirmar"'))
+  const sem = F.fichaComanda(null)
+  assert.ok(/internet/.test(sem) && !sem.includes('config:comanda:confirmar'))
+})
