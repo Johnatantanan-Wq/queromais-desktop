@@ -855,7 +855,40 @@ function apoioFinal() {
 }
 
 /** Dados das telas com abas: Financeiro (7), Atendimento (7) e Gestão (6). */
+/** Ids para a Gestão em demonstração: as fichas de edição precisam deles (item, fornecedor,
+ *  pendência, ficha técnica), e a lista de insumos serve aos selects. */
+function comIdsDeEstoque(e) {
+  if (!e) return e
+  const slug = (n) => ('' + n).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const insumos = new Map()
+  const categorias = (e.categorias || []).map((c) => ({ ...c, subcategorias: (c.subcategorias || []).map((sc) => ({ ...sc,
+    itens: (sc.itens || []).map((i) => { const id = i.id || 'ins-' + slug(i.nome); insumos.set(i.nome, { id, nome: i.nome, unidade: i.unidade || 'un', custo: Number(i.custo) || 0 }); return { id, tipo: c.id === 'producao' ? 'ingrediente' : (c.id === 'revenda' ? 'revenda' : 'ingrediente'), grupo: c.id, ...i } }) })) }))
+  const fichas = e.fichas && Array.isArray(e.fichas.itens)
+    ? { ...e.fichas, itens: e.fichas.itens.map((f, i) => ({ produtoId: 'prod-' + slug(f.produto), ...f,
+      insumos: (f.insumos || []).map((x) => {
+        const id = 'ins-' + slug(x.nome)
+        if (!insumos.has(x.nome)) insumos.set(x.nome, { id, nome: x.nome, unidade: ('' + (x.qtd || '')).replace(/^[\d.,\s]+/, '') || 'un', custo: 0 })
+        const qtdNum = parseFloat(('' + (x.qtd || '')).replace(',', '.')) || 0
+        return { id, qtdNum, unidade: insumos.get(x.nome).unidade, ...x }
+      }) })) }
+    : e.fichas
+  return {
+    ...e,
+    categorias,
+    fornecedores: (e.fornecedores || []).map((f, i) => ({ id: f.id || 'forn-' + (i + 1), tipo: 'fornecedor', ativo: true, ...f })),
+    nfEntrada: e.nfEntrada ? { ...e.nfEntrada, pendencias: (e.nfEntrada.pendencias || []).map((p, i) => ({ id: p.id || 'pend-' + (i + 1), ...p })) } : e.nfEntrada,
+    fichas,
+    insumos: [...insumos.values()],
+  }
+}
+
 function telasComAbas() {
+  const t = telasComAbasBase()
+  t.estoque = comIdsDeEstoque(t.estoque)
+  return t
+}
+
+function telasComAbasBase() {
   const op = operacao()
 
   // ── Financeiro: os dados no formato do painel ──

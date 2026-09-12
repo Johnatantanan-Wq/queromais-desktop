@@ -1032,7 +1032,7 @@ function estoque({ ingredientesResp, pendenciasResp, fornecedoresResp, gestaoRes
   return {
     ...abasDaGestao(gestaoResp),
     // A rota própria de fichas (já no ar) manda; a da tela do desktop fica de reserva.
-    ...(ft ? { fichas: ft.fichas, insumos: ft.insumos } : {}),
+    ...(ft ? { fichas: { itens: ft.fichas }, insumos: ft.insumos } : {}),
     prestadores: prestadoresDaSefaz(prestadoresResp),
     categorias: [...porTipo.values()],
     nfEntrada: {

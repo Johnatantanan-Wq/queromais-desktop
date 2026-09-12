@@ -109,3 +109,86 @@ test('nota sem id não vira chamada com "undefined" na URL', () => {
   assert.strictEqual(E.reabrirNota({ numero: '1' }).ok, false)
   assert.strictEqual(E.reabrirNota(null).ok, false)
 })
+
+// ── GESTÃO pelo app: editar item, ajuste de estoque, entradas, fornecedor, pendência, ficha técnica ──
+const item = { id: 'i1', nome: 'Muçarela', unidade: 'kg', saldo: 4, minimo: 2, custo: 30, tipo: 'ingrediente', grupo: 'producao', ativo: true }
+
+test('editar item: só o que mudou, por id — nome, unidade, mínimo, custo, tipo, grupo, ativo e negativo', () => {
+  const r = A.editarInsumo(item, { nome: 'Muçarela ', unidade: 'kg', minimo: '3', custo: '32,50', ativo: false, permiteNegativo: true })
+  assert.strictEqual(r.caminho, '/api/admin/ingredientes/i1')
+  assert.strictEqual(r.metodo, 'PATCH')
+  assert.deepStrictEqual(r.corpo, { qtd_minima: 3, custo_unitario: 32.5, ativo: false, permite_estoque_negativo: true })
+  assert.match(A.editarInsumo(item, { nome: 'Muçarela', unidade: 'kg', minimo: '2', custo: '30' }).motivo, /Nada mudou/)
+  assert.match(A.editarInsumo(item, { nome: 'M' }).motivo, /duas letras/)
+  assert.match(A.editarInsumo(item, { unidade: 'ton' }).motivo, /Unidade/)
+  assert.match(A.editarInsumo({}, {}).motivo, /identificação/)
+  assert.deepStrictEqual(A.editarInsumo(item, { tipo: 'bebida', grupo: 'revenda' }).corpo, { tipo: 'bebida', grupo_estoque: 'revenda' })
+})
+
+test('ajuste de estoque: entrada soma, saída/perda/consumo tiram, acerto fixa o saldo contado', () => {
+  const e = A.ajusteEstoque(item, { acao: 'entrada', qtd: '5', custo: '31', motivo: 'Compra avulsa' })
+  assert.deepStrictEqual({ c: e.caminho, m: e.metodo, b: e.corpo }, { c: '/api/admin/ingredientes/i1', m: 'PATCH', b: { acao: 'entrada', qtd: 5, custo_lancamento: 31, motivo: 'Compra avulsa' } })
+  assert.match(e.resumo, /\+5 kg/)
+  const p = A.ajusteEstoque(item, { acao: 'perda', qtd: '1,5', observacao: 'venceu' })
+  assert.deepStrictEqual(p.corpo, { acao: 'perda', qtd: 1.5, observacao: 'venceu' })
+  assert.match(p.resumo, /−1,5 kg/)
+  const a = A.ajusteEstoque(item, { acao: 'ajuste', qtd: '7' })
+  assert.deepStrictEqual(a.corpo, { acao: 'ajuste', qtd: 7 })
+  assert.match(a.resumo, /saldo.*7 kg/)
+  assert.match(A.ajusteEstoque(item, { acao: 'saida', qtd: '9' }).motivo, /só tem 4/)
+  assert.match(A.ajusteEstoque(item, { acao: 'voar', qtd: '1' }).motivo, /tipo de movimento/i)
+  assert.match(A.ajusteEstoque(item, { acao: 'entrada', qtd: '0' }).motivo, /maior que zero/)
+})
+
+test('entrada sem nota: fornecedor (cadastrado ou só o nome), documento, data e os itens com quantidade e custo', () => {
+  const r = A.entradaSemNota({ fornecedorId: 'forn-1', documento: 'recibo 12', data: '10/09/2026', motivo: 'compra no mercado',
+    itens: [{ ingredienteId: 'i1', qtd: '2', custo: '31' }, { ingredienteId: '', qtd: '', custo: '' }, { ingredienteId: 'i2', qtd: '10' }] })
+  assert.strictEqual(r.caminho, '/api/admin/estoque/entrada-sem-nota')
+  assert.strictEqual(r.metodo, 'POST')
+  assert.deepStrictEqual(r.corpo, { fornecedor_id: 'forn-1', documento: 'recibo 12', data: '2026-09-10', motivo: 'compra no mercado',
+    itens: [{ ingrediente_id: 'i1', qtd: 2, custo_unitario: 31 }, { ingrediente_id: 'i2', qtd: 10 }] })
+  assert.match(r.resumo, /2 itens/)
+  assert.match(A.entradaSemNota({ itens: [] }).motivo, /ao menos um item/)
+  assert.match(A.entradaSemNota({ itens: [{ ingredienteId: 'i1', qtd: '0' }] }).motivo, /quantidade/i)
+  assert.strictEqual(A.entradaSemNota({ fornecedorNome: 'Mercado da esquina', itens: [{ ingredienteId: 'i1', qtd: '1' }] }).corpo.fornecedor_nome, 'Mercado da esquina')
+})
+
+test('entrada manual COM nota: fornecedor, número/série/data e itens por descrição — vai para a conferência normal', () => {
+  const r = A.entradaManual({ fornecedorNome: 'Vale Verde', fornecedorCnpj: '12.345.678/0001-90', fornecedorId: 'forn-1', numero: '8822', serie: '1', dataEmissao: '09/09/2026',
+    itens: [{ descricao: 'Muçarela peça 5kg', unidade: 'CX', quantidade: '2', valorUnitario: '150' }, { descricao: '', quantidade: '', valorUnitario: '' }] })
+  assert.strictEqual(r.caminho, '/api/admin/estoque/entradas/manual')
+  assert.deepStrictEqual(r.corpo, { fornecedor_nome: 'Vale Verde', fornecedor_cnpj: '12345678000190', fornecedor_id: 'forn-1', numero: '8822', serie: '1', data_emissao: '2026-09-09',
+    tipo_documento: 'nfe', itens: [{ descricao: 'Muçarela peça 5kg', unidade: 'CX', quantidade: 2, valor_unitario: 150 }] })
+  assert.match(r.resumo, /8822/)
+  assert.match(A.entradaManual({ itens: [{ descricao: 'x', quantidade: '1', valorUnitario: '1' }] }).motivo, /fornecedor/i)
+  assert.match(A.entradaManual({ fornecedorNome: 'V', itens: [] }).motivo, /ao menos um item/)
+})
+
+test('fornecedor: editar por id (só o que mudou) e excluir', () => {
+  const f = { id: 'forn-1', nome: 'Vale Verde', cnpj: '12.345.678/0001-90', telefone: '(75) 3222-1010', email: '', endereco: '', observacoes: '', tipo: 'fornecedor', ativo: true }
+  const r = A.editarFornecedor(f, { nome: 'Vale Verde', telefone: '(75) 3222-2020', email: 'vendas@vale.com', tipo: 'fornecedor', ativo: true })
+  assert.deepStrictEqual({ c: r.caminho, m: r.metodo, b: r.corpo }, { c: '/api/admin/fornecedores/forn-1', m: 'PATCH', b: { telefone: '(75) 3222-2020', email: 'vendas@vale.com' } })
+  assert.match(A.editarFornecedor(f, { nome: 'Vale Verde', telefone: '(75) 3222-1010' }).motivo, /Nada mudou/)
+  assert.match(A.editarFornecedor(f, { email: 'x' }).motivo, /e-mail/i)
+  assert.match(A.editarFornecedor(f, { cnpj: '123' }).motivo, /CNPJ/)
+  const d = A.excluirFornecedor(f)
+  assert.deepStrictEqual({ c: d.caminho, m: d.metodo }, { c: '/api/admin/fornecedores/forn-1', m: 'DELETE' })
+})
+
+test('pendência: resolver diz o que foi feito', () => {
+  const r = A.resolverPendencia({ id: 'pend-1', produto: 'Energético', problema: 'Falta' }, { resolucao: 'fornecedor mandou os 6 no dia seguinte' })
+  assert.deepStrictEqual({ c: r.caminho, m: r.metodo, b: r.corpo }, { c: '/api/admin/estoque/pendencias', m: 'PATCH', b: { id: 'pend-1', status: 'resolvida', resolucao: 'fornecedor mandou os 6 no dia seguinte' } })
+  assert.match(r.resumo, /Energético/)
+  assert.match(A.resolverPendencia({ id: 'pend-1' }, { resolucao: '' }).motivo, /como foi resolvid/i)
+  assert.match(A.resolverPendencia({}, { resolucao: 'x' }).motivo, /identificação/)
+})
+
+test('ficha técnica: as linhas com insumo e quantidade, ignorando as em branco — e a repetida é recusada', () => {
+  const r = A.fichaTecnica({ produtoId: 'prod-1', produto: 'Pizza Calabresa G' }, [{ ingredienteId: 'i1', qtd: '0,25' }, { ingredienteId: '', qtd: '' }, { ingredienteId: 'i2', qtd: '0,18' }])
+  assert.deepStrictEqual({ c: r.caminho, m: r.metodo, b: r.corpo }, { c: '/api/admin/estoque/fichas', m: 'PUT', b: { produto_id: 'prod-1', linhas: [{ ingrediente_id: 'i1', qtd_consumida: 0.25 }, { ingrediente_id: 'i2', qtd_consumida: 0.18 }], modo: 'ficha_tecnica' } })
+  assert.match(r.resumo, /Pizza Calabresa G.*2 insumos/)
+  assert.match(A.fichaTecnica({ produtoId: 'prod-1' }, [{ ingredienteId: 'i1', qtd: '1' }, { ingredienteId: 'i1', qtd: '2' }]).motivo, /repetido/)
+  assert.match(A.fichaTecnica({ produtoId: 'prod-1' }, [{ ingredienteId: 'i1', qtd: '0' }]).motivo, /maior que zero/)
+  assert.strictEqual(A.fichaTecnica({ produtoId: 'prod-1', produto: 'X' }, []).corpo.linhas.length, 0, 'ficha vazia = produto sem ficha (o painel aceita)')
+  assert.match(A.fichaTecnica({}, []).motivo, /identificação/)
+})
