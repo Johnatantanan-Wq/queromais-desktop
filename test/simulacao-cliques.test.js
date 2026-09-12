@@ -33,10 +33,16 @@ let estoqueDoTeste = require('../src-electron/estoque-local').criarRegistro()
 let modoDemo = true
 // `painelResponde` desliga para simular a sessão caída: o painel não devolve menu.
 let painelResponde = true
+// Sessão do painel caída: o servidor responde, mas recusa (401) — e as telas vêm SEM
+// dado. É o estado real que o app conectado encontrou em 11/09.
+let sessaoDoPainel = true
 let ouvintes = {}
 const chamadas = []
 function responder(canal, args) {
   chamadas.push({ canal, args })
+  if (!sessaoDoPainel && /-carregar$/.test(canal) && canal !== 'menu-carregar') {
+    return { dados: null, offline: true, ts: 0 }
+  }
   const ok = (dados) => ({ dados, offline: false, ts: Date.now(), demo: true })
   if (canal === 'menu-carregar') {
     if (!painelResponde) return { dados: require('../src-electron/menu-base').menuBase(), offline: true, ts: 0, base: true }
@@ -1528,4 +1534,52 @@ test('NF entrada: "Ajustar" abre a nota e o Reabrir estorna', async () => {
   const envio = chamadas.filter((c) => c.canal === 'estoque-reabrir-nota').pop()
   assert.ok(envio, 'o reabrir não saiu')
   assert.match(aviso().textContent, /estornado/)
+})
+
+// ── Sessão caída: o app tem que DIZER (achado abrindo o app conectado, 11/09) ──
+
+test('⛔ sessão expirada não é "sem dados ainda" — a tela diz que falta entrar', async () => {
+  // Fora da demonstração: o servidor responde mas recusa, e toda tela vinha vazia com a
+  // frase de quem nunca abriu o app. O lojista olhava tela por tela sem descobrir o
+  // motivo. Agora a tela explica e oferece o login.
+  modoDemo = false
+  try {
+    await abrirApp()
+    // Chega o aviso do main: rede OK, sessão não.
+    sessaoDoPainel = false
+    avisarDoMain('rede-mudou', true)
+    avisarDoMain('sessao-mudou', false)
+    await esperar(80)
+    assert.strictEqual(doc.getElementById('chipRede').textContent, 'entrar no painel',
+      'a topbar precisa parar de dizer "conectado" quando não dá para usar nada')
+    await irPara('/admin/caixa')
+    await esperar(80)
+    const html = conteudo()
+    assert.match(html, /sessão expirou/i, 'a tela tem que dizer o que houve: ' + html.slice(0, 200))
+    assert.match(html, /data-acao="sessao:entrar"/, 'e oferecer o caminho de volta')
+
+    // Clicar leva para o login do painel — a senha é digitada lá, pelo lojista.
+    chamadas.length = 0
+    clicar($('[data-acao="sessao:entrar"]'))
+    await esperar(60)
+    const ida = chamadas.find((c) => c.canal === 'abrir-rota')
+    assert.ok(ida, 'o botão não fez nada')
+    assert.strictEqual(ida.args, '/admin')
+  } finally { modoDemo = true; sessaoDoPainel = true }
+})
+
+test('a sessão voltando recarrega sozinha — sem pedir clique nenhum', async () => {
+  modoDemo = false
+  try {
+    await abrirApp()
+    avisarDoMain('rede-mudou', true)
+    avisarDoMain('sessao-mudou', false)
+    await esperar(60)
+    chamadas.length = 0
+    avisarDoMain('sessao-mudou', true)
+    await esperar(80)
+    assert.strictEqual(doc.getElementById('chipRede').textContent, 'conectado')
+    assert.ok(chamadas.some((c) => c.canal === 'menu-carregar'),
+      'quem acabou de entrar não deve precisar clicar para os números aparecerem')
+  } finally { modoDemo = true }
 })

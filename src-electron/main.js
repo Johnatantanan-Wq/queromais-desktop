@@ -506,12 +506,27 @@ async function createWindow() {
         "fetch('/api/admin/menu',{credentials:'include'}).then(r=>r.ok?r.json():null).catch(()=>null)", true)
     }
 
+    // ⚠️ TRÊS estados, não dois. "Conectado" e "sem internet" não bastam: com a
+    // sessão do painel expirada o servidor RESPONDE (401), a rede está ótima e todas
+    // as telas vêm vazias — e o app dizia "conectado" com "Sem dados ainda" em toda
+    // tela, sem nenhuma pista de que faltava ENTRAR. Foi o que aconteceu ao abrir o
+    // app conectado em 11/09: nada funcionava e a tela não dizia por quê.
+    let _semSessao = false
     const monitorRede = criarMonitor({
       pingar: async () => {
         const wc = global.cardapioView?.webContents
         if (!wc || wc.isDestroyed()) return false
-        return wc.executeJavaScript(
-          "fetch('/api/admin/menu',{method:'HEAD',credentials:'include'}).then(r=>r.status<500).catch(()=>false)", true)
+        const status = await wc.executeJavaScript(
+          "fetch('/api/admin/menu',{method:'HEAD',credentials:'include'}).then(r=>r.status).catch(()=>0)", true)
+        const n = Number(status) || 0
+        // 401/403: o servidor está de pé e respondendo — o que falta é a sessão.
+        const semSessao = n === 401 || n === 403
+        if (semSessao !== _semSessao) {
+          _semSessao = semSessao
+          try { global.mainWindow?.webContents.send('sessao-mudou', !semSessao) } catch (e) {}
+          log.info('[SESSAO] ' + (semSessao ? 'expirada — o lojista precisa entrar' : 'ativa'))
+        }
+        return n > 0 && n < 500
       },
       aoMudar: (online) => {
         try { global.mainWindow?.webContents.send('rede-mudou', online) } catch (e) {}

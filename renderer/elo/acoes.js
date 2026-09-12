@@ -111,6 +111,10 @@ const DESTINOS = {
   // ── Configurações ──
   'config:editar': { rota: '/admin/configuracoes', o: 'editar as configurações' },
 
+  // Entrar de novo: leva à tela de login do painel. A senha é digitada pelo lojista,
+  // no painel — o app nunca guarda nem pede senha.
+  'sessao:entrar': { app: 'sessao-entrar' },
+
   // ── Ficha (painel lateral) ──
   'ficha:imprimir': { app: 'comanda-ficha' },
   'ficha:whatsapp': { rota: '/admin/whatsapp', o: 'falar com o cliente' },

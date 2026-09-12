@@ -127,6 +127,9 @@ if (typeof document !== 'undefined') {
   let MENU = null
   let ROTA = '/admin'
   let ONLINE = false
+  // Sessão do painel: o servidor responde mas recusa (401). É diferente de estar sem
+  // internet — e é o estado em que TODAS as telas vêm vazias sem dizer por quê.
+  let SESSAO_OK = true
   let VIEW = 'cardapio'
   let DEMO = false
   let PERIODO = 'semana'        // Visão geral: dia | ontem | semana | mes
@@ -195,8 +198,13 @@ if (typeof document !== 'undefined') {
       $('chipRede').className = 'echip demo'
       $('chipRede').textContent = 'DEMONSTRAÇÃO · dados fictícios'
     } else {
-      $('chipRede').className = 'echip' + (ONLINE ? '' : ' offline')
-      $('chipRede').textContent = ONLINE ? 'conectado' : 'sem internet'
+      const semSessao = ONLINE && !SESSAO_OK
+      $('chipRede').className = 'echip' + (ONLINE && SESSAO_OK ? '' : ' offline')
+      $('chipRede').textContent = !ONLINE ? 'sem internet'
+        : (semSessao ? 'entrar no painel' : 'conectado')
+      $('chipRede').title = semSessao
+        ? 'O painel está no ar, mas a sua sessão expirou — clique para entrar de novo.'
+        : ''
     }
   }
 
@@ -465,12 +473,35 @@ if (typeof document !== 'undefined') {
           + 'No modo demonstração ela funciona inteira.</div></div>'
         return
       }
+      // ⛔ SESSÃO CAÍDA não é "sem dados ainda". Com a sessão expirada o servidor
+      // responde 401 em tudo, e a tela vinha vazia com a mesma frase de quem nunca
+      // abriu o app — o lojista olhava tela por tela sem descobrir que faltava
+      // ENTRAR. Isso só apareceu abrindo o app conectado de verdade (11/09).
+      if (!DEMO && ONLINE && !SESSAO_OK && !DADOS_TELA) {
+        alvo.innerHTML = avisoDeSessao()
+        return
+      }
       alvo.innerHTML = tela.desenhar(DADOS_TELA, { online: !(r && r.offline), ts: (r && r.ts) || 0, demo: DEMO })
       if (silencioso) alvo.scrollTop = rolagem
     } catch (e) {
       if (silencioso) return      // falhou a atualização automática: mantém o que está na tela
       alvo.innerHTML = '<div class="ecard"><div class="evazio">' + tela.erro + '</div></div>'
     }
+  }
+
+  /** O que a tela diz quando o painel responde mas recusa: falta entrar. O botão leva
+   *  para a tela de login do painel, dentro do app — digitar a senha é do lojista. */
+  function avisoDeSessao() {
+    return '<div class="ecard" style="padding:34px 30px;text-align:center;animation:eloFadeUp .4s ease both">'
+      + '<div style="font-size:17px;font-weight:800;color:#111;margin-bottom:8px">Sua sessão expirou</div>'
+      + '<div style="font-size:13.5px;color:#6b7280;font-weight:500;line-height:1.6;max-width:460px;margin:0 auto">'
+      + 'O painel está no ar e o app está conectado — o que falta é entrar de novo com o seu '
+      + 'login. Enquanto isso, as telas ficam sem dado.</div>'
+      + '<div style="margin-top:18px"><button type="button" data-acao="sessao:entrar" '
+      + 'style="height:40px;padding:0 20px;border:none;border-radius:10px;background:var(--acento);color:#fff;'
+      + 'font-family:inherit;font-size:13px;font-weight:800;cursor:pointer">Entrar no painel</button></div>'
+      + '<div style="font-size:11.5px;color:#9ca3af;font-weight:600;margin-top:14px">'
+      + 'O que já estava guardado continua aparecendo nas telas que têm cache.</div></div>'
   }
 
   // A fila de produção se atualiza sozinha a cada 5s, como no painel — é o que a própria
@@ -1292,6 +1323,11 @@ if (typeof document !== 'undefined') {
           .catch(() => avisar('Não deu para abrir o mapa.', 'erro'))
         return
       }
+      if (acao === 'sessao:entrar') {
+        avisar('Abrindo a tela de entrada do painel…', 'aviso')
+        ipcRenderer.invoke('abrir-rota', '/admin').catch(() => avisar('Não deu para abrir o painel.', 'erro'))
+        return
+      }
       if (acao === 'cardapio:preco:cancelar') { fecharFicha(); return }
       if (acao.indexOf('cardapio:preco:confirmar:') === 0) {
         const item = produtoDoCardapio(acao.slice('cardapio:preco:confirmar:'.length))
@@ -2098,6 +2134,17 @@ if (typeof document !== 'undefined') {
     ONLINE = online
     pintar()
     if (online) { carregarMenu(); if (ehNativa(ROTA)) carregarTelaNativa(ROTA) }
+  })
+  // A sessão caiu ou voltou. Quando volta, recarrega tudo: o lojista acabou de entrar
+  // e não deve precisar clicar em nada para os números aparecerem.
+  ipcRenderer.on('sessao-mudou', (e, ok) => {
+    const mudou = SESSAO_OK !== ok
+    SESSAO_OK = ok
+    pintar()
+    if (mudou) {
+      if (ok) { carregarMenu(); if (ehNativa(ROTA)) carregarTelaNativa(ROTA) }
+      else redesenharTelaAtual()
+    }
   })
   ipcRenderer.on('view-changed', (e, a) => {
     VIEW = (a && a.view) || 'cardapio'
