@@ -2,6 +2,7 @@ const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, session, net, scre
 const { autoUpdater } = require('electron-updater')
 const { createClient } = require('@supabase/supabase-js')
 const path = require('path')
+const fs = require('fs')
 const url = require('url')
 const log = require('electron-log')
 
@@ -61,7 +62,8 @@ const { impressaoController } = require('./controllers/impressao.controller')
 
 const CARDAPIO_URL = getConfig().cardapioUrl
 const WA_URL = 'https://web.whatsapp.com'
-const WA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+// Acompanha o Chromium embutido no Electron: um Chrome fixo e velho faz o WhatsApp Web cair em caminho degradado com o tempo.
+const WA_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${(process.versions.chrome || '126.0.0.0').split('.')[0]}.0.0.0 Safari/537.36`
 const CSS_NO_SCROLL = `
   ::-webkit-scrollbar,
   ::-webkit-scrollbar-button,
@@ -447,7 +449,26 @@ async function createWindow() {
   global.mainWindow.addBrowserView(global.cardapioView)
   global.mainWindow.addBrowserView(global.whatsappView)
   global.whatsappView.webContents.setUserAgent(WA_USER_AGENT)
-  global.whatsappView.webContents.loadURL(WA_URL).catch((e) => log.error('[VIEW whatsapp] load inicial falhou:', e && e.message))
+  // Manutenção semanal: cache e service workers do WhatsApp Web só crescem com as versões novas e
+  // deixam o carregamento cada vez mais lento. NÃO toca no IndexedDB (é onde mora o login).
+  async function manutencaoCacheWhatsapp() {
+    try {
+      const marca = path.join(app.getPath('userData'), 'wa-manutencao.json')
+      let ultima = 0
+      try { ultima = JSON.parse(fs.readFileSync(marca, 'utf8')).ts || 0 } catch (_) {}
+      if (Date.now() - ultima < 7 * 24 * 60 * 60 * 1000) return
+      await global.whatsappView.webContents.session.clearStorageData({
+        origin: WA_URL,
+        storages: ['serviceworkers', 'cachestorage'],
+      })
+      await global.whatsappView.webContents.session.clearCache()
+      fs.writeFileSync(marca, JSON.stringify({ ts: Date.now() }))
+      log.info('[WA] manutenção semanal do cache concluída')
+    } catch (e) { log.warn('[WA] manutenção do cache falhou:', e && e.message) }
+  }
+  manutencaoCacheWhatsapp().finally(() => {
+    global.whatsappView.webContents.loadURL(WA_URL).catch((e) => log.error('[VIEW whatsapp] load inicial falhou:', e && e.message))
+  })
 
   // ── Blindagem: view NUNCA vira zumbi ──────────────────────────────────────
   // Antes não havia recuperação nenhuma: se o renderer de uma view morria
@@ -588,6 +609,28 @@ async function createWindow() {
       }
     } catch (_) {}
   }, 4000)
+
+  // Auto-cura: o WhatsApp Web às vezes corrompe o IndexedDB e mostra "Ocorreu um erro no
+  // banco de dados do seu navegador" com o QR girando para sempre. Só dispara enquanto
+  // NÃO está logado (#side ausente), então nunca derruba uma sessão que funciona.
+  let _waUltimaCuraDb = 0
+  setInterval(async () => {
+    try {
+      const wc = global.whatsappView?.webContents
+      if (!wc || wc.isDestroyed() || _waConectadoDetectado) return
+      if (Date.now() - _waUltimaCuraDb < 2 * 60 * 1000) return
+      const comErro = await wc.executeJavaScript(
+        `!document.querySelector('#side') && /erro no banco de dados|database error/i.test(document.body ? document.body.innerText : '')`)
+      if (!comErro) return
+      _waUltimaCuraDb = Date.now()
+      log.warn('[WA] erro de banco de dados do navegador → limpando IndexedDB/cache do WhatsApp Web')
+      await wc.session.clearStorageData({
+        origin: WA_URL,
+        storages: ['indexdb', 'serviceworkers', 'cachestorage'],
+      })
+      wc.loadURL(WA_URL).catch(() => {})
+    } catch (e) { log.warn('[WA] auto-cura do banco falhou:', e && e.message) }
+  }, 10 * 1000)
 
   // Detecção de auth via DOM — fallback quando api.js não dispara 'authenticated'
   setInterval(async () => {
